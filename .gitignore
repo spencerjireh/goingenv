@@ -19,9 +19,11 @@
 go.work
 
 # Built binaries
-goingenv
 goingenv-*
 goingenv_*
+/goingenv
+./goingenv
+goingenv.exe
 
 # Development builds
 *-dev
