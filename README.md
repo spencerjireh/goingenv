@@ -4,6 +4,10 @@
 
 GoingEnv is a powerful CLI tool designed to securely manage environment files across your projects. It scans, encrypts, and archives your `.env` files with AES-256 encryption, making it easy to backup, transfer, and restore your environment configurations safely.
 
+> **⚠️ WARNING: Avoid use in sensitive environments**  
+> This tool is created for educational purposes and may contain potential security risks. It has not been audited for production use. Use at your own risk and ensure proper security measures, such as reviewing the code and consulting with security professionals, before using it in sensitive environments.
+
+
 ## 🚀 Features
 
 ### Core Functionality
