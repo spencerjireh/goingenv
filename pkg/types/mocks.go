@@ -147,7 +147,7 @@ func NewMockArchive(description string, files []EnvFile) *Archive {
 		CreatedAt:   time.Now(),
 		Files:       files,
 		TotalSize:   calculateTotalSize(files),
-		FileCount:   len(files),
+		Version:     "1.0.0",
 	}
 }
 

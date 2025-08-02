@@ -2,7 +2,6 @@ package utils
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -38,7 +37,7 @@ func TestSanitizeFilename(t *testing.T) {
 	}{
 		{"Valid filename", "my-file_name.txt", "my-file_name_txt"},
 		{"With spaces", "my file name", "my_file_name"},
-		{"With special chars", "file@#$%.txt", "file____txt"},
+		{"With special chars", "file@#$%.txt", "file_____txt"},
 		{"Empty string", "", ""},
 		{"Only alphanumeric", "abc123", "abc123"},
 	}
@@ -107,154 +106,84 @@ func TestCategorizeEnvFile(t *testing.T) {
 	}
 }
 
-func TestEnsureDir(t *testing.T) {
-	// Create a temporary directory
-	tmpDir, err := os.MkdirTemp("", "test-ensure-dir-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Test creating a new directory
-	newDir := filepath.Join(tmpDir, "new", "nested", "dir")
-	err = EnsureDir(newDir)
-	if err != nil {
-		t.Errorf("EnsureDir failed: %v", err)
-	}
-
-	// Check if directory was created
-	if _, err := os.Stat(newDir); os.IsNotExist(err) {
-		t.Error("Directory was not created")
-	}
-
-	// Test with existing directory (should not error)
-	err = EnsureDir(newDir)
-	if err != nil {
-		t.Errorf("EnsureDir failed on existing directory: %v", err)
-	}
-}
-
-func TestFileExists(t *testing.T) {
-	// Create a temporary file
-	tmpFile, err := os.CreateTemp("", "test-exists-*.txt")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	tmpFile.Close()
-	defer os.Remove(tmpFile.Name())
-
-	// Test existing file
-	if !FileExists(tmpFile.Name()) {
-		t.Error("FileExists returned false for existing file")
-	}
-
-	// Test non-existing file
-	if FileExists("/path/that/does/not/exist") {
-		t.Error("FileExists returned true for non-existing file")
-	}
-}
-
-func TestGetFileSize(t *testing.T) {
-	// Create a temporary file with known content
-	tmpFile, err := os.CreateTemp("", "test-size-*.txt")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tmpFile.Name())
-
-	testContent := "Test content for size calculation"
-	expectedSize := int64(len(testContent))
-
-	if _, err := tmpFile.WriteString(testContent); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
-	}
-	tmpFile.Close()
-
-	// Test file size
-	size, err := GetFileSize(tmpFile.Name())
-	if err != nil {
-		t.Errorf("GetFileSize failed: %v", err)
-	}
-
-	if size != expectedSize {
-		t.Errorf("GetFileSize() = %d; want %d", size, expectedSize)
-	}
-
-	// Test non-existing file
-	_, err = GetFileSize("/path/that/does/not/exist")
-	if err == nil {
-		t.Error("GetFileSize should fail for non-existing file")
-	}
-}
-
-func TestIsValidEnvFile(t *testing.T) {
+func TestJoinResults(t *testing.T) {
 	tests := []struct {
 		name     string
-		filename string
-		expected bool
+		input    []string
+		expected string
 	}{
-		{"Valid .env", ".env", true},
-		{"Valid .env.local", ".env.local", true},
-		{"Valid .env.development", ".env.development", true},
-		{"Valid .env.production", ".env.production", true},
-		{"Valid .env.test", ".env.test", true},
-		{"Valid .env.staging", ".env.staging", true},
-		{"Invalid extension", "file.txt", false},
-		{"No extension", "env", false},
-		{"Wrong pattern", "env.local", false},
-		{"Empty string", "", false},
+		{
+			name:     "Empty slice",
+			input:    []string{},
+			expected: "",
+		},
+		{
+			name:     "Single item",
+			input:    []string{"first"},
+			expected: "  • first",
+		},
+		{
+			name:     "Multiple items",
+			input:    []string{"first", "second", "third"},
+			expected: "  • first\n  • second\n  • third",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := IsValidEnvFile(tt.filename)
+			result := JoinResults(tt.input)
 			if result != tt.expected {
-				t.Errorf("IsValidEnvFile(%s) = %v; want %v", tt.filename, result, tt.expected)
+				t.Errorf("JoinResults(%v) = %q; want %q", tt.input, result, tt.expected)
 			}
 		})
 	}
 }
 
-func TestGetRelativePath(t *testing.T) {
+func TestFilterFilesByPatterns(t *testing.T) {
 	tests := []struct {
 		name     string
-		basePath string
-		fullPath string
-		expected string
-		wantErr  bool
+		files    []string
+		patterns []string
+		expected []string
 	}{
 		{
-			name:     "Simple relative path",
-			basePath: "/home/user",
-			fullPath: "/home/user/project/.env",
-			expected: "project/.env",
-			wantErr:  false,
+			name:     "No matches",
+			files:    []string{"file1.txt", "file2.go"},
+			patterns: []string{"*.env"},
+			expected: []string{},
 		},
 		{
-			name:     "Same directory",
-			basePath: "/home/user",
-			fullPath: "/home/user/.env",
-			expected: ".env",
-			wantErr:  false,
+			name:     "Some matches",
+			files:    []string{".env", "file.txt", ".env.local"},
+			patterns: []string{"*.env*"},
+			expected: []string{".env", ".env.local"},
 		},
 		{
-			name:     "Complex nested path",
-			basePath: "/home/user/projects",
-			fullPath: "/home/user/projects/app/config/.env.local",
-			expected: "app/config/.env.local",
-			wantErr:  false,
+			name:     "Multiple patterns",
+			files:    []string{".env", "config.yaml", ".env.local", "app.json"},
+			patterns: []string{"*.env*", "*.yaml"},
+			expected: []string{".env", "config.yaml", ".env.local"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := GetRelativePath(tt.basePath, tt.fullPath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetRelativePath() error = %v, wantErr %v", err, tt.wantErr)
+			result := FilterFilesByPatterns(tt.files, tt.patterns)
+			if len(result) != len(tt.expected) {
+				t.Errorf("FilterFilesByPatterns() = %v; want %v", result, tt.expected)
 				return
 			}
-			if result != tt.expected {
-				t.Errorf("GetRelativePath() = %s; want %s", result, tt.expected)
+			
+			// Check each expected item is in result
+			expectedMap := make(map[string]bool)
+			for _, expected := range tt.expected {
+				expectedMap[expected] = true
+			}
+			
+			for _, item := range result {
+				if !expectedMap[item] {
+					t.Errorf("Unexpected item in result: %s", item)
+				}
 			}
 		})
 	}
