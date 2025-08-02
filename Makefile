@@ -81,28 +81,79 @@ lint:
 		echo "⚠️  golangci-lint not installed. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
 	fi
 
-# Run tests
+# Test targets
 test:
-	@echo "Running tests..."
+	@echo "Running all tests..."
 	go test -v ./...
-	@echo "✅ Tests completed"
+	@echo "✅ All tests completed"
 
-# Run tests with coverage
+test-unit:
+	@echo "Running unit tests..."
+	go test -v -short ./pkg/... ./internal/...
+	@echo "✅ Unit tests completed"
+
+test-integration:
+	@echo "Running integration tests..."
+	go test -v -run TestFull ./test/integration/...
+	@echo "✅ Integration tests completed"
+
 test-coverage:
 	@echo "Running tests with coverage..."
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "✅ Coverage report generated: coverage.html"
+	@echo "📊 Coverage summary:"
+	@go tool cover -func=coverage.out | tail -1
 
-# Run benchmarks
-bench:
+test-coverage-ci:
+	@echo "Running tests with coverage for CI..."
+	go test -race -coverprofile=coverage.out -covermode=atomic ./...
+	@go tool cover -func=coverage.out
+
+test-watch:
+	@echo "Running tests in watch mode (requires entr)..."
+	@if command -v entr >/dev/null 2>&1; then \
+		find . -name '*.go' | entr -c go test ./...; \
+	else \
+		echo "⚠️  entr not installed. Install with your package manager."; \
+	fi
+
+test-verbose:
+	@echo "Running tests with verbose output..."
+	go test -v -race ./... -args -test.v
+
+test-bench:
 	@echo "Running benchmarks..."
 	go test -bench=. -benchmem ./...
 	@echo "✅ Benchmarks completed"
 
+test-clean:
+	@echo "Cleaning test artifacts..."
+	rm -f coverage.out coverage.html
+	rm -rf test/tmp/*
+	go clean -testcache
+	@echo "✅ Test artifacts cleaned"
+
+# Mock generation (if using gomock)
+generate-mocks:
+	@echo "Generating mocks..."
+	@if command -v mockgen >/dev/null 2>&1; then \
+		mockgen -source=pkg/types/types.go -destination=pkg/types/mocks_generated.go -package=types; \
+		echo "✅ Mocks generated"; \
+	else \
+		echo "⚠️  mockgen not installed. Install with: go install github.com/golang/mock/mockgen@latest"; \
+	fi
+
+# Run benchmarks
+bench: test-bench
+
 # Run all checks (format, vet, lint, test)
 check: fmt vet lint test
 	@echo "✅ All checks passed"
+
+# Run comprehensive checks including integration tests
+check-full: fmt vet lint test-unit test-integration
+	@echo "✅ All comprehensive checks passed"
 
 # Build for all platforms
 build-all: build-linux build-darwin build-windows
@@ -308,10 +359,21 @@ help:
 	@echo "  fmt            - Format code"
 	@echo "  vet            - Vet code for issues"
 	@echo "  lint           - Run linter (requires golangci-lint)"
-	@echo "  test           - Run tests"
-	@echo "  test-coverage  - Run tests with coverage report"
-	@echo "  bench          - Run benchmarks"
 	@echo "  check          - Run all checks (fmt, vet, lint, test)"
+	@echo "  check-full     - Run comprehensive checks including integration tests"
+	@echo ""
+	@echo "Test Commands:"
+	@echo "  test           - Run all tests"
+	@echo "  test-unit      - Run unit tests only"
+	@echo "  test-integration - Run integration tests only"
+	@echo "  test-coverage  - Run tests with coverage report"
+	@echo "  test-coverage-ci - Run tests with coverage for CI"
+	@echo "  test-watch     - Run tests in watch mode (requires entr)"
+	@echo "  test-verbose   - Run tests with verbose output"
+	@echo "  test-bench     - Run benchmarks"
+	@echo "  test-clean     - Clean test artifacts"
+	@echo "  generate-mocks - Generate mock implementations"
+	@echo "  bench          - Run benchmarks"
 	@echo ""
 	@echo "Release Commands:"
 	@echo "  release        - Create release archives"
@@ -349,7 +411,9 @@ help:
 	@echo "  make release                  # Create release for all platforms"
 
 # Phony targets
-.PHONY: build dev release-build clean deps fmt vet lint test test-coverage bench check \
-        build-all build-linux build-darwin build-windows install uninstall release checksums \
-        run run-pack run-unpack run-list run-status demo clean-demo demo-scenario \
-        dev-server profile profile-mem security-scan vuln-check docs stats help
+.PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration \
+        test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
+        generate-mocks bench check check-full build-all build-linux build-darwin \
+        build-windows install uninstall release checksums run run-pack run-unpack \
+        run-list run-status demo clean-demo demo-scenario dev-server profile \
+        profile-mem security-scan vuln-check docs stats help

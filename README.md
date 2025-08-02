@@ -277,6 +277,57 @@ goingenv status
 6. **Content Viewer**: Browse archive contents
 7. **Status Display**: Current directory and archive information
 
+## 🧪 Testing
+
+GoingEnv includes a comprehensive testing strategy to ensure reliability and security.
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run with coverage report
+make test-coverage
+
+# Run only unit tests
+make test-unit
+
+# Run integration tests
+make test-integration
+
+# Run tests in watch mode
+make test-watch
+```
+
+### Test Categories
+
+- **Unit Tests**: Test individual functions and components in isolation
+- **Integration Tests**: Test complete workflows and component interactions
+- **Performance Tests**: Benchmark critical operations like encryption and file scanning
+- **Mock Tests**: Use mock implementations to test interfaces without dependencies
+
+### Coverage
+
+The project maintains high test coverage across:
+- ✅ Encryption/decryption operations
+- ✅ File scanning and validation
+- ✅ Archive creation and extraction
+- ✅ Error handling scenarios
+- ✅ Configuration management
+
+### Test Structure
+
+```
+test/
+├── integration/           # End-to-end tests
+├── testutils/            # Test utilities and helpers
+pkg/types/mocks.go        # Mock implementations
+internal/*/***_test.go    # Unit tests alongside source
+```
+
+For detailed testing documentation, see [TEST.md](TEST.md).
+
 ## 🔧 Troubleshooting
 
 ### Common Issues
@@ -307,6 +358,18 @@ chmod 644 .goingenv/*.enc
 - Verify the scan directory is correct
 - Increase scan depth if files are in subdirectories
 
+**Test failures**
+```bash
+# Run tests with verbose output
+make test-verbose
+
+# Clean test cache and artifacts
+make test-clean
+
+# Check specific test
+go test -v -run TestSpecificFunction ./pkg/utils
+```
+
 ### Debug Mode
 
 Enable verbose output by modifying the source code or by checking file operations:
@@ -317,6 +380,9 @@ find . -name ".env*" -type f | head -20
 
 # Test file patterns
 grep -r "\.env" . --include="*.env*"
+
+# Run with race detector
+go test -race ./...
 ```
 
 ## 🚀 Development
@@ -343,22 +409,46 @@ goingenv/
 # Install dependencies
 go mod tidy
 
-# Run tests (if available)
-go test ./...
+# Run tests
+make test
+
+# Run all quality checks
+make check-full
 
 # Build development version
-go build -race -o goingenv-dev
+make dev
 
 # Build optimized release version
-go build -ldflags="-s -w" -o goingenv
+make release-build
+
+# Build for all platforms
+make build-all
 ```
 
 ### Contributing
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Add comprehensive tests for new functionality
+5. Run `make check-full` to ensure all tests pass
+6. Update documentation as needed
+7. Submit a pull request
+
+### Development Workflow
+```bash
+# Set up development environment
+git clone <your-fork>
+cd goingenv
+make deps
+
+# Make changes and test
+make test-watch          # Run tests in watch mode during development
+make check-full          # Full validation before committing
+
+# Build and test
+make build
+./goingenv --help
+```
 
 ## 📄 License
 
