@@ -120,9 +120,9 @@ jobs:
         
         required_sections=(
           "# GoingEnv"
-          "## Quick Start"
-          "## Installation"
-          "## Usage"
+          "## 🚀 Quick Start"
+          "## ✨ Key Features"
+          "## 📖 Documentation"
         )
         
         missing_sections=()
