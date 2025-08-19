@@ -180,7 +180,12 @@ jobs:
     - name: Create archive
       run: |
         ARCHIVE_NAME="goingenv-v${{ needs.validate.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
-        tar -czf "$ARCHIVE_NAME" goingenv-${{ matrix.goos }}-${{ matrix.goarch }}
+        
+        # Copy binary to standard name for archive
+        cp goingenv-${{ matrix.goos }}-${{ matrix.goarch }} goingenv
+        
+        # Create archive with standard binary name
+        tar -czf "$ARCHIVE_NAME" goingenv
         
         # Generate checksum
         sha256sum "$ARCHIVE_NAME" > "$ARCHIVE_NAME.sha256"
