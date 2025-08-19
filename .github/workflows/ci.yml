@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [ main, develop ]
+    tags-ignore: [ '**' ]  # Don't run CI on tag pushes (release workflow handles this)
     paths-ignore:
       - '**.md'
       - 'docs/**'

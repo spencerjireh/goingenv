@@ -3,6 +3,7 @@ name: Documentation
 on:
   push:
     branches: [main, develop]
+    tags-ignore: [ '**' ]  # Don't run docs CI on tag pushes
     paths:
       - '**.md'
       - 'docs/**'
