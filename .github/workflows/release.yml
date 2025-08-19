@@ -381,9 +381,9 @@ jobs:
         curl -sSL "$ARCHIVE_URL" -o test-binary.tar.gz
         tar -xzf test-binary.tar.gz
         
-        # Test binary
-        ./goingenv-$PLATFORM --version
-        ./goingenv-$PLATFORM --help >/dev/null
+        # Test binary (archive now contains just 'goingenv')
+        ./goingenv --version
+        ./goingenv --help >/dev/null
         
         echo "✅ Direct download and execution successful"
 
