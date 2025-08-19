@@ -147,9 +147,11 @@ jobs:
           -o goingenv-$GOOS-$GOARCH \
           ./cmd/goingenv
         
-        # Verify binary
+        # Verify binary (only for compatible platform)
         if [[ "$GOOS" == "$(go env GOOS)" && "$GOARCH" == "$(go env GOARCH)" ]]; then
           ./goingenv-$GOOS-$GOARCH --version
+        else
+          echo "✅ Cross-compiled binary for $GOOS/$GOARCH (verification skipped)"
         fi
         
         echo "✅ Binary built successfully"
