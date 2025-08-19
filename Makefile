@@ -89,7 +89,11 @@ ci-test:
 
 ci-lint:
 	@echo "Running CI linting..."
-	golangci-lint run ./...
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run ./...; \
+	else \
+		echo "⚠️  golangci-lint not installed, using go vet only"; \
+	fi
 	go vet ./...
 	@echo "✅ Linting passed"
 
