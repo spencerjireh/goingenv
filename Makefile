@@ -35,6 +35,51 @@ release-build:
 	go build $(LDFLAGS) -trimpath -o $(BINARY_NAME) $(MAIN_PATH)
 	@echo "✅ Release build completed: $(BINARY_NAME)"
 
+# Build release binaries for all supported platforms
+release-all:
+	@echo "Building release binaries for all platforms..."
+	@mkdir -p dist
+	
+	# Linux AMD64
+	@echo "Building for Linux AMD64..."
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
+	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-linux-amd64.tar.gz $(BINARY_NAME)-linux-amd64
+	
+	# Linux ARM64
+	@echo "Building for Linux ARM64..."
+	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
+	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-linux-arm64.tar.gz $(BINARY_NAME)-linux-arm64
+	
+	# macOS AMD64
+	@echo "Building for macOS AMD64..."
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
+	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-darwin-amd64.tar.gz $(BINARY_NAME)-darwin-amd64
+	
+	# macOS ARM64 (Apple Silicon)
+	@echo "Building for macOS ARM64..."
+	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
+	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64
+	
+	@echo "✅ Release binaries created in dist/ directory"
+	@echo "Archives ready for GitHub release:"
+	@ls -la dist/*.tar.gz
+
+# Create checksums for release files
+release-checksums:
+	@echo "Generating checksums..."
+	@cd dist && sha256sum *.tar.gz > checksums.txt
+	@echo "✅ Checksums generated in dist/checksums.txt"
+
+# Complete release preparation
+release: clean release-all release-checksums
+	@echo "🎉 Release v$(VERSION) prepared successfully!"
+	@echo ""
+	@echo "Upload these files to GitHub release:"
+	@ls -la dist/
+	@echo ""
+	@echo "Install script download URL will be:"
+	@echo "https://github.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/releases/download/v$(VERSION)/"
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
@@ -414,6 +459,6 @@ help:
 .PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration \
         test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
         generate-mocks bench check check-full build-all build-linux build-darwin \
-        build-windows install uninstall release checksums run run-pack run-unpack \
+        build-windows install uninstall release release-all release-checksums checksums run run-pack run-unpack \
         run-list run-status demo clean-demo demo-scenario dev-server profile \
         profile-mem security-scan vuln-check docs stats help

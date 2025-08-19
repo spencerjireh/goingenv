@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
@@ -49,10 +51,15 @@ type Model struct {
 
 	// Data
 	scannedFiles []types.EnvFile
+
+	// Debug logging
+	debugLogger *DebugLogger
 }
 
 // NewModel creates a new TUI model
-func NewModel(app *types.App) *Model {
+func NewModel(app *types.App, verbose bool) *Model {
+	// Initialize debug logger
+	debugLogger := NewDebugLogger(verbose)
 	// Initialize menu items
 	items := []list.Item{
 		MenuItem{
@@ -112,14 +119,23 @@ func NewModel(app *types.App) *Model {
 	// Create progress component
 	prog := progress.New(progress.WithDefaultGradient())
 
-	return &Model{
+	model := &Model{
 		app:           app,
 		currentScreen: ScreenMenu,
 		menu:         l,
 		textInput:    ti,
 		filepicker:   fp,
 		progress:     prog,
+		debugLogger:   debugLogger,
 	}
+
+	// Log initial model creation
+	model.debugLogger.Log("TUI Model initialized with verbose logging: %v", verbose)
+	if verbose {
+		model.debugLogger.Log("Debug log file: %s", debugLogger.GetLogPath())
+	}
+
+	return model
 }
 
 // Init implements tea.Model interface
@@ -164,7 +180,11 @@ type (
 
 // SetScreen changes the current screen
 func (m *Model) SetScreen(screen Screen) {
+	oldScreen := m.currentScreen
 	m.currentScreen = screen
+	
+	// Log screen transition
+	m.debugLogger.LogScreen(oldScreen, screen)
 	
 	// Reset state when changing screens
 	m.message = ""
@@ -175,8 +195,10 @@ func (m *Model) SetScreen(screen Screen) {
 	case ScreenPackPassword, ScreenUnpackPassword, ScreenListPassword:
 		m.textInput.Focus()
 		m.textInput.SetValue("")
+		m.debugLogger.LogOperation("text_input", "focused and cleared for password entry")
 	default:
 		m.textInput.Blur()
+		m.debugLogger.LogOperation("text_input", "blurred")
 	}
 }
 
@@ -184,6 +206,7 @@ func (m *Model) SetScreen(screen Screen) {
 func (m *Model) SetError(err string) {
 	m.error = err
 	m.message = ""
+	m.debugLogger.LogError("user_operation", fmt.Errorf("%s", err))
 	m.SetScreen(ScreenMenu)
 }
 
@@ -191,6 +214,7 @@ func (m *Model) SetError(err string) {
 func (m *Model) SetMessage(msg string) {
 	m.message = msg
 	m.error = ""
+	m.debugLogger.LogMessage("success", msg)
 }
 
 // GetSelectedMenuItem returns the currently selected menu item
@@ -203,8 +227,16 @@ func (m *Model) GetSelectedMenuItem() MenuItem {
 
 // UpdateSize updates the model dimensions
 func (m *Model) UpdateSize(width, height int) {
+	m.debugLogger.LogOperation("resize", fmt.Sprintf("from %dx%d to %dx%d", m.width, m.height, width, height))
 	m.width = width
 	m.height = height
 	m.menu.SetWidth(width)
 	m.menu.SetHeight(height - 4) // Leave space for title and footer
+}
+
+// Cleanup performs cleanup operations, including closing the debug logger
+func (m *Model) Cleanup() {
+	if m.debugLogger != nil {
+		m.debugLogger.Close()
+	}
 }
