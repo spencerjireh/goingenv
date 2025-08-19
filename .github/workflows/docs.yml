@@ -1,0 +1,292 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint-markdown:
+    name: Lint Markdown
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install markdownlint-cli
+      run: npm install -g markdownlint-cli
+
+    - name: Run markdownlint
+      run: |
+        echo "Linting markdown files..."
+        markdownlint \
+          --config .markdownlint.yml \
+          --ignore node_modules \
+          --ignore .git \
+          "**/*.md"
+        echo "✅ Markdown linting completed"
+
+  check-links:
+    name: Check Links
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install markdown-link-check
+      run: npm install -g markdown-link-check
+
+    - name: Check links in markdown files
+      run: |
+        echo "Checking links in markdown files..."
+        
+        # Create config for link checking
+        cat > .markdown-link-check.json << 'EOF'
+        {
+          "ignorePatterns": [
+            {
+              "pattern": "^http://localhost"
+            },
+            {
+              "pattern": "^https://127.0.0.1"
+            }
+          ],
+          "timeout": "10s",
+          "retryOn429": true,
+          "retryCount": 3,
+          "fallbackProtocols": [
+            "http"
+          ]
+        }
+        EOF
+        
+        # Check all markdown files
+        find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*" | \
+        xargs -I {} markdown-link-check {} --config .markdown-link-check.json
+        
+        echo "✅ Link checking completed"
+
+  validate-code-examples:
+    name: Validate Code Examples
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+        check-latest: true
+
+    - name: Extract and validate Go code examples
+      run: |
+        echo "Validating Go code examples in documentation..."
+        
+        # Create script to extract Go code blocks
+        cat > extract_go_code.sh << 'EOF'
+        #!/bin/bash
+        
+        # Extract Go code blocks from markdown files
+        extract_go_blocks() {
+          local file="$1"
+          local temp_dir=$(mktemp -d)
+          local counter=1
+          
+          # Extract code blocks marked as 'go' or 'golang'
+          awk '
+            /^```(go|golang)/ { in_go_block = 1; next }
+            /^```/ && in_go_block { in_go_block = 0; print "---BLOCK_END---"; next }
+            in_go_block { print }
+          ' "$file" | split -p "---BLOCK_END---" - "$temp_dir/code_"
+          
+          # Validate each code block
+          for code_file in "$temp_dir"/code_*; do
+            if [[ -s "$code_file" ]]; then
+              echo "Validating code block $counter from $file..."
+              
+              # Create a temporary Go file
+              temp_go_file="$temp_dir/example_$counter.go"
+              
+              # Add basic package declaration if missing
+              if ! grep -q "^package " "$code_file"; then
+                echo "package main" > "$temp_go_file"
+                echo "" >> "$temp_go_file"
+              fi
+              
+              cat "$code_file" >> "$temp_go_file"
+              
+              # Check syntax
+              if ! go fmt "$temp_go_file" > /dev/null 2>&1; then
+                echo "❌ Syntax error in code block $counter from $file"
+                cat -n "$temp_go_file"
+                rm -rf "$temp_dir"
+                exit 1
+              fi
+              
+              echo "✅ Code block $counter is valid"
+              ((counter++))
+            fi
+          done
+          
+          rm -rf "$temp_dir"
+        }
+        
+        # Process all markdown files
+        find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*" | while read -r file; do
+          if grep -q '```go\|```golang' "$file"; then
+            echo "Processing $file..."
+            extract_go_blocks "$file"
+          fi
+        done
+        
+        echo "✅ All Go code examples validated"
+        EOF
+        
+        chmod +x extract_go_code.sh
+        ./extract_go_code.sh
+
+  validate-install-script:
+    name: Validate Install Script
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate install script syntax
+      run: |
+        echo "Validating install script..."
+        
+        if [[ -f "install.sh" ]]; then
+          # Check syntax
+          bash -n install.sh
+          echo "✅ Install script syntax is valid"
+          
+          # Test help function
+          ./install.sh --help > /dev/null
+          echo "✅ Install script help works"
+          
+          # Test dry run
+          echo "Testing dry run..."
+          DEBUG=1 NO_SUDO=1 SKIP_SHELL_INTEGRATION=1 ./install.sh --version v999.999.999 2>/dev/null || true
+          echo "✅ Install script dry run completed"
+        else
+          echo "⚠️ No install script found"
+        fi
+
+  check-documentation-completeness:
+    name: Check Documentation Completeness
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check required documentation files
+      run: |
+        echo "Checking documentation completeness..."
+        
+        required_files=(
+          "README.md"
+          "INSTALL.md"
+          "USAGE.md"
+          "DEVELOPMENT.md"
+          "SECURITY.md"
+          "CHANGELOG.md"
+        )
+        
+        missing_files=()
+        
+        for file in "${required_files[@]}"; do
+          if [[ -f "$file" ]]; then
+            echo "✅ $file exists"
+            
+            # Check if file is not empty
+            if [[ ! -s "$file" ]]; then
+              echo "⚠️ $file is empty"
+            fi
+          else
+            echo "❌ $file is missing"
+            missing_files+=("$file")
+          fi
+        done
+        
+        if [[ ${#missing_files[@]} -gt 0 ]]; then
+          echo ""
+          echo "Missing documentation files:"
+          printf '  - %s\n' "${missing_files[@]}"
+          exit 1
+        fi
+        
+        echo "✅ All required documentation files are present"
+
+    - name: Check README structure
+      run: |
+        echo "Checking README structure..."
+        
+        required_sections=(
+          "# GoingEnv"
+          "## Quick Start"
+          "## Installation"
+          "## Usage"
+        )
+        
+        missing_sections=()
+        
+        for section in "${required_sections[@]}"; do
+          if grep -q "^$section" README.md; then
+            echo "✅ Section found: $section"
+          else
+            echo "❌ Section missing: $section"
+            missing_sections+=("$section")
+          fi
+        done
+        
+        if [[ ${#missing_sections[@]} -gt 0 ]]; then
+          echo ""
+          echo "Missing README sections:"
+          printf '  - %s\n' "${missing_sections[@]}"
+          exit 1
+        fi
+        
+        echo "✅ README structure is complete"
+
+  success:
+    name: Documentation Checks Passed
+    runs-on: ubuntu-latest
+    needs: [lint-markdown, check-links, validate-code-examples, validate-install-script, check-documentation-completeness]
+    if: success()
+    steps:
+    - name: Success notification
+      run: |
+        echo "🎉 All documentation checks passed!"
+        echo ""
+        echo "✅ Markdown linting"
+        echo "✅ Link checking"
+        echo "✅ Code example validation"
+        echo "✅ Install script validation"
+        echo "✅ Documentation completeness"

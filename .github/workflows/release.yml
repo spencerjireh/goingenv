@@ -81,7 +81,7 @@ jobs:
         check-latest: true
 
     - name: Cache Go modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/go-build
@@ -121,7 +121,7 @@ jobs:
         check-latest: true
 
     - name: Cache Go modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/go-build
@@ -167,7 +167,7 @@ jobs:
         echo "SHA256: $(cat $ARCHIVE_NAME.sha256)"
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: goingenv-v${{ needs.validate.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}
         path: |
@@ -185,7 +185,7 @@ jobs:
         fetch-depth: 0
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: dist/
 
