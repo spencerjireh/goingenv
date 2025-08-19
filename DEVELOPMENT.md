@@ -83,6 +83,12 @@ make lint
 
 # Run all checks
 make check
+
+# CI-related commands
+make ci-full      # Run all CI checks locally
+make ci-test      # Run tests like CI
+make ci-lint      # Run linting like CI
+make ci-build     # Test build like CI
 ```
 
 ## Project Structure
@@ -551,6 +557,73 @@ go tool pprof cpu.prof
 go test -memprofile=mem.prof -bench=.
 go tool pprof mem.prof
 ```
+
+## Continuous Integration
+
+### CI Pipeline
+
+The project uses GitHub Actions for continuous integration with the following checks:
+
+**Test Job:**
+- Runs on Ubuntu and macOS
+- Tests Go 1.21 and 1.22
+- Unit and integration tests
+- Race condition detection
+- Coverage reporting
+
+**Lint Job:**
+- golangci-lint with comprehensive rules
+- Go formatting verification
+- `go vet` static analysis
+- `go mod tidy` verification
+
+**Security Job:**
+- gosec security scanner
+- Nancy vulnerability scanning
+- SARIF report upload
+
+**Build Job:**
+- Build verification
+- Cross-compilation testing
+- Makefile target testing
+
+**Install Script Job:**
+- Syntax validation
+- Help function testing
+- Dry run verification
+
+### Running CI Locally
+
+```bash
+# Run full CI suite locally
+make ci-full
+
+# Run individual CI jobs
+make ci-test          # Test job
+make ci-lint          # Lint job  
+make ci-build         # Build job
+make ci-security      # Security job
+make ci-cross-compile # Cross-compilation
+
+# Install required tools for local CI
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+go install github.com/sonatypecommunity/nancy@latest
+```
+
+### CI Configuration
+
+- **Workflow file**: `.github/workflows/ci.yml`
+- **Lint config**: `.golangci.yml`
+- **Skip triggers**: Changes to `*.md` files only
+
+### Branch Protection
+
+When enabled, the following rules apply:
+- All CI checks must pass
+- Branches must be up-to-date
+- At least one review required
+- Admin enforcement enabled
 
 ## Getting Help
 

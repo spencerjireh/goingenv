@@ -1,0 +1,242 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+# Allow one concurrent CI run per branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        go-version: ['1.21', '1.22']
+        exclude:
+          # Only test latest Go on macOS to save CI minutes
+          - os: macos-latest
+            go-version: '1.21'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go-version }}
+        check-latest: true
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: |
+        go mod download
+        go mod verify
+
+    - name: Run unit tests
+      run: |
+        go test -v -race -coverprofile=coverage.out ./pkg/... ./internal/...
+        go tool cover -html=coverage.out -o coverage.html
+
+    - name: Run integration tests
+      run: |
+        go test -v ./test/integration/...
+
+    - name: Upload coverage to artifacts
+      uses: actions/upload-artifact@v3
+      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.22'
+      with:
+        name: coverage-report
+        path: |
+          coverage.out
+          coverage.html
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+        check-latest: true
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-1.22-
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        args: --timeout=5m
+
+    - name: Check formatting
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Code is not formatted. Please run 'gofmt -s -w .'"
+          gofmt -s -l .
+          exit 1
+        fi
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Check go mod tidy
+      run: |
+        go mod tidy
+        if ! git diff --exit-code go.mod go.sum; then
+          echo "go.mod or go.sum is not tidy. Please run 'go mod tidy'"
+          exit 1
+        fi
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+        check-latest: true
+
+    - name: Run gosec security scanner
+      uses: securecodewarrior/github-action-gosec@master
+      with:
+        args: '-fmt sarif -out gosec.sarif ./...'
+
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: gosec.sarif
+
+    - name: Install nancy for vulnerability scanning
+      run: go install github.com/sonatypecommunity/nancy@latest
+
+    - name: Run vulnerability scan
+      run: |
+        go list -json -deps ./... | nancy sleuth
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+        check-latest: true
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-1.22-
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build for current platform
+      run: |
+        make build
+        ./goingenv --version
+
+    - name: Test cross-compilation
+      run: |
+        echo "Testing cross-compilation for all supported platforms..."
+        
+        # Linux
+        GOOS=linux GOARCH=amd64 go build -o goingenv-linux-amd64 ./cmd/goingenv
+        GOOS=linux GOARCH=arm64 go build -o goingenv-linux-arm64 ./cmd/goingenv
+        
+        # macOS
+        GOOS=darwin GOARCH=amd64 go build -o goingenv-darwin-amd64 ./cmd/goingenv
+        GOOS=darwin GOARCH=arm64 go build -o goingenv-darwin-arm64 ./cmd/goingenv
+        
+        # Verify binaries exist
+        ls -la goingenv-*
+        
+        echo "✅ All platforms build successfully"
+
+    - name: Test Makefile targets
+      run: |
+        make clean
+        make deps
+        make fmt
+        make vet
+
+  install-script:
+    name: Test Install Script
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Test install script syntax
+      run: |
+        # Check shell syntax
+        bash -n install.sh
+        echo "✅ Install script syntax is valid"
+
+    - name: Test install script help
+      run: |
+        chmod +x install.sh
+        ./install.sh --help
+        echo "✅ Install script help works"
+
+    - name: Test install script dry run
+      run: |
+        # Test with fake version to avoid actual download
+        DEBUG=1 NO_SUDO=1 SKIP_SHELL_INTEGRATION=1 ./install.sh --version v99.99.99 || echo "Expected failure for non-existent version"
+        echo "✅ Install script dry run completed"

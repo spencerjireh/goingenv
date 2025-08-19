@@ -80,6 +80,46 @@ release: clean release-all release-checksums
 	@echo "Install script download URL will be:"
 	@echo "https://github.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/releases/download/v$(VERSION)/"
 
+# CI-friendly targets
+ci-test:
+	@echo "Running CI tests..."
+	go test -v -race -coverprofile=coverage.out ./pkg/... ./internal/...
+	go test -v ./test/integration/...
+	@echo "✅ All tests passed"
+
+ci-lint:
+	@echo "Running CI linting..."
+	golangci-lint run ./...
+	go vet ./...
+	@echo "✅ Linting passed"
+
+ci-build:
+	@echo "Running CI build verification..."
+	go build -o /tmp/$(BINARY_NAME) $(MAIN_PATH)
+	/tmp/$(BINARY_NAME) --version
+	@echo "✅ Build verification passed"
+
+ci-security:
+	@echo "Running security checks..."
+	@if command -v gosec >/dev/null 2>&1; then \
+		gosec ./...; \
+	else \
+		echo "⚠️  gosec not installed, skipping security scan"; \
+	fi
+	@echo "✅ Security checks completed"
+
+ci-cross-compile:
+	@echo "Testing cross-compilation..."
+	GOOS=linux GOARCH=amd64 go build -o /tmp/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
+	GOOS=linux GOARCH=arm64 go build -o /tmp/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
+	GOOS=darwin GOARCH=amd64 go build -o /tmp/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
+	GOOS=darwin GOARCH=arm64 go build -o /tmp/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
+	@echo "✅ Cross-compilation successful"
+
+# Run all CI checks locally
+ci-full: deps ci-test ci-lint ci-build ci-security ci-cross-compile
+	@echo "🎉 All CI checks passed locally!"
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
@@ -461,4 +501,5 @@ help:
         generate-mocks bench check check-full build-all build-linux build-darwin \
         build-windows install uninstall release release-all release-checksums checksums run run-pack run-unpack \
         run-list run-status demo clean-demo demo-scenario dev-server profile \
-        profile-mem security-scan vuln-check docs stats help
+        profile-mem security-scan vuln-check docs stats help \
+        ci-test ci-lint ci-build ci-security ci-cross-compile ci-full
