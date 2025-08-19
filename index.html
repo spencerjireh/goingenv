@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoingEnv - Tutorial and Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+        }
+
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        nav {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        nav li {
+            margin: 0;
+        }
+
+        nav a {
+            display: block;
+            padding: 1rem 1.5rem;
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        nav a:hover {
+            background-color: #f8f9fa;
+            color: #667eea;
+        }
+
+        main {
+            background: white;
+            margin: 2rem 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        section {
+            padding: 2rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        section:last-child {
+            border-bottom: none;
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+            font-weight: 400;
+        }
+
+        h3 {
+            color: #333;
+            margin: 1.5rem 0 1rem 0;
+            font-size: 1.3rem;
+        }
+
+        h4 {
+            color: #555;
+            margin: 1rem 0 0.5rem 0;
+            font-size: 1.1rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: #666;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', 'Source Code Pro', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1.5rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', 'Source Code Pro', monospace;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .warning strong {
+            color: #856404;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .feature-card h4 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-list {
+            counter-reset: step-counter;
+        }
+
+        .step {
+            counter-increment: step-counter;
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            position: relative;
+            padding-left: 4rem;
+        }
+
+        .step::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 1rem;
+            top: 1rem;
+            background: #667eea;
+            color: white;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .install-button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 1rem 2rem;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            margin: 1rem 0;
+            transition: background-color 0.3s;
+        }
+
+        .install-button:hover {
+            background: #5a6fd8;
+        }
+
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .command-example {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .command-header {
+            background: #e9ecef;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .command-body {
+            padding: 1rem;
+        }
+
+        footer {
+            background: #343a40;
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+            margin-top: 3rem;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            nav ul {
+                flex-direction: column;
+            }
+            
+            nav a {
+                text-align: center;
+            }
+            
+            .command-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>GoingEnv</h1>
+            <p>Secure Environment File Manager with Encryption</p>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#installation">Installation</a></li>
+                <li><a href="#quick-start">Quick Start</a></li>
+                <li><a href="#tutorials">Tutorials</a></li>
+                <li><a href="#cli-reference">CLI Reference</a></li>
+                <li><a href="#examples">Examples</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section id="overview">
+            <h2>Overview</h2>
+            <p>GoingEnv is a command-line tool that helps you securely manage environment files across different projects and environments. It scans, encrypts, and archives your <code>.env</code> files with military-grade AES-256 encryption.</p>
+            
+            <div class="warning">
+                <strong>⚠️ Educational purposes only.</strong> This tool has not been audited for production use. Use at your own risk in sensitive environments.
+            </div>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>🔍 Smart Scanning</h4>
+                    <p>Automatically detects <code>.env</code>, <code>.env.local</code>, <code>.env.production</code>, and other environment files in your project directory.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔐 AES-256 Encryption</h4>
+                    <p>Military-grade security with PBKDF2 key derivation ensures your sensitive environment variables are protected.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🎨 Beautiful Interface</h4>
+                    <p>Interactive terminal interface (TUI) with real-time preview and easy navigation for beginners.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📦 Archive Management</h4>
+                    <p>Creates compressed, encrypted archives with metadata and integrity checks using SHA-256 checksums.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🚀 Dual Modes</h4>
+                    <p>Perfect for both interactive use (TUI) and automation (CLI) with comprehensive command-line options.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔄 Cross-Platform</h4>
+                    <p>Works seamlessly on Linux and macOS (both Intel and Apple Silicon architectures).</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="installation">
+            <h2>Installation</h2>
+            
+            <h3>One-Line Installation (Recommended)</h3>
+            <p>The easiest way to install GoingEnv is using our automated installer:</p>
+            
+            <pre><code>curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash</code></pre>
+            
+            <h3>Install Specific Version</h3>
+            <pre><code>curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v0.1.0-beta.11</code></pre>
+            
+            <h3>Development Version</h3>
+            <p>Install the latest development version with unreleased features:</p>
+            <pre><code>curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh | bash</code></pre>
+            
+            <h3>Custom Installation Directory</h3>
+            <pre><code>curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --dir /opt/bin</code></pre>
+            
+            <h3>Manual Installation</h3>
+            <div class="step-list">
+                <div class="step">
+                    <h4>Download Binary</h4>
+                    <p>Download the appropriate binary for your platform from the <a href="https://github.com/spencerjirehcebrian/goingenv/releases">GitHub releases page</a>.</p>
+                </div>
+                <div class="step">
+                    <h4>Extract Archive</h4>
+                    <pre><code>tar -xzf goingenv-*.tar.gz</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Install Binary</h4>
+                    <pre><code>sudo mv goingenv /usr/local/bin/
+chmod +x /usr/local/bin/goingenv</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Verify Installation</h4>
+                    <pre><code>goingenv --version</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="quick-start">
+            <h2>Quick Start</h2>
+            
+            <h3>Your First Backup</h3>
+            <div class="step-list">
+                <div class="step">
+                    <h4>Navigate to Your Project</h4>
+                    <pre><code>cd /path/to/your/project</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Check What Files Are Detected</h4>
+                    <pre><code>goingenv status</code></pre>
+                    <p>This shows you all the environment files GoingEnv can find in your project.</p>
+                </div>
+                <div class="step">
+                    <h4>Create Your First Backup</h4>
+                    <pre><code>goingenv pack -k "your-secure-password"</code></pre>
+                    <p>This creates an encrypted archive of all your environment files.</p>
+                </div>
+                <div class="step">
+                    <h4>Verify Your Backup</h4>
+                    <pre><code>goingenv list -f backup.enc -k "your-password"</code></pre>
+                    <p>This shows the contents of your encrypted archive without extracting files.</p>
+                </div>
+            </div>
+            
+            <h3>Interactive Mode (Recommended for Beginners)</h3>
+            <p>For a user-friendly experience, simply run:</p>
+            <pre><code>goingenv</code></pre>
+            <p>This launches the interactive terminal interface where you can navigate using arrow keys and follow the guided workflow.</p>
+        </section>
+
+        <section id="tutorials">
+            <h2>Step-by-Step Tutorials</h2>
+            
+            <h3>Tutorial 1: Setting Up Environment Backup</h3>
+            <p>Learn how to create your first environment backup and restore it.</p>
+            
+            <div class="step-list">
+                <div class="step">
+                    <h4>Prepare Your Project</h4>
+                    <p>Create a sample project with environment files:</p>
+                    <pre><code>mkdir my-project && cd my-project
+echo "DATABASE_URL=postgres://localhost:5432/myapp" > .env
+echo "API_KEY=demo-key-12345" > .env.local
+echo "NODE_ENV=development" > .env.development</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Scan for Environment Files</h4>
+                    <p>Check what GoingEnv detects in your project:</p>
+                    <pre><code>goingenv status</code></pre>
+                    <p>You should see output showing the 3 files we just created.</p>
+                </div>
+                <div class="step">
+                    <h4>Create Encrypted Backup</h4>
+                    <p>Create your first encrypted backup:</p>
+                    <pre><code>goingenv pack -k "my-secure-password" -o my-project-backup.enc</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Verify Backup Contents</h4>
+                    <p>List the contents of your backup without extracting:</p>
+                    <pre><code>goingenv list -f my-project-backup.enc -k "my-secure-password"</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Test Restoration</h4>
+                    <p>Move to a new directory and restore your files:</p>
+                    <pre><code>mkdir ../restore-test && cd ../restore-test
+goingenv unpack -f ../my-project/my-project-backup.enc -k "my-secure-password"
+ls -la</code></pre>
+                </div>
+            </div>
+            
+            <h3>Tutorial 2: Team Environment Sharing</h3>
+            <p>Learn how to share environment configurations securely with your team.</p>
+            
+            <div class="step-list">
+                <div class="step">
+                    <h4>Create Team Template</h4>
+                    <p>As a team lead, create a standardized environment template:</p>
+                    <pre><code>cd /path/to/project
+goingenv pack -k "team-shared-password" -o team-env-template.enc</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Share Template</h4>
+                    <p>Share the <code>team-env-template.enc</code> file and password with team members through secure channels.</p>
+                </div>
+                <div class="step">
+                    <h4>Team Member Setup</h4>
+                    <p>New team members can restore the environment:</p>
+                    <pre><code>goingenv unpack -f team-env-template.enc -k "team-shared-password"</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Customize Local Environment</h4>
+                    <p>Create personal environment overrides:</p>
+                    <pre><code>cp .env .env.local
+# Edit .env.local with personal API keys, local database URLs, etc.</code></pre>
+                </div>
+            </div>
+            
+            <h3>Tutorial 3: Deployment Environment Management</h3>
+            <p>Manage different environments for development, staging, and production.</p>
+            
+            <div class="step-list">
+                <div class="step">
+                    <h4>Create Environment-Specific Backups</h4>
+                    <pre><code># Development environment
+goingenv pack -k "dev-password" -o dev-env.enc
+
+# Staging environment
+goingenv pack -k "staging-password" -o staging-env.enc
+
+# Production environment
+goingenv pack -k "prod-password" -o prod-env.enc</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Deploy to Different Environments</h4>
+                    <p>Switch between environments by restoring different backups:</p>
+                    <pre><code># Deploy to staging
+goingenv unpack -f staging-env.enc -k "staging-password" --force
+
+# Deploy to production
+goingenv unpack -f prod-env.enc -k "prod-password" --force</code></pre>
+                </div>
+                <div class="step">
+                    <h4>Automated Deployment Script</h4>
+                    <p>Create a deployment script:</p>
+                    <pre><code>#!/bin/bash
+ENVIRONMENT=${1:-development}
+PASSWORD_FILE="~/.goingenv/${ENVIRONMENT}-password"
+
+if [[ -f "$PASSWORD_FILE" ]]; then
+    PASSWORD=$(cat "$PASSWORD_FILE")
+    goingenv unpack -f "${ENVIRONMENT}-env.enc" -k "$PASSWORD" --force
+    echo "Deployed $ENVIRONMENT environment"
+else
+    echo "Password file not found: $PASSWORD_FILE"
+    exit 1
+fi</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="cli-reference">
+            <h2>CLI Reference</h2>
+            
+            <h3>Global Options</h3>
+            <div class="command-grid">
+                <div class="command-example">
+                    <div class="command-header">Help and Version</div>
+                    <div class="command-body">
+                        <pre><code>goingenv --help
+goingenv --version
+goingenv --verbose</code></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <h3>Core Commands</h3>
+            
+            <h4>Status Command</h4>
+            <p>Check current directory for environment files and available archives.</p>
+            <div class="command-grid">
+                <div class="command-example">
+                    <div class="command-header">Basic Status</div>
+                    <div class="command-body">
+                        <pre><code>goingenv status</code></pre>
+                    </div>
+                </div>
+                <div class="command-example">
+                    <div class="command-header">Verbose Status</div>
+                    <div class="command-body">
+                        <pre><code>goingenv status --verbose</code></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <h4>Pack Command</h4>
+            <p>Create encrypted archives of environment files.</p>
+            <div class="command-grid">
+                <div class="command-example">
+                    <div class="command-header">Basic Pack</div>
+                    <div class="command-body">
+                        <pre><code>goingenv pack
+goingenv pack -k "password"</code></pre>
+                    </div>
+                </div>
+                <div class="command-example">
+                    <div class="command-header">Custom Output</div>
+                    <div class="command-body">
+                        <pre><code>goingenv pack -k "password" -o backup.enc</code></pre>
+                    </div>
+                </div>
+                <div class="command-example">
+                    <div class="command-header">Specific Directory</div>
+                    <div class="command-body">
+                        <pre><code>goingenv pack -k "password" -d /path/to/project</code></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <h4>Unpack Command</h4>
+            <p>Restore files from encrypted archives.</p>
+            <div class="command-grid">
+                <div class="command-example">
+                    <div class="command-header">Basic Unpack</div>
+                    <div class="command-body">
+                        <pre><code>goingenv unpack -f backup.enc
+goingenv unpack -f backup.enc -k "password"</code></pre>
+                    </div>
+                </div>
+                <div class="command-example">
+                    <div class="command-header">Custom Target</div>
+                    <div class="command-body">
+                        <pre><code>goingenv unpack -f backup.enc -k "password" -d /restore/path</code></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <h4>List Command</h4>
+            <p>View contents of encrypted archives without extracting.</p>
+            <div class="command-grid">
+                <div class="command-example">
+                    <div class="command-header">List Archive</div>
+                    <div class="command-body">
+                        <pre><code>goingenv list -f backup.enc -k "password"</code></pre>
+                    </div>
+                </div>
+                <div class="command-example">
+                    <div class="command-header">Detailed Listing</div>
+                    <div class="command-body">
+                        <pre><code>goingenv list -f backup.enc -k "password" --verbose</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="examples">
+            <h2>Real-World Examples</h2>
+            
+            <h3>Daily Backup Script</h3>
+            <p>Automate daily backups of all your projects:</p>
+            <pre><code>#!/bin/bash
+# daily-env-backup.sh
+
+PROJECTS_DIR="$HOME/projects"
+BACKUP_DIR="$HOME/backups/env-files"
+DATE=$(date +%Y%m%d)
+
+mkdir -p "$BACKUP_DIR"
+
+for project in "$PROJECTS_DIR"/*; do
+    if [[ -d "$project" ]]; then
+        project_name=$(basename "$project")
+        backup_file="$BACKUP_DIR/${project_name}_${DATE}.enc"
+        
+        echo "Backing up: $project_name"
+        cd "$project"
+        
+        if goingenv pack -k "$BACKUP_PASSWORD" -o "$backup_file"; then
+            echo "✅ $project_name backed up successfully"
+        else
+            echo "❌ Failed to backup $project_name"
+        fi
+    fi
+done</code></pre>
+            
+            <h3>CI/CD Integration</h3>
+            <p>GitHub Actions workflow for environment backup:</p>
+            <pre><code>name: Environment Backup
+on:
+  push:
+    branches: [main]
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install GoingEnv
+        run: |
+          curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --yes
+      
+      - name: Create Environment Backup
+        run: |
+          goingenv pack -k "${{ secrets.BACKUP_PASSWORD }}" -o "production-backup.enc"
+        env:
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+      
+      - name: Upload Backup Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: environment-backup
+          path: ~/.goingenv/production-backup.enc</code></pre>
+            
+            <h3>Environment Migration</h3>
+            <p>Migrate environment configurations between servers:</p>
+            <pre><code># On source server
+cd /app
+goingenv pack -k "migration-key" -o migration.enc
+
+# Transfer migration.enc to target server
+
+# On target server
+cd /app
+goingenv unpack -f migration.enc -k "migration-key"
+goingenv status  # Verify restored files</code></pre>
+            
+            <h3>Multi-Environment Workflow</h3>
+            <p>Manage multiple environment configurations:</p>
+            <pre><code>#!/bin/bash
+# deploy.sh
+
+ENVIRONMENT=${1:-development}
+
+case $ENVIRONMENT in
+  development)
+    goingenv unpack -f dev-env.enc -k "$DEV_PASSWORD"
+    ;;
+  staging)
+    goingenv unpack -f staging-env.enc -k "$STAGING_PASSWORD"
+    ;;
+  production)
+    goingenv unpack -f prod-env.enc -k "$PROD_PASSWORD"
+    ;;
+  *)
+    echo "Unknown environment: $ENVIRONMENT"
+    exit 1
+    ;;
+esac
+
+echo "Deployed $ENVIRONMENT environment"</code></pre>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 GoingEnv. Open source under MIT License.</p>
+            <p>
+                <a href="https://github.com/spencerjirehcebrian/goingenv">GitHub Repository</a> |
+                <a href="https://github.com/spencerjirehcebrian/goingenv/releases">Download</a> |
+                <a href="https://github.com/spencerjirehcebrian/goingenv/issues">Report Issues</a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>
