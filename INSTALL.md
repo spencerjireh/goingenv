@@ -11,6 +11,15 @@ This guide provides detailed installation instructions for GoingEnv on Linux and
 curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
 ```
 
+**Install development version:**
+```bash
+curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh | bash
+```
+
+> **Branch Selection:**
+> - `main` - Stable releases, recommended for general use
+> - `develop` - Latest development features, may include unreleased functionality
+
 **Or using wget:**
 ```bash
 wget -qO- https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
@@ -37,7 +46,7 @@ chmod +x install.sh
 ### Custom Version
 ```bash
 # Install specific version
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v1.0.0
+curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v0.1.0-beta.11
 
 # Or with local script
 ./install.sh --version v1.0.0
