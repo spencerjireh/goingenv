@@ -147,6 +147,9 @@ jobs:
           -o goingenv-$GOOS-$GOARCH \
           ./cmd/goingenv
         
+        # Set execute permissions
+        chmod +x goingenv-$GOOS-$GOARCH
+        
         # Verify binary (only for compatible platform)
         if [[ "$GOOS" == "$(go env GOOS)" && "$GOARCH" == "$(go env GOARCH)" ]]; then
           ./goingenv-$GOOS-$GOARCH --version
