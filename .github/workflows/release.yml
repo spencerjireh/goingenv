@@ -167,11 +167,12 @@ jobs:
         # Set execute permissions
         chmod +x goingenv-$GOOS-$GOARCH
         
-        # Verify binary (only for compatible platform)
-        if [[ "$GOOS" == "$(go env GOOS)" && "$GOARCH" == "$(go env GOARCH)" ]]; then
+        # Verify binary (only for Linux AMD64 since we're running on Ubuntu)
+        if [[ "$GOOS" == "linux" && "$GOARCH" == "amd64" ]]; then
+          echo "Verifying Linux AMD64 binary..."
           ./goingenv-$GOOS-$GOARCH --version
         else
-          echo "✅ Cross-compiled binary for $GOOS/$GOARCH (verification skipped)"
+          echo "✅ Cross-compiled binary for $GOOS/$GOARCH (verification skipped - incompatible platform)"
         fi
         
         echo "✅ Binary built successfully"
