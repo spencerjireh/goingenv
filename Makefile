@@ -120,6 +120,84 @@ ci-cross-compile:
 ci-full: deps ci-test ci-lint ci-build ci-security ci-cross-compile
 	@echo "🎉 All CI checks passed locally!"
 
+# Release management targets
+pre-release-check:
+	@echo "Running pre-release checks..."
+	@echo "Current branch: $(shell git branch --show-current)"
+	@echo "Latest commit: $(shell git log -1 --oneline)"
+	@echo ""
+	
+	# Ensure working directory is clean
+	@if ! git diff-index --quiet HEAD --; then \
+		echo "❌ Working directory is not clean. Please commit or stash changes."; \
+		exit 1; \
+	fi
+	
+	# Run full CI suite
+	make ci-full
+	
+	@echo ""
+	@echo "✅ Pre-release checks passed!"
+	@echo "Ready to create release tag."
+
+tag-release: pre-release-check
+	@echo "Creating release tag..."
+	@echo ""
+	@read -p "Enter version (e.g., 1.0.0): " version; \
+	if [[ ! "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-.*)?$$ ]]; then \
+		echo "❌ Invalid version format. Use: 1.0.0 or 1.0.0-alpha.1"; \
+		exit 1; \
+	fi; \
+	tag="v$$version"; \
+	echo "Creating tag: $$tag"; \
+	git tag -a "$$tag" -m "Release $$tag"; \
+	echo ""; \
+	echo "Tag created. Push with:"; \
+	echo "  git push origin $$tag"; \
+	echo ""; \
+	echo "This will trigger automated release creation on GitHub."
+
+push-release-tag:
+	@echo "Pushing latest tag to trigger release..."
+	@latest_tag=$$(git tag --sort=-version:refname | head -1); \
+	if [[ -z "$$latest_tag" ]]; then \
+		echo "❌ No tags found. Create a tag first with 'make tag-release'"; \
+		exit 1; \
+	fi; \
+	echo "Pushing tag: $$latest_tag"; \
+	git push origin "$$latest_tag"; \
+	echo ""; \
+	echo "🚀 Release triggered! Monitor progress at:"; \
+	echo "  https://github.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/actions"
+
+release-local: clean
+	@echo "Creating local release simulation..."
+	@version=$$(git describe --tags --always 2>/dev/null || echo "dev"); \
+	echo "Building release for version: $$version"; \
+	make release-all; \
+	echo ""; \
+	echo "✅ Local release created in dist/"; \
+	echo "This simulates what GitHub Actions will build."
+
+check-release-status:
+	@echo "Checking latest release status..."
+	@latest_tag=$$(git tag --sort=-version:refname | head -1); \
+	if [[ -z "$$latest_tag" ]]; then \
+		echo "No releases found"; \
+		exit 0; \
+	fi; \
+	echo "Latest tag: $$latest_tag"; \
+	echo ""; \
+	echo "GitHub release:"; \
+	if command -v gh >/dev/null 2>&1; then \
+		gh release view "$$latest_tag" 2>/dev/null || echo "  Release not found on GitHub"; \
+	else \
+		echo "  Install 'gh' CLI to check release status"; \
+	fi; \
+	echo ""; \
+	echo "Install command:"; \
+	echo "  curl -sSL https://raw.githubusercontent.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/main/install.sh | bash -s -- --version $$latest_tag"
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
@@ -491,9 +569,11 @@ help:
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build                    # Build for current platform"
+	@echo "  make ci-full                  # Run all CI checks locally"
+	@echo "  make tag-release              # Create and tag new release"
+	@echo "  make push-release-tag         # Push tag to trigger GitHub release"
 	@echo "  make run ARGS='pack -k pass'  # Run pack command"
 	@echo "  make demo-scenario            # Full demo with sample files"
-	@echo "  make release                  # Create release for all platforms"
 
 # Phony targets
 .PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration \
@@ -502,4 +582,5 @@ help:
         build-windows install uninstall release release-all release-checksums checksums run run-pack run-unpack \
         run-list run-status demo clean-demo demo-scenario dev-server profile \
         profile-mem security-scan vuln-check docs stats help \
-        ci-test ci-lint ci-build ci-security ci-cross-compile ci-full
+        ci-test ci-lint ci-build ci-security ci-cross-compile ci-full \
+        pre-release-check tag-release push-release-tag release-local check-release-status

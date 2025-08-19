@@ -433,48 +433,92 @@ func (m *Model) handleNewFeatureKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 GoingEnv uses semantic versioning (SemVer):
 - `MAJOR.MINOR.PATCH` (e.g., `1.2.3`)
-- Pre-release: `1.2.3-alpha.1`
-- Build metadata: `1.2.3+20231201`
+- Pre-release: `1.2.3-alpha.1`, `1.2.3-beta.1`, `1.2.3-rc.1`
+- Tags must follow format: `v1.2.3` or `v1.2.3-alpha.1`
 
-### Creating Releases
+### Automated Release Workflow
+
+**Simple Two-Step Process:**
+```bash
+# 1. Create and validate release
+make tag-release
+# This will:
+# - Run pre-release checks (tests, linting, build verification)
+# - Prompt for version number with validation
+# - Create local git tag
+# - Show push command
+
+# 2. Trigger automated release
+make push-release-tag
+# This will:
+# - Push the tag to GitHub
+# - Trigger GitHub Actions release workflow
+# - Provide monitoring link
+```
+
+**What GitHub Actions Does Automatically:**
+1. **Validation**: Verify tag format and check for duplicates
+2. **Quality Gates**: Run full CI suite (tests, linting, security)
+3. **Build**: Create binaries for all platforms (Linux/macOS, AMD64/ARM64)
+4. **Package**: Generate tar.gz archives with proper naming
+5. **Checksums**: Create SHA256 checksums for security
+6. **Release**: Create GitHub release with auto-generated notes
+7. **Validation**: Test install script with new release
+8. **Notification**: Success/failure feedback
+
+### Manual Release Process (Fallback)
+
+If you need to create a release manually:
 
 **1. Prepare Release**
 ```bash
-# Update version in Makefile
+# Run pre-release checks
+make pre-release-check
+
+# Update version in Makefile if needed
 vim Makefile  # Set VERSION=1.2.3
 
-# Update CHANGELOG
-vim CHANGELOG.md
-
-# Commit version bump
-git add .
-git commit -m "chore: bump version to v1.2.3"
-git tag v1.2.3
+# Create tag manually
+git tag -a v1.2.3 -m "Release v1.2.3"
 ```
 
 **2. Build Release Artifacts**
 ```bash
-# Build all platform binaries
-make release
+# Build all platform binaries locally
+make release-local
 
 # Verify artifacts
 ls -la dist/
 ```
 
-**3. Create GitHub Release**
+**3. Create GitHub Release Manually**
 ```bash
 # Push tag
 git push origin v1.2.3
 
-# Create release on GitHub
+# Create release on GitHub web interface
 # Upload files from dist/ directory
-# Include changelog in release notes
+# Include release notes
 ```
 
-**4. Test Installation**
+### Pre-release Testing
+
+**Local Simulation:**
 ```bash
-# Test install script with new version
-./install.sh --version v1.2.3
+# Test release build locally
+make release-local
+
+# Test install script with local files
+# (Advanced: set up local HTTP server to test downloads)
+```
+
+**Validation Commands:**
+```bash
+# Check current release status
+make check-release-status
+
+# Verify CI passes before tagging
+make ci-full
 ```
 
 ### Release Checklist
