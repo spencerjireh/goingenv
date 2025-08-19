@@ -364,8 +364,8 @@ uninstall:
 	rm -f "$$GOBIN/$(BINARY_NAME)"
 	@echo "✅ $(BINARY_NAME) uninstalled"
 
-# Create release archives and checksums
-release: clean build-all
+# Create release archives and checksums (legacy target)
+release-legacy: clean build-all
 	@echo "Creating release archives..."
 	mkdir -p dist
 	
