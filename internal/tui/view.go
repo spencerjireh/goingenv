@@ -45,7 +45,11 @@ func (m *Model) View() string {
 
 // renderMenu renders the main menu screen
 func (m *Model) renderMenu() string {
-	view := TitleStyle.Render("GoingEnv v1.0.0") + "\n"
+	title := "GoingEnv v1.0.0"
+	if m.debugLogger.IsEnabled() {
+		title += " [DEBUG MODE]"
+	}
+	view := TitleStyle.Render(title) + "\n"
 	view += m.menu.View()
 	
 	if m.error != "" {
@@ -54,6 +58,13 @@ func (m *Model) renderMenu() string {
 	
 	if m.message != "" {
 		view += "\n" + SuccessStyle.Render(m.message)
+	}
+	
+	// Show debug info at bottom if verbose mode is enabled
+	if m.debugLogger.IsEnabled() {
+		view += "\n\n" + DimStyle.Render("DEBUG: Logging to "+m.debugLogger.GetLogPath())
+		view += "\n" + DimStyle.Render("Current screen: "+string(m.currentScreen))
+		view += "\n" + DimStyle.Render("Window size: "+fmt.Sprintf("%dx%d", m.width, m.height))
 	}
 	
 	return view

@@ -56,6 +56,11 @@ var (
 	MutedStyle = lipgloss.NewStyle().
 		Foreground(MutedColor)
 
+	// DimStyle is used for debug information and very low-priority text
+	DimStyle = lipgloss.NewStyle().
+		Foreground(MutedColor).
+		Faint(true)
+
 	// ListStyle is used for bordered lists
 	ListStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

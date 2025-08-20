@@ -50,9 +50,13 @@ It can scan, encrypt, and archive your .env files securely, making it easy to
 backup, transfer, and restore your environment configurations.`,
 		Version: version,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInteractiveMode()
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			return runInteractiveMode(verbose)
 		},
 	}
+
+	// Add global verbose flag
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose debug logging for TUI mode")
 
 	// Add subcommands
 	rootCmd.AddCommand(newPackCommand())
@@ -64,7 +68,7 @@ backup, transfer, and restore your environment configurations.`,
 }
 
 // runInteractiveMode launches the TUI interface
-func runInteractiveMode() error {
+func runInteractiveMode(verbose bool) error {
 	// Initialize application
 	app, err := NewApp()
 	if err != nil {
@@ -77,8 +81,11 @@ func runInteractiveMode() error {
 	}
 
 	// Create and run TUI
-	model := tui.NewModel(app)
+	model := tui.NewModel(app, verbose)
 	program := tea.NewProgram(model, tea.WithAltScreen())
+
+	// Ensure cleanup happens even if there's an error
+	defer model.Cleanup()
 
 	if _, err := program.Run(); err != nil {
 		return fmt.Errorf("TUI error: %w", err)

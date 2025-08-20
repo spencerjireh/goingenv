@@ -1,0 +1,88 @@
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment # Too noisy for this project
+  
+  gocyclo:
+    min-complexity: 15
+  
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - whyNoLint # Allow missing lint comments for now
+  
+  gosec:
+    excludes:
+      - G204 # Subprocess with variable - we use this intentionally
+      - G304 # File path from variable - acceptable for CLI tool
+  
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    exclude-functions:
+      - (*os.File).Close
+      - (*bufio.Writer).Flush
+
+linters:
+  enable:
+    # Default linters
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    
+    # Additional useful linters
+    - gocyclo
+    - gocritic
+    - gosec
+    - misspell
+    - unconvert
+    - unparam
+    - gofmt
+    - goimports
+    
+  disable:
+    - deadcode # Deprecated
+    - varcheck # Deprecated
+    - structcheck # Deprecated
+    - scopelint # Deprecated
+
+issues:
+  exclude-use-default: false
+  exclude-rules:
+    # Exclude gosec for test files
+    - path: _test\.go
+      linters:
+        - gosec
+    
+    # Exclude certain linters for generated files
+    - path: "pkg/types/mocks.go"
+      linters:
+        - gocritic
+        - gosec
+        - errcheck
+    
+    # Allow long lines in error messages
+    - linters:
+        - lll
+      source: "return.*fmt\\.Errorf"
+  
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true

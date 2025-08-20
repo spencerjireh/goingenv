@@ -35,6 +35,175 @@ release-build:
 	go build $(LDFLAGS) -trimpath -o $(BINARY_NAME) $(MAIN_PATH)
 	@echo "✅ Release build completed: $(BINARY_NAME)"
 
+# Build release binaries for all supported platforms
+release-all:
+	@echo "Building release binaries for all platforms..."
+	@mkdir -p dist
+	
+	# Linux AMD64
+	@echo "Building for Linux AMD64..."
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
+	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-linux-amd64.tar.gz $(BINARY_NAME)-linux-amd64
+	
+	# Linux ARM64
+	@echo "Building for Linux ARM64..."
+	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
+	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-linux-arm64.tar.gz $(BINARY_NAME)-linux-arm64
+	
+	# macOS AMD64
+	@echo "Building for macOS AMD64..."
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
+	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-darwin-amd64.tar.gz $(BINARY_NAME)-darwin-amd64
+	
+	# macOS ARM64 (Apple Silicon)
+	@echo "Building for macOS ARM64..."
+	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
+	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64
+	
+	@echo "✅ Release binaries created in dist/ directory"
+	@echo "Archives ready for GitHub release:"
+	@ls -la dist/*.tar.gz
+
+# Create checksums for release files
+release-checksums:
+	@echo "Generating checksums..."
+	@cd dist && sha256sum *.tar.gz > checksums.txt
+	@echo "✅ Checksums generated in dist/checksums.txt"
+
+# Complete release preparation
+release: clean release-all release-checksums
+	@echo "🎉 Release v$(VERSION) prepared successfully!"
+	@echo ""
+	@echo "Upload these files to GitHub release:"
+	@ls -la dist/
+	@echo ""
+	@echo "Install script download URL will be:"
+	@echo "https://github.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/releases/download/v$(VERSION)/"
+
+# CI-friendly targets
+ci-test:
+	@echo "Running CI tests..."
+	@echo "Running unit tests with race detection..."
+	go test -race -timeout=5m ./pkg/... ./internal/...
+	@echo "Running integration tests..."
+	go test -v -timeout=2m ./test/integration/...
+	@echo "✅ All tests passed"
+
+ci-lint:
+	@echo "Running CI linting..."
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run ./...; \
+	else \
+		echo "⚠️  golangci-lint not installed, using go vet only"; \
+	fi
+	go vet ./...
+	@echo "✅ Linting passed"
+
+ci-build:
+	@echo "Running CI build verification..."
+	go build -o /tmp/$(BINARY_NAME) $(MAIN_PATH)
+	/tmp/$(BINARY_NAME) --version
+	@echo "✅ Build verification passed"
+
+ci-security:
+	@echo "Running security checks..."
+	@if command -v gosec >/dev/null 2>&1; then \
+		gosec ./...; \
+	else \
+		echo "⚠️  gosec not installed, skipping security scan"; \
+	fi
+	@echo "✅ Security checks completed"
+
+ci-cross-compile:
+	@echo "Testing cross-compilation..."
+	GOOS=linux GOARCH=amd64 go build -o /tmp/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
+	GOOS=linux GOARCH=arm64 go build -o /tmp/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
+	GOOS=darwin GOARCH=amd64 go build -o /tmp/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
+	GOOS=darwin GOARCH=arm64 go build -o /tmp/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
+	@echo "✅ Cross-compilation successful"
+
+# Run all CI checks locally
+ci-full: deps ci-test ci-lint ci-build ci-security ci-cross-compile
+	@echo "🎉 All CI checks passed locally!"
+
+# Release management targets
+pre-release-check:
+	@echo "Running pre-release checks..."
+	@echo "Current branch: $(shell git branch --show-current)"
+	@echo "Latest commit: $(shell git log -1 --oneline)"
+	@echo ""
+	
+	# Ensure working directory is clean
+	@if ! git diff-index --quiet HEAD --; then \
+		echo "❌ Working directory is not clean. Please commit or stash changes."; \
+		exit 1; \
+	fi
+	
+	# Run full CI suite
+	make ci-full
+	
+	@echo ""
+	@echo "✅ Pre-release checks passed!"
+	@echo "Ready to create release tag."
+
+tag-release: pre-release-check
+	@echo "Creating release tag..."
+	@echo ""
+	@read -p "Enter version (e.g., 1.0.0): " version; \
+	if [[ ! "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-.*)?$$ ]]; then \
+		echo "❌ Invalid version format. Use: 1.0.0 or 1.0.0-alpha.1"; \
+		exit 1; \
+	fi; \
+	tag="v$$version"; \
+	echo "Creating tag: $$tag"; \
+	git tag -a "$$tag" -m "Release $$tag"; \
+	echo ""; \
+	echo "Tag created. Push with:"; \
+	echo "  git push origin $$tag"; \
+	echo ""; \
+	echo "This will trigger automated release creation on GitHub."
+
+push-release-tag:
+	@echo "Pushing latest tag to trigger release..."
+	@latest_tag=$$(git tag --sort=-version:refname | head -1); \
+	if [[ -z "$$latest_tag" ]]; then \
+		echo "❌ No tags found. Create a tag first with 'make tag-release'"; \
+		exit 1; \
+	fi; \
+	echo "Pushing tag: $$latest_tag"; \
+	git push origin "$$latest_tag"; \
+	echo ""; \
+	echo "🚀 Release triggered! Monitor progress at:"; \
+	echo "  https://github.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/actions"
+
+release-local: clean
+	@echo "Creating local release simulation..."
+	@version=$$(git describe --tags --always 2>/dev/null || echo "dev"); \
+	echo "Building release for version: $$version"; \
+	make release-all; \
+	echo ""; \
+	echo "✅ Local release created in dist/"; \
+	echo "This simulates what GitHub Actions will build."
+
+check-release-status:
+	@echo "Checking latest release status..."
+	@latest_tag=$$(git tag --sort=-version:refname | head -1); \
+	if [[ -z "$$latest_tag" ]]; then \
+		echo "No releases found"; \
+		exit 0; \
+	fi; \
+	echo "Latest tag: $$latest_tag"; \
+	echo ""; \
+	echo "GitHub release:"; \
+	if command -v gh >/dev/null 2>&1; then \
+		gh release view "$$latest_tag" 2>/dev/null || echo "  Release not found on GitHub"; \
+	else \
+		echo "  Install 'gh' CLI to check release status"; \
+	fi; \
+	echo ""; \
+	echo "Install command:"; \
+	echo "  curl -sSL https://raw.githubusercontent.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/main/install.sh | bash -s -- --version $$latest_tag"
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
@@ -81,28 +250,79 @@ lint:
 		echo "⚠️  golangci-lint not installed. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
 	fi
 
-# Run tests
+# Test targets
 test:
-	@echo "Running tests..."
+	@echo "Running all tests..."
 	go test -v ./...
-	@echo "✅ Tests completed"
+	@echo "✅ All tests completed"
 
-# Run tests with coverage
+test-unit:
+	@echo "Running unit tests..."
+	go test -v -short ./pkg/... ./internal/...
+	@echo "✅ Unit tests completed"
+
+test-integration:
+	@echo "Running integration tests..."
+	go test -v -run TestFull ./test/integration/...
+	@echo "✅ Integration tests completed"
+
 test-coverage:
 	@echo "Running tests with coverage..."
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "✅ Coverage report generated: coverage.html"
+	@echo "📊 Coverage summary:"
+	@go tool cover -func=coverage.out | tail -1
 
-# Run benchmarks
-bench:
+test-coverage-ci:
+	@echo "Running tests with coverage for CI..."
+	go test -race -coverprofile=coverage.out -covermode=atomic ./...
+	@go tool cover -func=coverage.out
+
+test-watch:
+	@echo "Running tests in watch mode (requires entr)..."
+	@if command -v entr >/dev/null 2>&1; then \
+		find . -name '*.go' | entr -c go test ./...; \
+	else \
+		echo "⚠️  entr not installed. Install with your package manager."; \
+	fi
+
+test-verbose:
+	@echo "Running tests with verbose output..."
+	go test -v -race ./... -args -test.v
+
+test-bench:
 	@echo "Running benchmarks..."
 	go test -bench=. -benchmem ./...
 	@echo "✅ Benchmarks completed"
 
+test-clean:
+	@echo "Cleaning test artifacts..."
+	rm -f coverage.out coverage.html
+	rm -rf test/tmp/*
+	go clean -testcache
+	@echo "✅ Test artifacts cleaned"
+
+# Mock generation (if using gomock)
+generate-mocks:
+	@echo "Generating mocks..."
+	@if command -v mockgen >/dev/null 2>&1; then \
+		mockgen -source=pkg/types/types.go -destination=pkg/types/mocks_generated.go -package=types; \
+		echo "✅ Mocks generated"; \
+	else \
+		echo "⚠️  mockgen not installed. Install with: go install github.com/golang/mock/mockgen@latest"; \
+	fi
+
+# Run benchmarks
+bench: test-bench
+
 # Run all checks (format, vet, lint, test)
 check: fmt vet lint test
 	@echo "✅ All checks passed"
+
+# Run comprehensive checks including integration tests
+check-full: fmt vet lint test-unit test-integration
+	@echo "✅ All comprehensive checks passed"
 
 # Build for all platforms
 build-all: build-linux build-darwin build-windows
@@ -144,8 +364,8 @@ uninstall:
 	rm -f "$$GOBIN/$(BINARY_NAME)"
 	@echo "✅ $(BINARY_NAME) uninstalled"
 
-# Create release archives and checksums
-release: clean build-all
+# Create release archives and checksums (legacy target)
+release-legacy: clean build-all
 	@echo "Creating release archives..."
 	mkdir -p dist
 	
@@ -308,10 +528,21 @@ help:
 	@echo "  fmt            - Format code"
 	@echo "  vet            - Vet code for issues"
 	@echo "  lint           - Run linter (requires golangci-lint)"
-	@echo "  test           - Run tests"
-	@echo "  test-coverage  - Run tests with coverage report"
-	@echo "  bench          - Run benchmarks"
 	@echo "  check          - Run all checks (fmt, vet, lint, test)"
+	@echo "  check-full     - Run comprehensive checks including integration tests"
+	@echo ""
+	@echo "Test Commands:"
+	@echo "  test           - Run all tests"
+	@echo "  test-unit      - Run unit tests only"
+	@echo "  test-integration - Run integration tests only"
+	@echo "  test-coverage  - Run tests with coverage report"
+	@echo "  test-coverage-ci - Run tests with coverage for CI"
+	@echo "  test-watch     - Run tests in watch mode (requires entr)"
+	@echo "  test-verbose   - Run tests with verbose output"
+	@echo "  test-bench     - Run benchmarks"
+	@echo "  test-clean     - Clean test artifacts"
+	@echo "  generate-mocks - Generate mock implementations"
+	@echo "  bench          - Run benchmarks"
 	@echo ""
 	@echo "Release Commands:"
 	@echo "  release        - Create release archives"
@@ -344,12 +575,18 @@ help:
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build                    # Build for current platform"
+	@echo "  make ci-full                  # Run all CI checks locally"
+	@echo "  make tag-release              # Create and tag new release"
+	@echo "  make push-release-tag         # Push tag to trigger GitHub release"
 	@echo "  make run ARGS='pack -k pass'  # Run pack command"
 	@echo "  make demo-scenario            # Full demo with sample files"
-	@echo "  make release                  # Create release for all platforms"
 
 # Phony targets
-.PHONY: build dev release-build clean deps fmt vet lint test test-coverage bench check \
-        build-all build-linux build-darwin build-windows install uninstall release checksums \
-        run run-pack run-unpack run-list run-status demo clean-demo demo-scenario \
-        dev-server profile profile-mem security-scan vuln-check docs stats help
+.PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration \
+        test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
+        generate-mocks bench check check-full build-all build-linux build-darwin \
+        build-windows install uninstall release release-all release-checksums checksums run run-pack run-unpack \
+        run-list run-status demo clean-demo demo-scenario dev-server profile \
+        profile-mem security-scan vuln-check docs stats help \
+        ci-test ci-lint ci-build ci-security ci-cross-compile ci-full \
+        pre-release-check tag-release push-release-tag release-local check-release-status
