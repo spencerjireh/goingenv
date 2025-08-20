@@ -299,10 +299,24 @@ check_existing_installation() {
                 echo -e "${CYAN}This will replace your current installation.${NC}\n"
             fi
             
-            read -p "Do you want to proceed with the installation? [y/N]: " -r
-            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                log "Installation cancelled by user"
-                exit 0
+            # Check if we have a TTY for interactive input
+            if [[ -t 0 ]]; then
+                read -p "Do you want to proceed with the installation? [y/N]: " -r
+                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                    log "Installation cancelled by user"
+                    exit 0
+                fi
+            else
+                echo -e "${RED}Error: Cannot prompt for confirmation in non-interactive mode.${NC}"
+                echo "Use --force to skip confirmation, --yes to auto-confirm, or run interactively."
+                echo ""
+                echo "Examples:"
+                echo "  # Force installation without confirmation:"
+                echo "  curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh | bash -s -- --version $VERSION --force"
+                echo ""
+                echo "  # Auto-confirm installation:"
+                echo "  curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh | bash -s -- --version $VERSION --yes"
+                exit 1
             fi
         else
             if [[ "$FORCE" == "1" ]]; then
@@ -415,12 +429,20 @@ setup_shell_integration() {
             echo "  Directory: $install_dir"
             echo "  Current PATH: $PATH"
             echo ""
-            read -p "Do you want to add it to your PATH? [Y/n]: " -r
-            if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-                add_to_path "$install_dir"
+            
+            # Check if we have a TTY for interactive input
+            if [[ -t 0 ]]; then
+                read -p "Do you want to add it to your PATH? [Y/n]: " -r
+                if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                    add_to_path "$install_dir"
+                else
+                    warn "You may need to add $install_dir to your PATH manually"
+                    warn "Or use the full path: $install_dir/$BINARY_NAME"
+                fi
             else
-                warn "You may need to add $install_dir to your PATH manually"
-                warn "Or use the full path: $install_dir/$BINARY_NAME"
+                # In non-interactive mode, default to adding to PATH
+                warn "Non-interactive mode: automatically adding $install_dir to PATH"
+                add_to_path "$install_dir"
             fi
         fi
     else
