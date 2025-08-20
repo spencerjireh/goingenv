@@ -67,8 +67,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle component updates based on current screen
 	switch m.currentScreen {
-	case ScreenMenu:
-		m.menu, cmd = m.menu.Update(msg)
 	case ScreenPackPassword, ScreenUnpackPassword, ScreenListPassword:
 		m.textInput, cmd = m.textInput.Update(msg)
 	case ScreenUnpackSelect, ScreenListSelect:
@@ -112,6 +110,11 @@ func (m *Model) handleMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q", "ctrl+c":
 		m.debugLogger.LogOperation("quit", "user requested quit")
 		return m, tea.Quit
+	case "?":
+		// Direct help access with ? key
+		m.debugLogger.LogOperation("help_view", "showing help screen via ? key")
+		m.SetScreen(ScreenHelp)
+		return m, nil
 	case "enter":
 		selectedItem := m.GetSelectedMenuItem()
 		m.debugLogger.LogOperation("menu_selection", fmt.Sprintf("action: %s, title: %s", selectedItem.action, selectedItem.title))
@@ -141,6 +144,11 @@ func (m *Model) handleMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.SetScreen(ScreenHelp)
 			return m, nil
 		}
+	default:
+		// Pass all other keys (including navigation keys) to the menu component
+		var cmd tea.Cmd
+		m.menu, cmd = m.menu.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
