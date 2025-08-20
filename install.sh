@@ -22,6 +22,7 @@ INSTALL_DIR="${INSTALL_DIR:-}"
 SKIP_SHELL_INTEGRATION="${SKIP_SHELL_INTEGRATION:-0}"
 NO_SUDO="${NO_SUDO:-0}"
 YES="${YES:-0}"
+FORCE="${FORCE:-0}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -65,6 +66,16 @@ debug() {
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+# Extract version from GoingEnv version output
+extract_version() {
+    local version_text="$1"
+    # Extract version from formats like:
+    # "goingenv version 1.0.0-alpha.5"
+    # "v1.0.0-alpha.5"
+    # Handle both with and without 'v' prefix, with or without pre-release suffixes
+    echo "$version_text" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)*)?' | head -1
 }
 
 # Detect OS and architecture
@@ -267,22 +278,38 @@ check_existing_installation() {
     local binary_path="$install_dir/$BINARY_NAME"
 
     if [[ -f "$binary_path" ]]; then
-        local current_version
-        current_version=$("$binary_path" --version 2>/dev/null | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown")
+        local current_version current_version_output
+        current_version_output=$("$binary_path" --version 2>/dev/null || echo "unknown")
+        current_version=$(extract_version "$current_version_output")
         
-        if [[ "$YES" != "1" ]]; then
+        if [[ -z "$current_version" ]]; then
+            current_version="unknown"
+        fi
+        
+        if [[ "$YES" != "1" && "$FORCE" != "1" ]]; then
             echo -e "\n${YELLOW}Existing installation found:${NC}"
             echo "  Path: $binary_path"
-            echo "  Version: $current_version"
+            echo "  Current version: $current_version"
             echo -e "  Target version: $VERSION\n"
             
-            read -p "Do you want to overwrite the existing installation? [y/N]: " -r
+            # Show upgrade/downgrade/reinstall status
+            if [[ "$current_version" == "$VERSION" ]]; then
+                echo -e "${BLUE}This will reinstall the same version.${NC}\n"
+            elif [[ "$current_version" != "unknown" ]]; then
+                echo -e "${CYAN}This will replace your current installation.${NC}\n"
+            fi
+            
+            read -p "Do you want to proceed with the installation? [y/N]: " -r
             if [[ ! $REPLY =~ ^[Yy]$ ]]; then
                 log "Installation cancelled by user"
                 exit 0
             fi
         else
-            log "Overwriting existing installation at $binary_path"
+            if [[ "$FORCE" == "1" ]]; then
+                log "Forcing installation at $binary_path (current: $current_version → target: $VERSION)"
+            else
+                log "Overwriting existing installation at $binary_path (current: $current_version → target: $VERSION)"
+            fi
         fi
 
         # Backup existing binary
@@ -495,8 +522,12 @@ uninstall() {
 
     echo -e "${YELLOW}Found GoingEnv installations:${NC}"
     for installation in "${found_installations[@]}"; do
-        local version
-        version=$("$installation" --version 2>/dev/null | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown")
+        local version version_output
+        version_output=$("$installation" --version 2>/dev/null || echo "unknown")
+        version=$(extract_version "$version_output")
+        if [[ -z "$version" ]]; then
+            version="unknown"
+        fi
         echo "  $installation ($version)"
     done
 
@@ -550,6 +581,7 @@ OPTIONS:
     --yes               Skip interactive prompts
     --no-sudo           Don't attempt system-wide installation
     --skip-shell        Skip shell integration setup
+    --force, -f         Force installation without confirmation
 
 ENVIRONMENT VARIABLES:
     GOINGENV_VERSION    Version to install (e.g., v1.0.0)
@@ -557,6 +589,7 @@ ENVIRONMENT VARIABLES:
     YES                 Skip prompts (1 to enable)
     NO_SUDO             Avoid system-wide installation (1 to enable)
     SKIP_SHELL_INTEGRATION  Skip PATH setup (1 to enable)
+    FORCE               Force installation without confirmation (1 to enable)
     DEBUG               Enable debug output (1 to enable)
 
 EXAMPLES:
@@ -611,6 +644,10 @@ main() {
                 ;;
             --skip-shell)
                 SKIP_SHELL_INTEGRATION=1
+                shift
+                ;;
+            --force|-f)
+                FORCE=1
                 shift
                 ;;
             *)
