@@ -257,55 +257,56 @@ jobs:
 
     - name: Generate release notes
       id: release_notes
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const { data } = await github.rest.repos.generateReleaseNotes({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            tag_name: '${{ github.ref_name }}',
-            previous_tag_name: '${{ steps.get_previous_tag.outputs.previous_tag }}'
-          });
-          
-          const repoName = '${{ github.repository }}';
-          const tagName = '${{ github.ref_name }}';
-          const branch = '${{ steps.get_branch.outputs.branch }}';
-          
-          const installInstructions = [
-            '## Installation',
-            '',
-            '**Quick Install (Linux & macOS):**',
-            '```bash',
-            `curl -sSL https://raw.githubusercontent.com/${repoName}/${branch}/install.sh | bash`,
-            '```',
-            '',
-            '**Install Specific Version:**',
-            '```bash',
-            `curl -sSL https://raw.githubusercontent.com/${repoName}/${branch}/install.sh | bash -s -- --version ${tagName}`,
-            '```',
-            '',
-            '**Manual Download:**',
-            'Download the appropriate binary for your platform from the assets below.',
-            '',
-            '## Verification',
-            '',
-            'Verify your download with SHA256 checksums:',
-            '```bash',
-            'sha256sum -c checksums.txt',
-            '```',
-            '',
-            '---',
-            ''
-          ].join('\n');
-          
-          return installInstructions + data.body;
+      run: |
+        # Get auto-generated release notes from GitHub API
+        RELEASE_NOTES=$(curl -s -H "Authorization: token ${{ github.token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/generate-notes" \
+          -d '{"tag_name":"${{ github.ref_name }}","previous_tag_name":"${{ steps.get_previous_tag.outputs.previous_tag }}"}' \
+          | jq -r '.body')
+        
+        # Create installation instructions
+        cat > release_notes.md << 'EOF'
+        ## Installation
+
+        **Quick Install (Linux & macOS):**
+        ```bash
+        curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.get_branch.outputs.branch }}/install.sh | bash
+        ```
+
+        **Install Specific Version:**
+        ```bash
+        curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.get_branch.outputs.branch }}/install.sh | bash -s -- --version ${{ github.ref_name }}
+        ```
+
+        **Manual Download:**
+        Download the appropriate binary for your platform from the assets below.
+
+        ## Verification
+
+        Verify your download with SHA256 checksums:
+        ```bash
+        sha256sum -c checksums.txt
+        ```
+
+        ---
+
+        EOF
+        
+        # Append the auto-generated notes
+        echo "$RELEASE_NOTES" >> release_notes.md
+        
+        # Set output for use in release creation
+        echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+        cat release_notes.md >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.ref_name }}
         name: GoingEnv ${{ github.ref_name }}
-        body: ${{ steps.release_notes.outputs.result }}
+        body: ${{ env.RELEASE_BODY }}
         draft: false
         prerelease: ${{ needs.validate.outputs.prerelease }}
         files: release-assets/*
