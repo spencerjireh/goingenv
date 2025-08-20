@@ -133,6 +133,7 @@
                     <a href="#overview" class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm">Overview</a>
                     <a href="#installation" class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm">Installation</a>
                     <a href="#quick-start" class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm">Quick Start</a>
+                    <a href="#configuration" class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm">Configuration</a>
                 </div>
             </div>
         </div>
@@ -174,12 +175,20 @@
         <section id="installation" class="mb-32">
             <div class="text-center mb-16">
                 <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">Installation</h2>
-                <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light">
+                <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light mb-8">
                     Quick installation on Linux and macOS
                 </p>
+                <!-- Releases button in header -->
+                <a href="https://github.com/spencerjirehcebrian/goingenv/releases" class="inline-flex items-center px-4 py-2 text-accent-400 hover:text-accent-300 font-medium text-sm border border-accent-500/30 hover:border-accent-500/50 rounded-lg transition-all duration-200">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                    </svg>
+                    View All Releases
+                </a>
             </div>
             
             <div class="max-w-5xl mx-auto space-y-12">
+
                 <!-- One-Line Installation -->
                 <div class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8">
                     <h3 class="text-xl font-light text-white mb-4">One-Line Installation</h3>
@@ -307,6 +316,93 @@
                         <code class="text-accent-400 font-mono text-base">goingenv</code>
                     </div>
                     <p class="text-dark-300 font-light text-sm">Launches an interactive interface with arrow key navigation.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Configuration Section -->
+        <section id="configuration" class="mb-32">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">Configuration</h2>
+                <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light">
+                    Customize GoingEnv behavior with configuration files
+                </p>
+            </div>
+            
+            <div class="max-w-5xl mx-auto space-y-12">
+                <!-- Basic Configuration -->
+                <div class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8">
+                    <h3 class="text-xl font-light text-white mb-6">Basic Configuration</h3>
+                    <p class="text-dark-300 mb-6 font-light">Create a configuration file at <code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">~/.goingenv.json</code> to customize default behavior:</p>
+                    
+                    <div class="bg-black/50 rounded-xl p-6 border border-dark-700/30 mb-6">
+                        <pre class="text-accent-400 font-mono text-sm overflow-x-auto"><code>{
+  "default_depth": 3,
+  "env_patterns": ["\\.env.*"],
+  "env_exclude_patterns": ["\\.env\\.backup$", "\\.env\\.old$"],
+  "exclude_patterns": ["node_modules/", "\\.git/", "vendor/"],
+  "max_file_size": 10485760
+}</code></pre>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                        <div>
+                            <h4 class="font-medium text-white mb-3">Pattern Options</h4>
+                            <ul class="space-y-2 text-dark-300">
+                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">env_patterns</code> - Files to include (regex patterns)</li>
+                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">env_exclude_patterns</code> - Environment files to exclude</li>
+                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">exclude_patterns</code> - Directories to skip</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-white mb-3">Behavior Options</h4>
+                            <ul class="space-y-2 text-dark-300">
+                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">default_depth</code> - Directory scan depth (1-10)</li>
+                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">max_file_size</code> - Maximum file size in bytes</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pattern Examples -->
+                <div class="bg-gradient-to-r from-accent-500/10 to-accent-600/10 border border-accent-500/20 rounded-2xl p-8 backdrop-blur-sm">
+                    <h3 class="text-xl font-light text-white mb-6">Pattern Examples</h3>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <h4 class="font-medium text-accent-400 mb-3">All-Inclusive (Default)</h4>
+                            <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2">
+                                <code class="text-accent-400 font-mono text-sm">"env_patterns": ["\\.env.*"]</code>
+                            </div>
+                            <p class="text-dark-300 text-xs font-light">Matches: .env, .env.local, .env.development, .env.custom, etc.</p>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium text-accent-400 mb-3">Specific Patterns</h4>
+                            <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2">
+                                <code class="text-accent-400 font-mono text-sm">"env_patterns": ["\\.env$", "\\.env\\.local$", "\\.env\\.production$"]</code>
+                            </div>
+                            <p class="text-dark-300 text-xs font-light">Matches only: .env, .env.local, .env.production</p>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium text-accent-400 mb-3">Exclude Backups</h4>
+                            <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2">
+                                <code class="text-accent-400 font-mono text-sm">"env_exclude_patterns": ["\\.env\\.backup$", "\\.env\\.bak$", "\\.env\\.old$"]</code>
+                            </div>
+                            <p class="text-dark-300 text-xs font-light">Excludes: .env.backup, .env.bak, .env.old files</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Configuration -->
+                <div class="bg-dark-800/20 backdrop-blur-sm border border-dark-700/30 rounded-2xl p-6">
+                    <h3 class="text-lg font-light text-white mb-4">Quick Setup</h3>
+                    <p class="text-dark-300 mb-4 font-light text-sm">Generate a default configuration file:</p>
+                    <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30">
+                        <code class="text-accent-400 font-mono text-sm">goingenv status --config</code>
+                    </div>
+                    <p class="text-dark-300 text-xs font-light mt-2">Shows current configuration and creates default if none exists.</p>
                 </div>
             </div>
         </section>
