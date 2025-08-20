@@ -244,6 +244,17 @@ jobs:
         echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
         echo "Previous tag: $PREVIOUS_TAG"
 
+    - name: Determine source branch
+      id: get_branch
+      run: |
+        # Get the branch that contains this tag
+        BRANCH=$(git branch -r --contains ${{ github.ref_name }} | grep -v HEAD | head -1 | sed 's/.*\///')
+        if [[ -z "$BRANCH" ]]; then
+          BRANCH="develop"  # fallback to develop
+        fi
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+        echo "Source branch: $BRANCH"
+
     - name: Generate release notes
       id: release_notes
       uses: actions/github-script@v6
@@ -256,31 +267,36 @@ jobs:
             previous_tag_name: '${{ steps.get_previous_tag.outputs.previous_tag }}'
           });
           
-          // Enhance with installation instructions
-          const installInstructions = `## Installation
-
-**Quick Install (Linux & macOS):**
-\`\`\`bash
-curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
-\`\`\`
-
-**Install Specific Version:**
-\`\`\`bash
-curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --version ${{ github.ref_name }}
-\`\`\`
-
-**Manual Download:**
-Download the appropriate binary for your platform from the assets below.
-
-## Verification
-
-Verify your download with SHA256 checksums:
-\`\`\`bash
-sha256sum -c checksums.txt
-\`\`\`
-
----
-`;
+          const repoName = '${{ github.repository }}';
+          const tagName = '${{ github.ref_name }}';
+          const branch = '${{ steps.get_branch.outputs.branch }}';
+          
+          const installInstructions = [
+            '## Installation',
+            '',
+            '**Quick Install (Linux & macOS):**',
+            '```bash',
+            `curl -sSL https://raw.githubusercontent.com/${repoName}/${branch}/install.sh | bash`,
+            '```',
+            '',
+            '**Install Specific Version:**',
+            '```bash',
+            `curl -sSL https://raw.githubusercontent.com/${repoName}/${branch}/install.sh | bash -s -- --version ${tagName}`,
+            '```',
+            '',
+            '**Manual Download:**',
+            'Download the appropriate binary for your platform from the assets below.',
+            '',
+            '## Verification',
+            '',
+            'Verify your download with SHA256 checksums:',
+            '```bash',
+            'sha256sum -c checksums.txt',
+            '```',
+            '',
+            '---',
+            ''
+          ].join('\n');
           
           return installInstructions + data.body;
 

@@ -1,5 +1,14 @@
 # GoingEnv Makefile - Refactored Structure
 
+# Color variables for output
+GREEN=\033[0;32m
+RED=\033[0;31m
+YELLOW=\033[1;33m
+BLUE=\033[0;34m
+CYAN=\033[0;36m
+PURPLE=\033[0;35m
+NC=\033[0m
+
 # Variables
 BINARY_NAME=goingenv
 MAIN_PATH=./cmd/goingenv
@@ -18,61 +27,61 @@ BINARY_DARWIN=$(BINARY_NAME)_darwin
 
 # Build the binary for current platform
 build:
-	@echo "Building $(BINARY_NAME) v$(VERSION)..."
+	@printf "$(BLUE)Building $(BINARY_NAME) v$(VERSION)...$(NC)\n"
 	@echo "Main path: $(MAIN_PATH)"
 	go build $(LDFLAGS) -o $(BINARY_NAME) $(MAIN_PATH)
-	@echo "✅ Build completed: $(BINARY_NAME)"
+	@printf "$(GREEN)Build completed: $(BINARY_NAME)$(NC)\n"
 
 # Build for development with race detector and debug info
 dev:
-	@echo "Building development version with race detector..."
+	@echo -e "$(BLUE)Building development version with race detector...$(NC)"
 	go build -race -gcflags="all=-N -l" -o $(BINARY_NAME)-dev $(MAIN_PATH)
-	@echo "✅ Development build completed: $(BINARY_NAME)-dev"
+	@echo -e "$(GREEN)Development build completed: $(BINARY_NAME)-dev$(NC)"
 
 # Build optimized release version
 release-build:
-	@echo "Building optimized release version..."
+	@echo -e "$(BLUE)Building optimized release version...$(NC)"
 	go build $(LDFLAGS) -trimpath -o $(BINARY_NAME) $(MAIN_PATH)
-	@echo "✅ Release build completed: $(BINARY_NAME)"
+	@echo -e "$(GREEN)Release build completed: $(BINARY_NAME)$(NC)"
 
 # Build release binaries for all supported platforms
 release-all:
-	@echo "Building release binaries for all platforms..."
+	@echo -e "$(BLUE)Building release binaries for all platforms...$(NC)"
 	@mkdir -p dist
 	
 	# Linux AMD64
-	@echo "Building for Linux AMD64..."
+	@echo -e "$(BLUE)Building for Linux AMD64...$(NC)"
 	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
 	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-linux-amd64.tar.gz $(BINARY_NAME)-linux-amd64
 	
 	# Linux ARM64
-	@echo "Building for Linux ARM64..."
+	@echo -e "$(BLUE)Building for Linux ARM64...$(NC)"
 	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
 	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-linux-arm64.tar.gz $(BINARY_NAME)-linux-arm64
 	
 	# macOS AMD64
-	@echo "Building for macOS AMD64..."
+	@echo -e "$(BLUE)Building for macOS AMD64...$(NC)"
 	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
 	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-darwin-amd64.tar.gz $(BINARY_NAME)-darwin-amd64
 	
 	# macOS ARM64 (Apple Silicon)
-	@echo "Building for macOS ARM64..."
+	@echo -e "$(BLUE)Building for macOS ARM64...$(NC)"
 	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
 	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64
 	
-	@echo "✅ Release binaries created in dist/ directory"
+	@echo "Release binaries created in dist/ directory"
 	@echo "Archives ready for GitHub release:"
 	@ls -la dist/*.tar.gz
 
 # Create checksums for release files
 release-checksums:
-	@echo "Generating checksums..."
+	@echo "Generating checksums...$(NC)"
 	@cd dist && sha256sum *.tar.gz > checksums.txt
-	@echo "✅ Checksums generated in dist/checksums.txt"
+	@echo "Checksums generated in dist/checksums.txt"
 
 # Complete release preparation
 release: clean release-all release-checksums
-	@echo "🎉 Release v$(VERSION) prepared successfully!"
+	@echo "Release v$(VERSION) prepared successfully!"
 	@echo ""
 	@echo "Upload these files to GitHub release:"
 	@ls -la dist/
@@ -82,60 +91,60 @@ release: clean release-all release-checksums
 
 # CI-friendly targets
 ci-test:
-	@echo "Running CI tests..."
-	@echo "Running unit tests with race detection..."
+	@echo -e "$(BLUE)Running CI tests...$(NC)"
+	@echo -e "$(BLUE)Running unit tests with race detection...$(NC)"
 	go test -race -timeout=5m ./pkg/... ./internal/...
-	@echo "Running integration tests..."
+	@echo -e "$(BLUE)Running integration tests...$(NC)"
 	go test -v -timeout=2m ./test/integration/...
-	@echo "✅ All tests passed"
+	@echo -e "$(GREEN)All tests passed$(NC)"
 
 ci-lint:
-	@echo "Running CI linting..."
+	@echo -e "$(BLUE)Running CI linting...$(NC)"
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./...; \
 	else \
-		echo "⚠️  golangci-lint not installed, using go vet only"; \
+		echo "$(YELLOW)WARNING:$(NC)  golangci-lint not installed, using go vet only"; \
 	fi
 	go vet ./...
-	@echo "✅ Linting passed"
+	@echo -e "$(GREEN)Linting passed$(NC)"
 
 ci-build:
-	@echo "Running CI build verification..."
+	@echo -e "$(BLUE)Running CI build verification...$(NC)"
 	go build -o /tmp/$(BINARY_NAME) $(MAIN_PATH)
 	/tmp/$(BINARY_NAME) --version
-	@echo "✅ Build verification passed"
+	@echo -e "$(GREEN)Build verification passed$(NC)"
 
 ci-security:
-	@echo "Running security checks..."
+	@echo -e "$(BLUE)Running security checks...$(NC)"
 	@if command -v gosec >/dev/null 2>&1; then \
 		gosec ./...; \
 	else \
-		echo "⚠️  gosec not installed, skipping security scan"; \
+		echo "$(YELLOW)WARNING:$(NC)  gosec not installed, skipping security scan"; \
 	fi
-	@echo "✅ Security checks completed"
+	@echo -e "$(GREEN)Security checks completed$(NC)"
 
 ci-cross-compile:
-	@echo "Testing cross-compilation..."
+	@echo "Testing cross-compilation...$(NC)"
 	GOOS=linux GOARCH=amd64 go build -o /tmp/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
 	GOOS=linux GOARCH=arm64 go build -o /tmp/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
 	GOOS=darwin GOARCH=amd64 go build -o /tmp/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
 	GOOS=darwin GOARCH=arm64 go build -o /tmp/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
-	@echo "✅ Cross-compilation successful"
+	@echo -e "$(GREEN)Cross-compilation successful$(NC)"
 
 # Run all CI checks locally
 ci-full: deps ci-test ci-lint ci-build ci-security ci-cross-compile
-	@echo "🎉 All CI checks passed locally!"
+	@echo -e "$(GREEN)All CI checks passed locally!$(NC)"
 
 # Release management targets
 pre-release-check:
-	@echo "Running pre-release checks..."
+	@echo -e "$(BLUE)Running pre-release checks...$(NC)"
 	@echo "Current branch: $(shell git branch --show-current)"
 	@echo "Latest commit: $(shell git log -1 --oneline)"
 	@echo ""
 	
 	# Ensure working directory is clean
 	@if ! git diff-index --quiet HEAD --; then \
-		echo "❌ Working directory is not clean. Please commit or stash changes."; \
+		echo "$(RED)ERROR:$(NC) Working directory is not clean. Please commit or stash changes."; \
 		exit 1; \
 	fi
 	
@@ -143,15 +152,15 @@ pre-release-check:
 	make ci-full
 	
 	@echo ""
-	@echo "✅ Pre-release checks passed!"
+	@echo -e "$(GREEN)Pre-release checks passed!$(NC)"
 	@echo "Ready to create release tag."
 
 tag-release: pre-release-check
-	@echo "Creating release tag..."
+	@echo -e "$(BLUE)Creating release tag...$(NC)"
 	@echo ""
 	@read -p "Enter version (e.g., 1.0.0): " version; \
 	if [[ ! "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-.*)?$$ ]]; then \
-		echo "❌ Invalid version format. Use: 1.0.0 or 1.0.0-alpha.1"; \
+		echo "$(RED)ERROR:$(NC) Invalid version format. Use: 1.0.0 or 1.0.0-alpha.1"; \
 		exit 1; \
 	fi; \
 	tag="v$$version"; \
@@ -164,29 +173,29 @@ tag-release: pre-release-check
 	echo "This will trigger automated release creation on GitHub."
 
 push-release-tag:
-	@echo "Pushing latest tag to trigger release..."
+	@echo "Pushing latest tag to trigger release...$(NC)"
 	@latest_tag=$$(git tag --sort=-version:refname | head -1); \
 	if [[ -z "$$latest_tag" ]]; then \
-		echo "❌ No tags found. Create a tag first with 'make tag-release'"; \
+		echo "$(RED)ERROR:$(NC) No tags found. Create a tag first with 'make tag-release'"; \
 		exit 1; \
 	fi; \
 	echo "Pushing tag: $$latest_tag"; \
 	git push origin "$$latest_tag"; \
 	echo ""; \
-	echo "🚀 Release triggered! Monitor progress at:"; \
+	echo -e "$(CYAN)Release triggered! Monitor progress at:$(NC)"; \
 	echo "  https://github.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/actions"
 
 release-local: clean
-	@echo "Creating local release simulation..."
+	@echo -e "$(BLUE)Creating local release simulation...$(NC)"
 	@version=$$(git describe --tags --always 2>/dev/null || echo "dev"); \
 	echo "Building release for version: $$version"; \
 	make release-all; \
 	echo ""; \
-	echo "✅ Local release created in dist/"; \
+	echo " Local release created in dist/"; \
 	echo "This simulates what GitHub Actions will build."
 
 check-release-status:
-	@echo "Checking latest release status..."
+	@echo "Checking latest release status...$(NC)"
 	@latest_tag=$$(git tag --sort=-version:refname | head -1); \
 	if [[ -z "$$latest_tag" ]]; then \
 		echo "No releases found"; \
@@ -198,15 +207,87 @@ check-release-status:
 	if command -v gh >/dev/null 2>&1; then \
 		gh release view "$$latest_tag" 2>/dev/null || echo "  Release not found on GitHub"; \
 	else \
-		echo "  Install 'gh' CLI to check release status"; \
+		echo " Install 'gh' CLI to check release status"; \
 	fi; \
 	echo ""; \
-	echo "Install command:"; \
-	echo "  curl -sSL https://raw.githubusercontent.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/main/install.sh | bash -s -- --version $$latest_tag"
+	echo "Install command:";
+
+# Quick release commands for common scenarios
+release-alpha: pre-release-check
+	@echo -e "$(BLUE)Creating alpha release...$(NC)"
+	@next_version=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$$' | head -1 | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)-alpha\.\([0-9]*\)/\1.\2.\3-alpha.\4/' | awk -F'-alpha\.' '{print $$1 "-alpha." ($$2+1)}'); \
+	if [[ -z "$$next_version" ]]; then \
+		next_version="1.0.0-alpha.1"; \
+	fi; \
+	echo "Next alpha version: $$next_version"; \
+	read -p "Proceed with v$$next_version? [Y/n]: " -r; \
+	if [[ $$REPLY =~ ^[Nn]$$ ]]; then \
+		echo "Cancelled"; \
+		exit 1; \
+	fi; \
+	tag="v$$next_version"; \
+	echo "Creating tag: $$tag"; \
+	git tag -a "$$tag" -m "Release $$tag"; \
+	echo "Tag created. Use 'make push-release-tag' to publish."
+
+release-beta: pre-release-check
+	@echo -e "$(BLUE)Creating beta release...$(NC)"
+	@next_version=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$$' | head -1 | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)-beta\.\([0-9]*\)/\1.\2.\3-beta.\4/' | awk -F'-beta\.' '{print $$1 "-beta." ($$2+1)}'); \
+	if [[ -z "$$next_version" ]]; then \
+		next_version="1.0.0-beta.1"; \
+	fi; \
+	echo "Next beta version: $$next_version"; \
+	read -p "Proceed with v$$next_version? [Y/n]: " -r; \
+	if [[ $$REPLY =~ ^[Nn]$$ ]]; then \
+		echo "Cancelled"; \
+		exit 1; \
+	fi; \
+	tag="v$$next_version"; \
+	echo "Creating tag: $$tag"; \
+	git tag -a "$$tag" -m "Release $$tag"; \
+	echo "Tag created. Use 'make push-release-tag' to publish."
+
+release-stable: pre-release-check
+	@echo -e "$(BLUE)Creating stable release...$(NC)"
+	@echo "$(YELLOW)WARNING:$(NC)  This creates a production release!"
+	@read -p "Enter stable version (e.g., 1.0.0): " version; \
+	if [[ ! "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$$ ]]; then \
+		echo "$(RED)ERROR:$(NC) Invalid stable version format. Use: 1.0.0"; \
+		exit 1; \
+	fi; \
+	tag="v$$version"; \
+	echo "Creating STABLE tag: $$tag"; \
+	read -p "Are you sure? This will be marked as latest release [y/N]: " -r; \
+	if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
+		echo "Cancelled"; \
+		exit 1; \
+	fi; \
+	git tag -a "$$tag" -m "Release $$tag"; \
+	echo "Stable tag created. Use 'make push-release-tag' to publish."
+
+# One-command release flows
+quick-alpha: release-alpha push-release-tag
+	@echo -e "$(GREEN)Alpha release published!$(NC)"
+
+quick-beta: release-beta push-release-tag  
+	@echo -e "$(GREEN)Beta release published!$(NC)"
+
+quick-stable: release-stable push-release-tag
+	@echo -e "$(GREEN)Stable release published!$(NC)"
+
+# Release with custom version
+release-version:
+	@echo -e "$(BLUE)Creating custom version release...$(NC)"
+	@read -p "Enter version (e.g., 1.0.0 or 1.0.0-rc.1): " version; \
+	if [[ ! "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-.*)?$$ ]]; then \
+		echo "$(RED)ERROR:$(NC) Invalid version format. Use: 1.0.0 or 1.0.0-alpha.1"; \
+		exit 1; \
+	fi; \
+	echo "$$version" | make tag-release
 
 # Clean build artifacts
 clean:
-	@echo "Cleaning build artifacts..."
+	@printf "$(BLUE)Cleaning build artifacts...$(NC)\n"
 	go clean
 	rm -f $(BINARY_NAME)
 	rm -f $(BINARY_NAME)-dev
@@ -218,99 +299,99 @@ clean:
 	rm -f $(BINARY_NAME)-windows-*
 	rm -rf dist/
 	rm -f coverage.out coverage.html
-	@echo "✅ Clean completed"
+	@printf "$(GREEN)Clean completed$(NC)\n"
 
 # Install dependencies and tidy modules
 deps:
-	@echo "Installing dependencies..."
+	@echo -e "$(BLUE)Installing dependencies...$(NC)"
 	go mod download
 	go mod tidy
 	go mod verify
-	@echo "✅ Dependencies updated"
+	@echo "Dependencies updated"
 
 # Format code
 fmt:
-	@echo "Formatting code..."
+	@echo "Formatting code...$(NC)"
 	go fmt ./...
-	@echo "✅ Code formatted"
+	@echo "Code formatted"
 
 # Vet code for issues
 vet:
-	@echo "Vetting code..."
+	@echo "Vetting code...$(NC)"
 	go vet ./...
-	@echo "✅ Code vetted"
+	@echo "Code vetted"
 
 # Run linter (requires golangci-lint)
 lint:
-	@echo "Running linter..."
+	@echo -e "$(BLUE)Running linter...$(NC)"
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./...; \
-		echo "✅ Linting completed"; \
+		echo "Linting completed$(NC)\""; \
 	else \
-		echo "⚠️  golangci-lint not installed. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+		echo "$(YELLOW)WARNING:$(NC)  golangci-lint not installed. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
 	fi
 
 # Test targets
 test:
-	@echo "Running all tests..."
+	@echo -e "$(BLUE)Running all tests...$(NC)"
 	go test -v ./...
-	@echo "✅ All tests completed"
+	@echo "All tests completed$(NC)\""
 
 test-unit:
-	@echo "Running unit tests..."
+	@echo -e "$(BLUE)Running unit tests...$(NC)"
 	go test -v -short ./pkg/... ./internal/...
-	@echo "✅ Unit tests completed"
+	@echo "Unit tests completed$(NC)\""
 
 test-integration:
-	@echo "Running integration tests..."
+	@echo -e "$(BLUE)Running integration tests...$(NC)"
 	go test -v -run TestFull ./test/integration/...
-	@echo "✅ Integration tests completed"
+	@echo "Integration tests completed$(NC)\""
 
 test-coverage:
-	@echo "Running tests with coverage..."
+	@echo -e "$(BLUE)Running tests with coverage...$(NC)"
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage.html
-	@echo "✅ Coverage report generated: coverage.html"
+	@echo "Coverage report generated: coverage.html"
 	@echo "📊 Coverage summary:"
 	@go tool cover -func=coverage.out | tail -1
 
 test-coverage-ci:
-	@echo "Running tests with coverage for CI..."
+	@echo -e "$(BLUE)Running tests with coverage for CI...$(NC)"
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
 	@go tool cover -func=coverage.out
 
 test-watch:
-	@echo "Running tests in watch mode (requires entr)..."
+	@echo -e "$(BLUE)Running tests in watch mode (requires entr)...$(NC)"
 	@if command -v entr >/dev/null 2>&1; then \
 		find . -name '*.go' | entr -c go test ./...; \
 	else \
-		echo "⚠️  entr not installed. Install with your package manager."; \
+		echo "$(YELLOW)WARNING:$(NC)  entr not installed. Install with your package manager."; \
 	fi
 
 test-verbose:
-	@echo "Running tests with verbose output..."
+	@echo -e "$(BLUE)Running tests with verbose output...$(NC)"
 	go test -v -race ./... -args -test.v
 
 test-bench:
-	@echo "Running benchmarks..."
+	@echo -e "$(BLUE)Running benchmarks...$(NC)"
 	go test -bench=. -benchmem ./...
-	@echo "✅ Benchmarks completed"
+	@echo "Benchmarks completed$(NC)\""
 
 test-clean:
-	@echo "Cleaning test artifacts..."
+	@echo "Cleaning test artifacts...$(NC)"
 	rm -f coverage.out coverage.html
 	rm -rf test/tmp/*
 	go clean -testcache
-	@echo "✅ Test artifacts cleaned"
+	@echo "Test artifacts cleaned"
 
 # Mock generation (if using gomock)
 generate-mocks:
-	@echo "Generating mocks..."
+	@echo "Generating mocks...$(NC)"
 	@if command -v mockgen >/dev/null 2>&1; then \
 		mockgen -source=pkg/types/types.go -destination=pkg/types/mocks_generated.go -package=types; \
-		echo "✅ Mocks generated"; \
+		echo "Mocks generated"; \
 	else \
-		echo "⚠️  mockgen not installed. Install with: go install github.com/golang/mock/mockgen@latest"; \
+		echo "$(YELLOW)WARNING:$(NC)  mockgen not installed. Install with: go install github.com/golang/mock/mockgen@latest"; \
 	fi
 
 # Run benchmarks
@@ -318,55 +399,55 @@ bench: test-bench
 
 # Run all checks (format, vet, lint, test)
 check: fmt vet lint test
-	@echo "✅ All checks passed"
+	@echo "All checks passed"
 
 # Run comprehensive checks including integration tests
 check-full: fmt vet lint test-unit test-integration
-	@echo "✅ All comprehensive checks passed"
+	@echo "All comprehensive checks passed"
 
 # Build for all platforms
 build-all: build-linux build-darwin build-windows
-	@echo "✅ Multi-platform build completed"
+	@echo "Multi-platform build completed$(NC)\""
 
 # Build for Linux (multiple architectures)
 build-linux:
-	@echo "Building for Linux..."
+	@echo -e "$(BLUE)Building for Linux...$(NC)"
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
 	CGO_ENABLED=0 GOOS=linux GOARCH=386 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-386 $(MAIN_PATH)
-	@echo "✅ Linux builds completed"
+	@echo "Linux builds completed$(NC)\""
 
 # Build for macOS (multiple architectures)
 build-darwin:
-	@echo "Building for macOS..."
+	@echo -e "$(BLUE)Building for macOS...$(NC)"
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
-	@echo "✅ macOS builds completed"
+	@echo "macOS builds completed$(NC)\""
 
 # Build for Windows (multiple architectures)
 build-windows:
-	@echo "Building for Windows..."
+	@echo -e "$(BLUE)Building for Windows...$(NC)"
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe $(MAIN_PATH)
 	CGO_ENABLED=0 GOOS=windows GOARCH=386 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-386.exe $(MAIN_PATH)
-	@echo "✅ Windows builds completed"
+	@echo "Windows builds completed$(NC)\""
 
 # Install the binary globally
 install: build
-	@echo "Installing $(BINARY_NAME) globally..."
+	@echo -e "$(BLUE)Installing $(BINARY_NAME) globally...$(NC)"
 	go install $(LDFLAGS) $(MAIN_PATH)
-	@echo "✅ $(BINARY_NAME) installed globally"
+	@echo "$(BINARY_NAME) installed globally"
 
 # Uninstall the binary
 uninstall:
-	@echo "Uninstalling $(BINARY_NAME)..."
+	@echo "Uninstalling $(BINARY_NAME)...$(NC)"
 	@GOBIN=$$(go env GOBIN); \
 	if [ -z "$$GOBIN" ]; then GOBIN=$$(go env GOPATH)/bin; fi; \
 	rm -f "$$GOBIN/$(BINARY_NAME)"
-	@echo "✅ $(BINARY_NAME) uninstalled"
+	@echo "$(BINARY_NAME) uninstalled"
 
 # Create release archives and checksums (legacy target)
 release-legacy: clean build-all
-	@echo "Creating release archives..."
+	@echo -e "$(BLUE)Creating release archives...$(NC)"
 	mkdir -p dist
 	
 	# Linux AMD64
@@ -390,42 +471,42 @@ release-legacy: clean build-all
 	# Windows 386
 	zip -j dist/$(BINARY_NAME)-$(VERSION)-windows-386.zip $(BINARY_NAME)-windows-386.exe README.md
 	
-	@echo "✅ Release archives created in dist/"
+	@echo "Release archives created in dist/"
 
 # Generate checksums for releases
 checksums:
-	@echo "Generating checksums..."
+	@echo "Generating checksums...$(NC)"
 	cd dist && sha256sum * > checksums.txt
 	cd dist && md5sum * > checksums.md5
-	@echo "✅ Checksums generated"
+	@echo "Checksums generated"
 
 # Run the application
 run:
-	@echo "Running $(BINARY_NAME)..."
+	@echo -e "$(BLUE)Running $(BINARY_NAME)...$(NC)"
 	go run $(MAIN_PATH) $(ARGS)
 
 # Run with specific command
 run-pack:
-	@echo "Running pack command..."
+	@echo -e "$(BLUE)Running pack command...$(NC)"
 	go run $(MAIN_PATH) pack $(ARGS)
 
 run-unpack:
-	@echo "Running unpack command..."
+	@echo -e "$(BLUE)Running unpack command...$(NC)"
 	go run $(MAIN_PATH) unpack $(ARGS)
 
 run-list:
-	@echo "Running list command..."
+	@echo -e "$(BLUE)Running list command...$(NC)"
 	go run $(MAIN_PATH) list $(ARGS)
 
 run-status:
-	@echo "Running status command..."
+	@echo -e "$(BLUE)Running status command...$(NC)"
 	go run $(MAIN_PATH) status $(ARGS)
 
 # Development utilities
 
 # Set up demo environment with sample files
 demo:
-	@echo "Setting up demo environment..."
+	@echo "Setting up demo environment...$(NC)"
 	mkdir -p demo/project1 demo/project2/config demo/project3
 	echo "DATABASE_URL=postgres://localhost:5432/myapp" > demo/project1/.env
 	echo "API_KEY=demo-api-key-12345" > demo/project1/.env.local
@@ -434,68 +515,68 @@ demo:
 	echo "REDIS_URL=redis://localhost:6379" > demo/project2/.env
 	echo "SECRET_KEY=super-secret-key" > demo/project2/config/.env.staging
 	echo "AWS_REGION=us-east-1" > demo/project3/.env.test
-	@echo "✅ Demo environment created in demo/"
+	@echo "Demo environment created in demo/"
 
 # Clean demo environment
 clean-demo:
-	@echo "Cleaning demo environment..."
+	@echo "Cleaning demo environment...$(NC)"
 	rm -rf demo
-	@echo "✅ Demo environment cleaned"
+	@echo "Demo environment cleaned"
 
 # Run demo scenario
 demo-scenario: demo build
-	@echo "Running demo scenario..."
+	@echo -e "$(BLUE)Running demo scenario...$(NC)"
 	cd demo/project1 && ../../$(BINARY_NAME) status
 	cd demo/project1 && ../../$(BINARY_NAME) pack -k "demo123" -o demo-backup.enc
 	cd demo/project1 && ../../$(BINARY_NAME) list -f .goingenv/demo-backup.enc -k "demo123"
-	@echo "✅ Demo scenario completed"
+	@echo "Demo scenario completed$(NC)\""
 
 # Development server (for TUI testing)
 dev-server: dev
-	@echo "Starting development server with file watching..."
+	@echo "Starting development server with file watching...$(NC)"
 	@echo "Press Ctrl+C to stop"
 	./$(BINARY_NAME)-dev
 
 # Profile the application
 profile:
-	@echo "Running with CPU profiling..."
+	@echo -e "$(BLUE)Running with CPU profiling...$(NC)"
 	go run $(MAIN_PATH) pack -k "test" -cpuprofile=cpu.prof
 	go tool pprof cpu.prof
 
 # Memory profile
 profile-mem:
-	@echo "Running with memory profiling..."
+	@echo -e "$(BLUE)Running with memory profiling...$(NC)"
 	go run $(MAIN_PATH) pack -k "test" -memprofile=mem.prof
 	go tool pprof mem.prof
 
 # Security scan (requires gosec)
 security-scan:
-	@echo "Running security scan..."
+	@echo -e "$(BLUE)Running security scan...$(NC)"
 	@if command -v gosec >/dev/null 2>&1; then \
 		gosec ./...; \
-		echo "✅ Security scan completed"; \
+		echo "Security scan completed$(NC)\""; \
 	else \
-		echo "⚠️  gosec not installed. Install with: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest"; \
+		echo "$(YELLOW)WARNING:$(NC)  gosec not installed. Install with: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest"; \
 	fi
 
 # Dependency vulnerability check
 vuln-check:
-	@echo "Checking for vulnerabilities..."
+	@echo "Checking for vulnerabilities...$(NC)"
 	@if command -v govulncheck >/dev/null 2>&1; then \
 		govulncheck ./...; \
-		echo "✅ Vulnerability check completed"; \
+		echo "Vulnerability check completed$(NC)\""; \
 	else \
-		echo "⚠️  govulncheck not installed. Install with: go install golang.org/x/vuln/cmd/govulncheck@latest"; \
+		echo "$(YELLOW)WARNING:$(NC)  govulncheck not installed. Install with: go install golang.org/x/vuln/cmd/govulncheck@latest"; \
 	fi
 
 # Generate documentation
 docs:
-	@echo "Generating documentation..."
+	@echo "Generating documentation...$(NC)"
 	@if command -v godoc >/dev/null 2>&1; then \
 		echo "📚 Documentation server: http://localhost:6060/pkg/goingenv/"; \
 		godoc -http=:6060; \
 	else \
-		echo "⚠️  godoc not installed. Install with: go install golang.org/x/tools/cmd/godoc@latest"; \
+		echo "$(YELLOW)WARNING:$(NC)  godoc not installed. Install with: go install golang.org/x/tools/cmd/godoc@latest"; \
 	fi
 
 # Show project statistics
@@ -514,72 +595,75 @@ help:
 	@echo "===================="
 	@echo ""
 	@echo "Build Commands:"
-	@echo "  build          - Build binary for current platform"
-	@echo "  dev            - Build development version with race detector"
-	@echo "  release-build  - Build optimized release version"
-	@echo "  build-all      - Build for all platforms"
-	@echo "  build-linux    - Build for Linux (amd64, arm64, 386)"
-	@echo "  build-darwin   - Build for macOS (amd64, arm64)"
-	@echo "  build-windows  - Build for Windows (amd64, 386)"
+	@echo " build          - Build binary for current platform"
+	@echo " dev            - Build development version with race detector"
+	@echo " release-build  - Build optimized release version"
+	@echo " build-all      - Build for all platforms"
+	@echo " build-linux    - Build for Linux (amd64, arm64, 386)"
+	@echo " build-darwin   - Build for macOS (amd64, arm64)"
+	@echo " build-windows  - Build for Windows (amd64, 386)"
 	@echo ""
 	@echo "Development Commands:"
-	@echo "  clean          - Clean build artifacts"
-	@echo "  deps           - Install and update dependencies"
-	@echo "  fmt            - Format code"
-	@echo "  vet            - Vet code for issues"
-	@echo "  lint           - Run linter (requires golangci-lint)"
-	@echo "  check          - Run all checks (fmt, vet, lint, test)"
-	@echo "  check-full     - Run comprehensive checks including integration tests"
+	@echo " clean          - Clean build artifacts"
+	@echo " deps           - Install and update dependencies"
+	@echo " fmt            - Format code"
+	@echo " vet            - Vet code for issues"
+	@echo " lint           - Run linter (requires golangci-lint)"
+	@echo " check          - Run all checks (fmt, vet, lint, test)"
+	@echo " check-full     - Run comprehensive checks including integration tests"
 	@echo ""
 	@echo "Test Commands:"
-	@echo "  test           - Run all tests"
-	@echo "  test-unit      - Run unit tests only"
-	@echo "  test-integration - Run integration tests only"
-	@echo "  test-coverage  - Run tests with coverage report"
-	@echo "  test-coverage-ci - Run tests with coverage for CI"
-	@echo "  test-watch     - Run tests in watch mode (requires entr)"
-	@echo "  test-verbose   - Run tests with verbose output"
-	@echo "  test-bench     - Run benchmarks"
-	@echo "  test-clean     - Clean test artifacts"
-	@echo "  generate-mocks - Generate mock implementations"
-	@echo "  bench          - Run benchmarks"
+	@echo " test           - Run all tests"
+	@echo " test-unit      - Run unit tests only"
+	@echo " test-integration - Run integration tests only"
+	@echo " test-coverage  - Run tests with coverage report"
+	@echo " test-coverage-ci - Run tests with coverage for CI"
+	@echo " test-watch     - Run tests in watch mode (requires entr)"
+	@echo " test-verbose   - Run tests with verbose output"
+	@echo " test-bench     - Run benchmarks"
+	@echo " test-clean     - Clean test artifacts"
+	@echo " generate-mocks - Generate mock implementations"
+	@echo " bench          - Run benchmarks"
 	@echo ""
 	@echo "Release Commands:"
-	@echo "  release        - Create release archives"
-	@echo "  checksums      - Generate checksums for releases"
-	@echo "  install        - Install binary globally"
-	@echo "  uninstall      - Uninstall binary"
+	@echo " release        - Create release archives"
+	@echo " checksums      - Generate checksums for releases"
+	@echo " install        - Install binary globally"
+	@echo " uninstall      - Uninstall binary"
 	@echo ""
 	@echo "Run Commands:"
-	@echo "  run            - Run application (use ARGS= for arguments)"
-	@echo "  run-pack       - Run pack command (use ARGS= for arguments)"
-	@echo "  run-unpack     - Run unpack command"
-	@echo "  run-list       - Run list command"
-	@echo "  run-status     - Run status command"
+	@echo " run            - Run application (use ARGS= for arguments)"
+	@echo " run-pack       - Run pack command (use ARGS= for arguments)"
+	@echo " run-unpack     - Run unpack command"
+	@echo " run-list       - Run list command"
+	@echo " run-status     - Run status command"
 	@echo ""
 	@echo "Demo Commands:"
-	@echo "  demo           - Set up demo environment"
-	@echo "  clean-demo     - Clean demo environment"
-	@echo "  demo-scenario  - Run complete demo scenario"
+	@echo " demo           - Set up demo environment"
+	@echo " clean-demo     - Clean demo environment"
+	@echo " demo-scenario  - Run complete demo scenario"
 	@echo ""
 	@echo "Analysis Commands:"
-	@echo "  profile        - Run with CPU profiling"
-	@echo "  profile-mem    - Run with memory profiling"
-	@echo "  security-scan  - Run security scan (requires gosec)"
-	@echo "  vuln-check     - Check for vulnerabilities (requires govulncheck)"
-	@echo "  stats          - Show project statistics"
+	@echo " profile        - Run with CPU profiling"
+	@echo " profile-mem    - Run with memory profiling"
+	@echo " security-scan  - Run security scan (requires gosec)"
+	@echo " vuln-check     - Check for vulnerabilities (requires govulncheck)"
+	@echo " stats          - Show project statistics"
 	@echo ""
 	@echo "Documentation:"
-	@echo "  docs           - Start documentation server"
-	@echo "  help           - Show this help message"
+	@echo " docs           - Start documentation server"
+	@echo " help           - Show this help message"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make build                    # Build for current platform"
-	@echo "  make ci-full                  # Run all CI checks locally"
-	@echo "  make tag-release              # Create and tag new release"
-	@echo "  make push-release-tag         # Push tag to trigger GitHub release"
-	@echo "  make run ARGS='pack -k pass'  # Run pack command"
-	@echo "  make demo-scenario            # Full demo with sample files"
+	@echo " make build                    # Build for current platform"
+	@echo " make ci-full                  # Run all CI checks locally"
+	@echo " make tag-release              # Create and tag new release"
+	@echo " make push-release-tag         # Push tag to trigger GitHub release"
+	@echo " make quick-alpha              # Create and publish alpha release"
+	@echo " make quick-beta               # Create and publish beta release"  
+	@echo " make quick-stable             # Create and publish stable release"
+	@echo " make run ARGS='pack -k pass'  # Run pack command"
+	@echo " make demo-scenario            # Full demo with sample files"
 
 # Phony targets
 .PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration \
@@ -589,4 +673,5 @@ help:
         run-list run-status demo clean-demo demo-scenario dev-server profile \
         profile-mem security-scan vuln-check docs stats help \
         ci-test ci-lint ci-build ci-security ci-cross-compile ci-full \
-        pre-release-check tag-release push-release-tag release-local check-release-status
+        pre-release-check tag-release push-release-tag release-local check-release-status \
+        release-alpha release-beta release-stable quick-alpha quick-beta quick-stable release-version
