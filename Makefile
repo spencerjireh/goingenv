@@ -212,6 +212,100 @@ check-release-status:
 	echo ""; \
 	echo "Install command:";
 
+# Automated functional testing workflow
+test-functional:
+	@echo -e "$(BLUE)Running functional test workflow...$(NC)"
+	@echo "Step 1: Building application..."
+	@make build > /dev/null
+	@echo -e "$(GREEN)✓$(NC) Build completed"
+	
+	@echo "Step 2: Creating test environment files..."
+	@mkdir -p test_env_files_functional
+	@echo "TEST=value" > test_env_files_functional/.env
+	@echo "LOCAL=test" > test_env_files_functional/.env.local
+	@echo "DEV=true" > test_env_files_functional/.env.development
+	@echo "CUSTOM=value" > test_env_files_functional/.env.custom
+	@echo "BACKUP=old" > test_env_files_functional/.env.backup
+	@echo "NEW=format" > test_env_files_functional/.env.new_format
+	@echo "IGNORED=value" > test_env_files_functional/regular.txt
+	@echo -e "$(GREEN)✓$(NC) Test files created (6 .env files + 1 regular file)"
+	
+	@echo "Step 3: Backing up existing config..."
+	@if [ -f ~/.goingenv.json ]; then \
+		cp ~/.goingenv.json ~/.goingenv.json.test-backup; \
+		echo -e "$(YELLOW)!$(NC) Existing config backed up"; \
+	else \
+		echo -e "$(GREEN)✓$(NC) No existing config to backup"; \
+	fi
+	
+	@echo "Step 4: Testing all-inclusive pattern (no config)..."
+	@rm -f ~/.goingenv.json
+	@files_detected=$$(./goingenv status test_env_files_functional/ | grep -c "\.env"); \
+	if [ "$$files_detected" -eq 6 ]; then \
+		echo -e "$(GREEN)✓$(NC) All-inclusive pattern working ($$files_detected/6 files detected)"; \
+	else \
+		echo -e "$(RED)✗$(NC) All-inclusive pattern failed ($$files_detected/6 files detected)"; \
+		exit 1; \
+	fi
+	
+	@echo "Step 5: Testing exclusion patterns..."
+	@echo '{"default_depth": 3, "env_patterns": ["\\\\.env.*"], "env_exclude_patterns": ["\\\\.env\\\\.backup$$"], "exclude_patterns": ["node_modules/", "\\\\.git/"], "max_file_size": 10485760}' > ~/.goingenv.json
+	@files_detected=$$(./goingenv status test_env_files_functional/ | grep -c "\.env"); \
+	if [ "$$files_detected" -eq 5 ]; then \
+		echo -e "$(GREEN)✓$(NC) Exclusion patterns working ($$files_detected/5 files detected, .env.backup excluded)"; \
+	else \
+		echo -e "$(RED)✗$(NC) Exclusion patterns failed ($$files_detected/5 files detected)"; \
+		exit 1; \
+	fi
+	
+	@echo "Step 6: Testing pack/unpack functionality..."
+	@cd test_env_files_functional && ../goingenv pack -k "test123" -o functional-test.enc > /dev/null
+	@if [ -f test_env_files_functional/.goingenv/functional-test.enc ]; then \
+		echo -e "$(GREEN)✓$(NC) Pack functionality working"; \
+	else \
+		echo -e "$(RED)✗$(NC) Pack functionality failed"; \
+		exit 1; \
+	fi
+	@mkdir -p test_env_files_functional/unpacked
+	@cd test_env_files_functional && ../goingenv unpack -f .goingenv/functional-test.enc -k "test123" -t unpacked > /dev/null
+	@unpacked_files=$$(find test_env_files_functional/unpacked -name ".env*" | wc -l); \
+	if [ "$$unpacked_files" -eq 5 ]; then \
+		echo -e "$(GREEN)✓$(NC) Unpack functionality working ($$unpacked_files files restored)"; \
+	else \
+		echo -e "$(RED)✗$(NC) Unpack functionality failed ($$unpacked_files files restored)"; \
+		exit 1; \
+	fi
+	
+	@echo "Step 7: Cleaning up..."
+	@rm -rf test_env_files_functional
+	@rm -f ~/.goingenv.json
+	@if [ -f ~/.goingenv.json.test-backup ]; then \
+		mv ~/.goingenv.json.test-backup ~/.goingenv.json; \
+		echo -e "$(YELLOW)!$(NC) Original config restored"; \
+	else \
+		echo -e "$(GREEN)✓$(NC) Cleanup completed"; \
+	fi
+	
+	@echo ""
+	@echo -e "$(GREEN)🎉 All functional tests passed!$(NC)"
+	@echo "✓ All-inclusive .env.* pattern detection"
+	@echo "✓ Exclusion pattern functionality" 
+	@echo "✓ Pack/unpack workflow"
+	@echo "✓ Configuration management"
+
+# Complete test suite including functional tests
+test-complete: clean
+	@echo -e "$(BLUE)Running complete test suite...$(NC)"
+	@echo ""
+	@make ci-test
+	@echo ""
+	@make test-functional
+	@echo ""
+	@echo -e "$(GREEN)🎉 Complete test suite passed!$(NC)"
+	@echo "✓ Unit tests with race detection"
+	@echo "✓ Integration tests" 
+	@echo "✓ Functional workflow tests"
+
 # Quick release commands for common scenarios
 release-alpha: pre-release-check
 	@echo -e "$(BLUE)Creating alpha release...$(NC)"
@@ -616,6 +710,8 @@ help:
 	@echo " test           - Run all tests"
 	@echo " test-unit      - Run unit tests only"
 	@echo " test-integration - Run integration tests only"
+	@echo " test-functional - Run automated functional workflow tests"
+	@echo " test-complete  - Run complete test suite (unit + integration + functional)"
 	@echo " test-coverage  - Run tests with coverage report"
 	@echo " test-coverage-ci - Run tests with coverage for CI"
 	@echo " test-watch     - Run tests in watch mode (requires entr)"
@@ -667,7 +763,7 @@ help:
 
 # Phony targets
 .PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration \
-        test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
+        test-functional test-complete test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
         generate-mocks bench check check-full build-all build-linux build-darwin \
         build-windows install uninstall release release-all release-checksums checksums run run-pack run-unpack \
         run-list run-status demo clean-demo demo-scenario dev-server profile \

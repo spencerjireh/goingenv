@@ -24,10 +24,11 @@ type Archive struct {
 
 // Config holds application configuration
 type Config struct {
-	DefaultDepth    int      `json:"default_depth" validate:"min=1,max=10"`
-	EnvPatterns     []string `json:"env_patterns" validate:"required,min=1"`
-	ExcludePatterns []string `json:"exclude_patterns"`
-	MaxFileSize     int64    `json:"max_file_size"`
+	DefaultDepth       int      `json:"default_depth" validate:"min=1,max=10"`
+	EnvPatterns        []string `json:"env_patterns" validate:"required,min=1"`
+	EnvExcludePatterns []string `json:"env_exclude_patterns"`
+	ExcludePatterns    []string `json:"exclude_patterns"`
+	MaxFileSize        int64    `json:"max_file_size"`
 }
 
 // App holds all the application dependencies
@@ -41,10 +42,11 @@ type App struct {
 
 // ScanOptions represents options for file scanning
 type ScanOptions struct {
-	RootPath    string
-	MaxDepth    int
-	Patterns    []string
-	ExcludePatterns []string
+	RootPath           string
+	MaxDepth           int
+	Patterns           []string
+	EnvExcludePatterns []string
+	ExcludePatterns    []string
 }
 
 // PackOptions represents options for packing files

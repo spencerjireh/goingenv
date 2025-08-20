@@ -79,14 +79,9 @@ func (m *Manager) GetDefault() *types.Config {
 	return &types.Config{
 		DefaultDepth: 3,
 		EnvPatterns: []string{
-			`\.env$`,
-			`\.env\.local$`,
-			`\.env\.development$`,
-			`\.env\.production$`,
-			`\.env\.staging$`,
-			`\.env\.test$`,
-			`\.env\.example$`,
+			`\.env.*`,
 		},
+		EnvExcludePatterns: []string{},
 		ExcludePatterns: []string{
 			`node_modules/`,
 			`\.git/`,

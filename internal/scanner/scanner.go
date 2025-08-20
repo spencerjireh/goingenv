@@ -38,6 +38,9 @@ func (s *Service) ScanFiles(opts types.ScanOptions) ([]types.EnvFile, error) {
 	if len(opts.Patterns) == 0 {
 		opts.Patterns = s.config.EnvPatterns
 	}
+	if len(opts.EnvExcludePatterns) == 0 {
+		opts.EnvExcludePatterns = s.config.EnvExcludePatterns
+	}
 	if len(opts.ExcludePatterns) == 0 {
 		opts.ExcludePatterns = s.config.ExcludePatterns
 	}
@@ -46,6 +49,11 @@ func (s *Service) ScanFiles(opts types.ScanOptions) ([]types.EnvFile, error) {
 	envRegexes, err := compilePatterns(opts.Patterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile env patterns: %w", err)
+	}
+
+	envExcludeRegexes, err := compilePatterns(opts.EnvExcludePatterns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile env exclude patterns: %w", err)
 	}
 
 	excludeRegexes, err := compilePatterns(opts.ExcludePatterns)
@@ -100,6 +108,13 @@ func (s *Service) ScanFiles(opts types.ScanOptions) ([]types.EnvFile, error) {
 
 		if !matched {
 			return nil
+		}
+
+		// Check if file matches env exclusion patterns
+		for _, regex := range envExcludeRegexes {
+			if regex.MatchString(info.Name()) {
+				return nil // Skip this file as it matches exclusion pattern
+			}
 		}
 
 		// Calculate checksum

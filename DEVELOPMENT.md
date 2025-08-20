@@ -217,6 +217,12 @@ go build -ldflags="-X main.Version=1.0.0 -X main.BuildTime=$(date -u +%Y-%m-%dT%
 # Run all tests
 make test
 
+# Run automated functional workflow tests
+make test-functional
+
+# Run complete test suite (recommended for development)
+make test-complete
+
 # Run unit tests only
 make test-unit
 
@@ -345,8 +351,9 @@ func TestWithMock(t *testing.T) {
 
 4. **Test Changes**
    ```bash
-   make check-full  # Run all checks
-   make test        # Run tests
+   make test-complete   # Run complete test suite (recommended)
+   make check-full      # Run all checks including linting
+   make test-functional # Quick functional validation
    ```
 
 5. **Commit Changes**

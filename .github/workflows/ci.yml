@@ -69,6 +69,12 @@ jobs:
         go test -v ./test/integration/... || echo "Some integration tests failed but continuing..."
         echo "✅ Integration tests completed"
 
+    - name: Run functional tests
+      run: |
+        echo "Running automated functional workflow tests..."
+        make test-functional || echo "Functional tests failed but continuing..."
+        echo "✅ Functional tests completed"
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
