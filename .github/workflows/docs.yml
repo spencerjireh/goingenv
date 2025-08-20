@@ -120,9 +120,9 @@ jobs:
         
         required_sections=(
           "# GoingEnv"
-          "## 🚀 Quick Start"
-          "## ✨ Key Features"
-          "## 📖 Documentation"
+          "## Quick Start"
+          "## Key Features"
+          "## Documentation"
         )
         
         missing_sections=()
@@ -153,7 +153,7 @@ jobs:
     steps:
     - name: Success notification
       run: |
-        echo "🎉 All documentation checks passed!"
+        echo "All documentation checks passed!"
         echo ""
         echo "✅ Markdown linting"
         echo "✅ Link checking"

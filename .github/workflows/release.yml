@@ -258,7 +258,7 @@ jobs:
           
           // Enhance with installation instructions
           const installInstructions = `
-          ## 🚀 Installation
+          ## Installation
           
           **Quick Install (Linux & macOS):**
           \`\`\`bash
@@ -273,7 +273,7 @@ jobs:
           **Manual Download:**
           Download the appropriate binary for your platform from the assets below.
           
-          ## 🔐 Verification
+          ## Verification
           
           Verify your download with SHA256 checksums:
           \`\`\`bash
@@ -395,10 +395,10 @@ jobs:
     steps:
     - name: Success notification
       run: |
-        echo "🎉 Release ${{ github.ref_name }} completed successfully!"
+        echo "Release ${{ github.ref_name }} completed successfully!"
         echo ""
-        echo "📦 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
-        echo "📥 Install command: curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash"
+        echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+        echo "Install command: curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash"
         echo ""
         echo "✅ All validation checks passed"
         echo "✅ Binaries are available for download"

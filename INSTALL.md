@@ -1,4 +1,4 @@
-# GoingEnv Installation Guide
+# Installation Guide
 
 This guide provides detailed installation instructions for GoingEnv on Linux and macOS systems.
 

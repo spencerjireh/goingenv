@@ -51,33 +51,33 @@ The TUI provides a user-friendly interface for all GoingEnv operations.
 
 ### Main Menu Options
 
-1. **📦 Pack Environment Files**
+1. **Pack Environment Files**
    - Scans current directory for env files
    - Shows preview of detected files
    - Prompts for encryption password
    - Creates encrypted archive
 
-2. **📂 Unpack Archive**
+2. **Unpack Archive**
    - Browse available `.enc` files
    - Prompts for decryption password
    - Extracts files to current directory
 
-3. **📋 List Archive Contents**
+3. **List Archive Contents**
    - Browse and select archive file
    - Shows archive metadata and file list
    - No files are extracted
 
-4. **📊 Status**
+4. **Status**
    - Shows current directory information
    - Lists available archives
    - Displays detected environment files
    - Shows configuration settings
 
-5. **⚙️ Settings**
+5. **Settings**
    - View current configuration
    - Shows scan depth, patterns, and limits
 
-6. **❓ Help**
+6. **Help**
    - Interactive help and documentation
    - Command examples and usage tips
 

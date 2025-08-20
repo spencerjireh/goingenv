@@ -6,7 +6,7 @@ GoingEnv is a CLI tool that scans, encrypts, and archives your `.env` files with
 
 ## Documentation
 
-📖 **[View Full Documentation](https://spencerjirehcebrian.github.io/goingenv/)** - Complete installation guide, usage examples, and tutorials
+**[Documentation](https://spencerjirehcebrian.github.io/goingenv/)** - Installation guide, usage examples, and tutorials
 
 > [!WARNING]
 > Educational purposes only. Not audited for production use. Use at your own risk in sensitive environments.
@@ -17,7 +17,7 @@ GoingEnv is a CLI tool that scans, encrypts, and archives your `.env` files with
 - **AES-256 Encryption** - Military-grade security with PBKDF2 key derivation
 - **Beautiful TUI** - Interactive terminal interface with real-time preview
 - **Archive Management** - Compressed, encrypted archives with metadata
-- ✅ **Integrity Checks** - SHA-256 checksums ensure data integrity
+- **Integrity Checks** - SHA-256 checksums ensure data integrity
 - **CLI & TUI Modes** - Perfect for both interactive use and automation
 - **Cross-Platform** - Works on Linux, macOS (Intel & Apple Silicon)
 
