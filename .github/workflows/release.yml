@@ -257,31 +257,30 @@ jobs:
           });
           
           // Enhance with installation instructions
-          const installInstructions = `
-          ## Installation
-          
-          **Quick Install (Linux & macOS):**
-          \`\`\`bash
-          curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
-          \`\`\`
-          
-          **Install Specific Version:**
-          \`\`\`bash
-          curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --version ${{ github.ref_name }}
-          \`\`\`
-          
-          **Manual Download:**
-          Download the appropriate binary for your platform from the assets below.
-          
-          ## Verification
-          
-          Verify your download with SHA256 checksums:
-          \`\`\`bash
-          sha256sum -c checksums.txt
-          \`\`\`
-          
-          ---
-          `;
+          const installInstructions = `## Installation
+
+**Quick Install (Linux & macOS):**
+\`\`\`bash
+curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+\`\`\`
+
+**Install Specific Version:**
+\`\`\`bash
+curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --version ${{ github.ref_name }}
+\`\`\`
+
+**Manual Download:**
+Download the appropriate binary for your platform from the assets below.
+
+## Verification
+
+Verify your download with SHA256 checksums:
+\`\`\`bash
+sha256sum -c checksums.txt
+\`\`\`
+
+---
+`;
           
           return installInstructions + data.body;
 
