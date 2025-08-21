@@ -176,8 +176,8 @@ goingenv pack --password-env MY_PASSWORD --verbose
 goingenv pack --password-env MY_PASSWORD --depth 3
 
 # Pack from multiple directories
-cd /project1 && goingenv pack -k "pass" -o project1.enc
-cd /project2 && goingenv pack -k "pass" -o project2.enc
+cd /project1 && goingenv pack --password-env MY_PASSWORD -o project1.enc
+cd /project2 && goingenv pack --password-env MY_PASSWORD -o project2.enc
 ```
 
 ### Unpack Operations
@@ -191,7 +191,7 @@ goingenv unpack
 goingenv unpack -f backup.enc --password-env MY_PASSWORD
 
 # Unpack to specific directory
-goingenv unpack -f backup.enc --password-env MY_PASSWORD --target-dir /restore/path
+goingenv unpack -f backup.enc --password-env MY_PASSWORD --target /restore/path
 
 # Unpack with overwrite protection
 goingenv unpack -f backup.enc --password-env MY_PASSWORD --backup
@@ -256,7 +256,7 @@ PROJECT_NAME=$(basename $(pwd))
 BACKUP_NAME="${PROJECT_NAME}-${DATE}.enc"
 
 echo "Creating daily backup: $BACKUP_NAME"
-goingenv pack -k "$BACKUP_PASSWORD" -o "$BACKUP_NAME" --description "Daily backup"
+goingenv pack --password-env BACKUP_PASSWORD -o "$BACKUP_NAME" --description "Daily backup"
 
 echo "Backup created: ~/.goingenv/$BACKUP_NAME"
 ```
@@ -286,14 +286,18 @@ goingenv status --verbose
 ```bash
 # On source machine (assuming already initialized)
 cd /old/project
-goingenv pack -k "migration-key" -o migration.enc --description "Migration from server-1"
+export MIGRATION_PASSWORD="migration-key"
+goingenv pack --password-env MIGRATION_PASSWORD -o migration.enc --description "Migration from server-1"
+unset MIGRATION_PASSWORD
 
 # Transfer migration.enc to new machine
 
 # On target machine
 cd /new/project
 goingenv init  # Initialize if not already done
-goingenv unpack -f migration.enc -k "migration-key" --backup
+export MIGRATION_PASSWORD="migration-key"
+goingenv unpack -f migration.enc --password-env MIGRATION_PASSWORD --backup
+unset MIGRATION_PASSWORD
 goingenv status
 ```
 
@@ -323,7 +327,7 @@ ENVIRONMENT=${1:-production}
 echo "Creating pre-deployment backup for $ENVIRONMENT ($VERSION)"
 
 goingenv pack \
-  -k "$DEPLOY_BACKUP_PASSWORD" \
+  --password-env DEPLOY_BACKUP_PASSWORD \
   -o "pre-deploy-${ENVIRONMENT}-${VERSION}.enc" \
   --description "Pre-deployment backup for $ENVIRONMENT v$VERSION" \
   --verbose
@@ -382,7 +386,7 @@ for project in "$PROJECTS_DIR"/*; do
         echo "Backing up: $project_name"
         cd "$project"
         
-        if goingenv pack -k "$PASSWORD" -o "$backup_file" --description "Automated backup"; then
+        if goingenv pack --password-env BACKUP_PASSWORD -o "$backup_file" --description "Automated backup"; then
             echo "✅ $project_name backed up successfully"
         else
             echo "❌ Failed to backup $project_name"
@@ -413,7 +417,7 @@ jobs:
       
       - name: Create Environment Backup
         run: |
-          goingenv pack -k "${{ secrets.BACKUP_PASSWORD }}" -o "production-backup.enc"
+          goingenv pack --password-env BACKUP_PASSWORD -o "production-backup.enc"
         env:
           BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
       
@@ -487,6 +491,8 @@ chmod 700 ~/.goingenv
 
 # Secure environment variable handling
 # Avoid storing passwords in shell history
+# Clear environment variables after use
+unset MY_PASSWORD
 ```
 
 ## Troubleshooting

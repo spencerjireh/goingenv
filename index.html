@@ -1,426 +1,786 @@
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="GoingEnv - Secure Environment File Manager with AES-256 encryption for Linux and macOS">
-    <meta name="keywords" content="environment files, encryption, security, CLI, TUI, .env files">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="GoingEnv - Secure Environment File Manager with AES-256 encryption for Linux and macOS"
+    />
+    <meta
+      name="keywords"
+      content="environment files, encryption, security, CLI, TUI, .env files"
+    />
     <title>GoingEnv - Secure Environment File Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        accent: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            200: '#bae6fd',
-                            300: '#7dd3fc',
-                            400: '#38bdf8',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            800: '#075985',
-                            900: '#0c4a6e',
-                        },
-                        dark: {
-                            50: '#f8fafc',
-                            100: '#f1f5f9',
-                            200: '#e2e8f0',
-                            300: '#cbd5e1',
-                            400: '#94a3b8',
-                            500: '#64748b',
-                            600: '#475569',
-                            700: '#334155',
-                            800: '#1e293b',
-                            900: '#0f172a',
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'monospace'],
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.6s ease-out',
-                        'slide-up': 'slideUp 0.8s ease-out',
-                        'glow': 'glow 2s ease-in-out infinite alternate',
-                        'float': 'float 3s ease-in-out infinite',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(10px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        },
-                        slideUp: {
-                            '0%': { transform: 'translateY(30px)', opacity: '0' },
-                            '100%': { transform: 'translateY(0)', opacity: '1' },
-                        },
-                        glow: {
-                            '0%': { boxShadow: '0 0 20px rgba(14, 165, 233, 0.3)' },
-                            '100%': { boxShadow: '0 0 30px rgba(14, 165, 233, 0.6)' },
-                        },
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0px)' },
-                            '50%': { transform: 'translateY(-10px)' },
-                        }
-                    }
-                }
-            }
-        }
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              accent: {
+                50: "#f0f9ff",
+                100: "#e0f2fe",
+                200: "#bae6fd",
+                300: "#7dd3fc",
+                400: "#38bdf8",
+                500: "#0ea5e9",
+                600: "#0284c7",
+                700: "#0369a1",
+                800: "#075985",
+                900: "#0c4a6e",
+              },
+              dark: {
+                50: "#f8fafc",
+                100: "#f1f5f9",
+                200: "#e2e8f0",
+                300: "#cbd5e1",
+                400: "#94a3b8",
+                500: "#64748b",
+                600: "#475569",
+                700: "#334155",
+                800: "#1e293b",
+                900: "#0f172a",
+              },
+            },
+            fontFamily: {
+              sans: [
+                "Inter",
+                "-apple-system",
+                "BlinkMacSystemFont",
+                "Segoe UI",
+                "Roboto",
+                "sans-serif",
+              ],
+              mono: [
+                "JetBrains Mono",
+                "SF Mono",
+                "Monaco",
+                "Cascadia Code",
+                "Roboto Mono",
+                "monospace",
+              ],
+            },
+            animation: {
+              "fade-in": "fadeIn 0.6s ease-out",
+              "slide-up": "slideUp 0.8s ease-out",
+              glow: "glow 2s ease-in-out infinite alternate",
+              float: "float 3s ease-in-out infinite",
+            },
+            keyframes: {
+              fadeIn: {
+                "0%": { opacity: "0", transform: "translateY(10px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+              slideUp: {
+                "0%": { transform: "translateY(30px)", opacity: "0" },
+                "100%": { transform: "translateY(0)", opacity: "1" },
+              },
+              glow: {
+                "0%": { boxShadow: "0 0 20px rgba(14, 165, 233, 0.3)" },
+                "100%": { boxShadow: "0 0 30px rgba(14, 165, 233, 0.6)" },
+              },
+              float: {
+                "0%, 100%": { transform: "translateY(0px)" },
+                "50%": { transform: "translateY(-10px)" },
+              },
+            },
+          },
+        },
+      };
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body class="bg-dark-900 text-dark-50 antialiased selection:bg-accent-500/20 selection:text-accent-400">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body
+    class="bg-dark-900 text-dark-50 antialiased selection:bg-accent-500/20 selection:text-accent-400"
+  >
     <!-- Hero Section -->
-    <header class="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <!-- Simplified Background -->
-        <div class="absolute inset-0 bg-gradient-to-b from-dark-900 to-black"></div>
-        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.1)_0%,transparent_70%)]"></div>
-        
-        <div class="relative z-10 max-w-5xl mx-auto px-6 text-center">
-            <div class="animate-fade-in">
-                <h1 class="text-5xl sm:text-6xl lg:text-7xl font-light tracking-tight mb-6 text-white">
-                    GoingEnv
-                </h1>
-                
-                <p class="text-lg sm:text-xl text-dark-300 max-w-2xl mx-auto mb-4 leading-relaxed font-light">
-                    Encrypt and manage your environment files
-                </p>
-                
-                <p class="text-sm text-dark-400 max-w-xl mx-auto mb-12 font-light">
-                    Secure backup, restore, and sharing of <code class="bg-dark-800 px-2 py-1 rounded text-accent-400">.env</code> files
-                </p>
-                
-                <div class="flex flex-col sm:flex-row gap-4 justify-center items-center animate-slide-up">
-                    <a href="#installation" class="inline-flex items-center px-6 py-3 bg-accent-500 hover:bg-accent-600 text-white font-medium rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-accent-500/25">
-                        Get Started
-                    </a>
-                    <a href="https://github.com/spencerjirehcebrian/goingenv" class="inline-flex items-center px-6 py-3 border border-dark-600 hover:border-accent-500/50 text-dark-300 hover:text-accent-400 font-medium rounded-lg transition-all duration-200">
-                        View on GitHub
-                    </a>
-                </div>
-                
-                <!-- Quick Preview -->
-                <div class="mt-16 max-w-2xl mx-auto">
-                    <div class="bg-dark-800/50 backdrop-blur-sm border border-dark-700/50 rounded-xl p-6">
-                        <div class="text-left">
-                            <div class="text-xs text-dark-400 mb-2">Quick usage:</div>
-                            <code class="text-accent-400 font-mono text-sm block mb-2">$ goingenv pack -k "password"</code>
-                            <code class="text-accent-400 font-mono text-sm block">$ goingenv unpack -f backup.enc -k "password"</code>
-                        </div>
-                    </div>
-                </div>
+    <header
+      class="relative min-h-screen flex items-center justify-center overflow-hidden"
+    >
+      <!-- Simplified Background -->
+      <div
+        class="absolute inset-0 bg-gradient-to-b from-dark-900 to-black"
+      ></div>
+      <div
+        class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.1)_0%,transparent_70%)]"
+      ></div>
+
+      <div class="relative z-10 max-w-5xl mx-auto px-6 text-center">
+        <div class="animate-fade-in">
+          <h1
+            class="text-5xl sm:text-6xl lg:text-7xl font-light tracking-tight mb-6 text-white"
+          >
+            GoingEnv
+          </h1>
+
+          <p
+            class="text-lg sm:text-xl text-dark-300 max-w-2xl mx-auto mb-4 leading-relaxed font-light"
+          >
+            Encrypt and manage your environment files
+          </p>
+
+          <p class="text-sm text-dark-400 max-w-xl mx-auto mb-12 font-light">
+            Secure backup, restore, and sharing of
+            <code class="bg-dark-800 px-2 py-1 rounded text-accent-400"
+              >.env</code
+            >
+            files
+          </p>
+
+          <div
+            class="flex flex-col sm:flex-row gap-4 justify-center items-center animate-slide-up"
+          >
+            <a
+              href="#installation"
+              class="inline-flex items-center px-6 py-3 bg-accent-500 hover:bg-accent-600 text-white font-medium rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-accent-500/25"
+            >
+              Get Started
+            </a>
+            <a
+              href="https://github.com/spencerjirehcebrian/goingenv"
+              class="inline-flex items-center px-6 py-3 border border-dark-600 hover:border-accent-500/50 text-dark-300 hover:text-accent-400 font-medium rounded-lg transition-all duration-200"
+            >
+              View on GitHub
+            </a>
+          </div>
+
+          <!-- Quick Preview -->
+          <div class="mt-16 max-w-2xl mx-auto">
+            <div
+              class="bg-dark-800/50 backdrop-blur-sm border border-dark-700/50 rounded-xl p-6"
+            >
+              <div class="text-left">
+                <div class="text-xs text-dark-400 mb-2">Quick usage:</div>
+                <code class="text-accent-400 font-mono text-sm block mb-2"
+                  >$ goingenv init</code
+                >
+                <code class="text-accent-400 font-mono text-sm block mb-2"
+                  >$ goingenv pack</code
+                >
+                <code class="text-accent-400 font-mono text-sm block"
+                  >$ goingenv unpack</code
+                >
+              </div>
             </div>
+          </div>
         </div>
-        
-        <!-- Scroll Indicator -->
-        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-            <svg class="w-5 h-5 text-dark-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-            </svg>
-        </div>
+      </div>
+
+      <!-- Scroll Indicator -->
+      <div
+        class="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce"
+      >
+        <svg
+          class="w-5 h-5 text-dark-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 14l-7 7m0 0l-7-7m7 7V3"
+          />
+        </svg>
+      </div>
     </header>
 
     <!-- Navigation -->
-    <nav class="sticky top-0 z-50 bg-dark-900/80 backdrop-blur-xl border-b border-dark-700/50">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="flex justify-center">
-                <div class="flex space-x-2">
-                    <a href="#overview" class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm">Overview</a>
-                    <a href="#installation" class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm">Installation</a>
-                    <a href="#quick-start" class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm">Quick Start</a>
-                    <a href="#configuration" class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm">Configuration</a>
-                </div>
-            </div>
+    <nav
+      class="sticky top-0 z-50 bg-dark-900/80 backdrop-blur-xl border-b border-dark-700/50"
+    >
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="flex justify-center">
+          <div class="flex space-x-2">
+            <a
+              href="#overview"
+              class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm"
+              >Overview</a
+            >
+            <a
+              href="#installation"
+              class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm"
+              >Installation</a
+            >
+            <a
+              href="#quick-start"
+              class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm"
+              >Quick Start</a
+            >
+            <a
+              href="#configuration"
+              class="px-6 py-4 text-dark-300 hover:text-accent-400 font-medium transition-all duration-200 border-b-2 border-transparent hover:border-accent-500 text-sm"
+              >Configuration</a
+            >
+          </div>
         </div>
+      </div>
     </nav>
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-6 py-24">
-        
-        <!-- Overview Section -->
-        <section id="overview" class="mb-32">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">Overview</h2>
-                <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light">
-                    Secure environment file management for developers
-                </p>
+      <!-- Overview Section -->
+      <section id="overview" class="mb-32">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">
+            Overview
+          </h2>
+          <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light">
+            Secure environment file management for developers
+          </p>
+        </div>
+
+        <div class="max-w-4xl mx-auto">
+          <div class="text-center mb-12">
+            <p class="text-lg text-dark-200 leading-relaxed font-light mb-8">
+              GoingEnv finds, encrypts, and archives your
+              <code
+                class="bg-dark-800 px-2 py-1 rounded text-sm font-mono text-accent-400 border border-dark-700"
+                >.env</code
+              >
+              files with AES-256 encryption.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-center">
+            <div>
+              <h3 class="text-base font-medium text-white mb-3">
+                What it does
+              </h3>
+              <p class="text-sm text-dark-300 font-light">
+                Scans directories, finds environment files, encrypts them into
+                secure archives, and restores them when needed.
+              </p>
             </div>
-            
-            <div class="max-w-4xl mx-auto">
-                <div class="text-center mb-12">
-                    <p class="text-lg text-dark-200 leading-relaxed font-light mb-8">
-                        GoingEnv finds, encrypts, and archives your <code class="bg-dark-800 px-2 py-1 rounded text-sm font-mono text-accent-400 border border-dark-700">.env</code> files with AES-256 encryption.
-                    </p>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-center">
-                    <div>
-                        <h3 class="text-base font-medium text-white mb-3">What it does</h3>
-                        <p class="text-sm text-dark-300 font-light">Scans directories, finds environment files, encrypts them into secure archives, and restores them when needed.</p>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-medium text-white mb-3">Why use it</h3>
-                        <p class="text-sm text-dark-300 font-light">Backup sensitive configs, migrate between environments, share team setups, and automate deployments safely.</p>
-                    </div>
-                </div>
+            <div>
+              <h3 class="text-base font-medium text-white mb-3">Why use it</h3>
+              <p class="text-sm text-dark-300 font-light">
+                Backup sensitive configs, migrate between environments, share
+                team setups, and automate deployments safely.
+              </p>
             </div>
-        </section>
+          </div>
+        </div>
+      </section>
 
-        <!-- Installation Section -->
-        <section id="installation" class="mb-32">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">Installation</h2>
-                <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light mb-8">
-                    Quick installation on Linux and macOS
-                </p>
-                <!-- Releases button in header -->
-                <a href="https://github.com/spencerjirehcebrian/goingenv/releases" class="inline-flex items-center px-4 py-2 text-accent-400 hover:text-accent-300 font-medium text-sm border border-accent-500/30 hover:border-accent-500/50 rounded-lg transition-all duration-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
-                    </svg>
-                    View All Releases
-                </a>
+      <!-- Installation Section -->
+      <section id="installation" class="mb-32">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">
+            Installation
+          </h2>
+          <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light mb-8">
+            Quick installation on Linux and macOS
+          </p>
+          <!-- Releases button in header -->
+          <a
+            href="https://github.com/spencerjirehcebrian/goingenv/releases"
+            class="inline-flex items-center px-4 py-2 text-accent-400 hover:text-accent-300 font-medium text-sm border border-accent-500/30 hover:border-accent-500/50 rounded-lg transition-all duration-200"
+          >
+            <svg
+              class="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+              />
+            </svg>
+            View All Releases
+          </a>
+        </div>
+
+        <div class="max-w-5xl mx-auto space-y-12">
+          <!-- One-Line Installation -->
+          <div
+            class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8"
+          >
+            <h3 class="text-xl font-light text-white mb-4">
+              One-Line Installation
+            </h3>
+            <p class="text-dark-300 mb-6 font-light">
+              Install using the automated installer:
+            </p>
+            <div class="bg-black/50 rounded-xl p-4 border border-dark-700/30">
+              <code class="text-accent-400 font-mono text-sm"
+                >curl -sSL
+                https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh
+                | bash</code
+              >
             </div>
-            
-            <div class="max-w-5xl mx-auto space-y-12">
+          </div>
 
-                <!-- One-Line Installation -->
-                <div class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8">
-                    <h3 class="text-xl font-light text-white mb-4">One-Line Installation</h3>
-                    <p class="text-dark-300 mb-6 font-light">Install using the automated installer:</p>
-                    <div class="bg-black/50 rounded-xl p-4 border border-dark-700/30">
-                        <code class="text-accent-400 font-mono text-sm">curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash</code>
-                    </div>
-                </div>
-
-                <!-- Version Installation -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-dark-800/20 backdrop-blur-sm border border-dark-700/30 rounded-2xl p-6">
-                        <h3 class="text-lg font-light text-white mb-3">Specific Version</h3>
-                        <div class="bg-black/50 rounded-xl p-3 border border-dark-700/30">
-                            <code class="text-accent-400 font-mono text-xs">curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v0.1.0-beta.11</code>
-                        </div>
-                    </div>
-
-                    <div class="bg-dark-800/20 backdrop-blur-sm border border-dark-700/30 rounded-2xl p-6">
-                        <h3 class="text-lg font-light text-white mb-3">Development Version</h3>
-                        <p class="text-dark-300 text-xs mb-3 font-light">Latest development features:</p>
-                        <div class="bg-black/50 rounded-xl p-3 border border-dark-700/30">
-                            <code class="text-accent-400 font-mono text-xs">curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh | bash</code>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Manual Installation Steps -->
-                <div class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8">
-                    <h3 class="text-xl font-light text-white mb-6">Manual Installation</h3>
-                    <div class="space-y-6">
-                        <div class="flex items-start space-x-4">
-                            <div class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm">1</div>
-                            <div class="flex-1">
-                                <h4 class="text-base font-medium text-white mb-2">Download Binary</h4>
-                                <p class="text-dark-300 text-sm font-light">Download the appropriate binary for your platform from the <a href="https://github.com/spencerjirehcebrian/goingenv/releases" class="text-accent-400 hover:text-accent-300 underline">GitHub releases page</a>.</p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-start space-x-4">
-                            <div class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm">2</div>
-                            <div class="flex-1">
-                                <h4 class="text-base font-medium text-white mb-2">Extract Archive</h4>
-                                <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30">
-                                    <code class="text-accent-400 font-mono text-xs">tar -xzf goingenv-*.tar.gz</code>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex items-start space-x-4">
-                            <div class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm">3</div>
-                            <div class="flex-1">
-                                <h4 class="text-base font-medium text-white mb-2">Install Binary</h4>
-                                <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30">
-                                    <code class="text-accent-400 font-mono text-xs">sudo mv goingenv /usr/local/bin/<br/>chmod +x /usr/local/bin/goingenv</code>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex items-start space-x-4">
-                            <div class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm">4</div>
-                            <div class="flex-1">
-                                <h4 class="text-base font-medium text-white mb-2">Verify Installation</h4>
-                                <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30">
-                                    <code class="text-accent-400 font-mono text-xs">goingenv --version</code>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+          <!-- Version Installation -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div
+              class="bg-dark-800/20 backdrop-blur-sm border border-dark-700/30 rounded-2xl p-6"
+            >
+              <h3 class="text-lg font-light text-white mb-3">
+                Specific Version
+              </h3>
+              <div class="bg-black/50 rounded-xl p-3 border border-dark-700/30">
+                <code class="text-accent-400 font-mono text-xs"
+                  >curl -sSL
+                  https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh
+                  | bash -s -- --version v0.1.0-beta.11</code
+                >
+              </div>
             </div>
-        </section>
 
-        <!-- Quick Start Section -->
-        <section id="quick-start" class="mb-32">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">Quick Start</h2>
-                <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light">
-                    Get up and running in minutes
-                </p>
+            <div
+              class="bg-dark-800/20 backdrop-blur-sm border border-dark-700/30 rounded-2xl p-6"
+            >
+              <h3 class="text-lg font-light text-white mb-3">
+                Development Version
+              </h3>
+              <p class="text-dark-300 text-xs mb-3 font-light">
+                Latest development features:
+              </p>
+              <div class="bg-black/50 rounded-xl p-3 border border-dark-700/30">
+                <code class="text-accent-400 font-mono text-xs"
+                  >curl -sSL
+                  https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh
+                  | bash</code
+                >
+              </div>
             </div>
-            
-            <div class="max-w-5xl mx-auto">
-                <div class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8 mb-12">
-                    <h3 class="text-xl font-light text-white mb-8">Your First Backup</h3>
-                    <div class="space-y-6">
-                        <div class="flex items-start space-x-4">
-                            <div class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm">1</div>
-                            <div class="flex-1">
-                                <h4 class="text-base font-medium text-white mb-2">Navigate to Your Project</h4>
-                                <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30">
-                                    <code class="text-accent-400 font-mono text-xs">cd /path/to/your/project</code>
-                                </div>
-                            </div>
-                        </div>
+          </div>
 
-                        <div class="flex items-start space-x-4">
-                            <div class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm">2</div>
-                            <div class="flex-1">
-                                <h4 class="text-base font-medium text-white mb-2">Check What Files Are Detected</h4>
-                                <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2">
-                                    <code class="text-accent-400 font-mono text-xs">goingenv status</code>
-                                </div>
-                                <p class="text-dark-300 text-xs font-light">Shows environment files found in your project.</p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-start space-x-4">
-                            <div class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm">3</div>
-                            <div class="flex-1">
-                                <h4 class="text-base font-medium text-white mb-2">Create Your First Backup</h4>
-                                <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2">
-                                    <code class="text-accent-400 font-mono text-xs">goingenv pack -k "your-secure-password"</code>
-                                </div>
-                                <p class="text-dark-300 text-xs font-light">Creates an encrypted archive of your environment files.</p>
-                            </div>
-                        </div>
-                    </div>
+          <!-- Manual Installation Steps -->
+          <div
+            class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8"
+          >
+            <h3 class="text-xl font-light text-white mb-6">
+              Manual Installation
+            </h3>
+            <div class="space-y-6">
+              <div class="flex items-start space-x-4">
+                <div
+                  class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm"
+                >
+                  1
                 </div>
-
-                <div class="bg-gradient-to-r from-accent-500/10 to-accent-600/10 border border-accent-500/20 rounded-2xl p-8 backdrop-blur-sm">
-                    <h3 class="text-xl font-light text-white mb-4">Interactive Mode</h3>
-                    <p class="text-dark-300 mb-6 font-light">For a guided experience, simply run:</p>
-                    <div class="bg-black/50 rounded-lg p-4 border border-dark-700/30 mb-4">
-                        <code class="text-accent-400 font-mono text-base">goingenv</code>
-                    </div>
-                    <p class="text-dark-300 font-light text-sm">Launches an interactive interface with arrow key navigation.</p>
+                <div class="flex-1">
+                  <h4 class="text-base font-medium text-white mb-2">
+                    Download Binary
+                  </h4>
+                  <p class="text-dark-300 text-sm font-light">
+                    Download the appropriate binary for your platform from the
+                    <a
+                      href="https://github.com/spencerjirehcebrian/goingenv/releases"
+                      class="text-accent-400 hover:text-accent-300 underline"
+                      >GitHub releases page</a
+                    >.
+                  </p>
                 </div>
-            </div>
-        </section>
+              </div>
 
-        <!-- Configuration Section -->
-        <section id="configuration" class="mb-32">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">Configuration</h2>
-                <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light">
-                    Customize GoingEnv behavior with configuration files
-                </p>
+              <div class="flex items-start space-x-4">
+                <div
+                  class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm"
+                >
+                  2
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-base font-medium text-white mb-2">
+                    Extract Archive
+                  </h4>
+                  <div
+                    class="bg-black/50 rounded-lg p-3 border border-dark-700/30"
+                  >
+                    <code class="text-accent-400 font-mono text-xs"
+                      >tar -xzf goingenv-*.tar.gz</code
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-start space-x-4">
+                <div
+                  class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm"
+                >
+                  3
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-base font-medium text-white mb-2">
+                    Install Binary
+                  </h4>
+                  <div
+                    class="bg-black/50 rounded-lg p-3 border border-dark-700/30"
+                  >
+                    <code class="text-accent-400 font-mono text-xs"
+                      >sudo mv goingenv /usr/local/bin/<br />chmod +x
+                      /usr/local/bin/goingenv</code
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-start space-x-4">
+                <div
+                  class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm"
+                >
+                  4
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-base font-medium text-white mb-2">
+                    Verify Installation
+                  </h4>
+                  <div
+                    class="bg-black/50 rounded-lg p-3 border border-dark-700/30"
+                  >
+                    <code class="text-accent-400 font-mono text-xs"
+                      >goingenv --version</code
+                    >
+                  </div>
+                </div>
+              </div>
             </div>
-            
-            <div class="max-w-5xl mx-auto space-y-12">
-                <!-- Basic Configuration -->
-                <div class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8">
-                    <h3 class="text-xl font-light text-white mb-6">Basic Configuration</h3>
-                    <p class="text-dark-300 mb-6 font-light">Create a configuration file at <code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">~/.goingenv.json</code> to customize default behavior:</p>
-                    
-                    <div class="bg-black/50 rounded-xl p-6 border border-dark-700/30 mb-6">
-                        <pre class="text-accent-400 font-mono text-sm overflow-x-auto"><code>{
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Start Section -->
+      <section id="quick-start" class="mb-32">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">
+            Quick Start
+          </h2>
+          <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light">
+            Get up and running in minutes
+          </p>
+        </div>
+
+        <div class="max-w-5xl mx-auto">
+          <div
+            class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8 mb-12"
+          >
+            <h3 class="text-xl font-light text-white mb-8">
+              Your First Backup
+            </h3>
+            <div class="space-y-6">
+              <div class="flex items-start space-x-4">
+                <div
+                  class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm"
+                >
+                  1
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-base font-medium text-white mb-2">
+                    Navigate to Your Project
+                  </h4>
+                  <div
+                    class="bg-black/50 rounded-lg p-3 border border-dark-700/30"
+                  >
+                    <code class="text-accent-400 font-mono text-xs"
+                      >cd /path/to/your/project</code
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-start space-x-4">
+                <div
+                  class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm"
+                >
+                  2
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-base font-medium text-white mb-2">
+                    Initialize GoingEnv
+                  </h4>
+                  <div
+                    class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2"
+                  >
+                    <code class="text-accent-400 font-mono text-xs"
+                      >goingenv init</code
+                    >
+                  </div>
+                  <p class="text-dark-300 text-xs font-light">
+                    Required first step - sets up GoingEnv in your project
+                    directory.
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-start space-x-4">
+                <div
+                  class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm"
+                >
+                  3
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-base font-medium text-white mb-2">
+                    Check What Files Are Detected
+                  </h4>
+                  <div
+                    class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2"
+                  >
+                    <code class="text-accent-400 font-mono text-xs"
+                      >goingenv status</code
+                    >
+                  </div>
+                  <p class="text-dark-300 text-xs font-light">
+                    Shows environment files found in your project.
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-start space-x-4">
+                <div
+                  class="flex-shrink-0 w-8 h-8 bg-accent-500/20 border border-accent-500/30 text-accent-400 rounded-lg flex items-center justify-center font-medium text-sm"
+                >
+                  4
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-base font-medium text-white mb-2">
+                    Create Your First Backup
+                  </h4>
+                  <div
+                    class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2"
+                  >
+                    <code class="text-accent-400 font-mono text-xs"
+                      >goingenv pack # Interactive password prompt</code
+                    >
+                  </div>
+                  <p class="text-dark-300 text-xs font-light">
+                    Creates an encrypted archive of your environment files.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="bg-gradient-to-r from-accent-500/10 to-accent-600/10 border border-accent-500/20 rounded-2xl p-8 backdrop-blur-sm"
+          >
+            <h3 class="text-xl font-light text-white mb-4">Interactive Mode</h3>
+            <p class="text-dark-300 mb-6 font-light">
+              For a guided experience, simply run:
+            </p>
+            <div
+              class="bg-black/50 rounded-lg p-4 border border-dark-700/30 mb-4"
+            >
+              <code class="text-accent-400 font-mono text-base">goingenv</code>
+            </div>
+            <p class="text-dark-300 font-light text-sm">
+              Launches an interactive interface with arrow key navigation.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Configuration Section -->
+      <section id="configuration" class="mb-32">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl lg:text-4xl font-light text-white mb-6">
+            Configuration
+          </h2>
+          <p class="text-lg text-dark-300 max-w-3xl mx-auto font-light">
+            Customize GoingEnv behavior with configuration files
+          </p>
+        </div>
+
+        <div class="max-w-5xl mx-auto space-y-12">
+          <!-- Basic Configuration -->
+          <div
+            class="bg-dark-800/30 backdrop-blur-sm border border-dark-700/50 rounded-2xl p-8"
+          >
+            <h3 class="text-xl font-light text-white mb-6">
+              Basic Configuration
+            </h3>
+            <p class="text-dark-300 mb-6 font-light">
+              Create a configuration file at
+              <code
+                class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono"
+                >~/.goingenv.json</code
+              >
+              to customize default behavior:
+            </p>
+
+            <div
+              class="bg-black/50 rounded-xl p-6 border border-dark-700/30 mb-6"
+            >
+              <pre
+                class="text-accent-400 font-mono text-sm overflow-x-auto"
+              ><code>{
   "default_depth": 3,
   "env_patterns": ["\\.env.*"],
   "env_exclude_patterns": ["\\.env\\.backup$", "\\.env\\.old$"],
   "exclude_patterns": ["node_modules/", "\\.git/", "vendor/"],
   "max_file_size": 10485760
 }</code></pre>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                        <div>
-                            <h4 class="font-medium text-white mb-3">Pattern Options</h4>
-                            <ul class="space-y-2 text-dark-300">
-                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">env_patterns</code> - Files to include (regex patterns)</li>
-                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">env_exclude_patterns</code> - Environment files to exclude</li>
-                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">exclude_patterns</code> - Directories to skip</li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 class="font-medium text-white mb-3">Behavior Options</h4>
-                            <ul class="space-y-2 text-dark-300">
-                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">default_depth</code> - Directory scan depth (1-10)</li>
-                                <li><code class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono">max_file_size</code> - Maximum file size in bytes</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pattern Examples -->
-                <div class="bg-gradient-to-r from-accent-500/10 to-accent-600/10 border border-accent-500/20 rounded-2xl p-8 backdrop-blur-sm">
-                    <h3 class="text-xl font-light text-white mb-6">Pattern Examples</h3>
-                    
-                    <div class="space-y-6">
-                        <div>
-                            <h4 class="font-medium text-accent-400 mb-3">All-Inclusive (Default)</h4>
-                            <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2">
-                                <code class="text-accent-400 font-mono text-sm">"env_patterns": ["\\.env.*"]</code>
-                            </div>
-                            <p class="text-dark-300 text-xs font-light">Matches: .env, .env.local, .env.development, .env.custom, etc.</p>
-                        </div>
-                        
-                        <div>
-                            <h4 class="font-medium text-accent-400 mb-3">Specific Patterns</h4>
-                            <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2">
-                                <code class="text-accent-400 font-mono text-sm">"env_patterns": ["\\.env$", "\\.env\\.local$", "\\.env\\.production$"]</code>
-                            </div>
-                            <p class="text-dark-300 text-xs font-light">Matches only: .env, .env.local, .env.production</p>
-                        </div>
-                        
-                        <div>
-                            <h4 class="font-medium text-accent-400 mb-3">Exclude Backups</h4>
-                            <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2">
-                                <code class="text-accent-400 font-mono text-sm">"env_exclude_patterns": ["\\.env\\.backup$", "\\.env\\.bak$", "\\.env\\.old$"]</code>
-                            </div>
-                            <p class="text-dark-300 text-xs font-light">Excludes: .env.backup, .env.bak, .env.old files</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quick Configuration -->
-                <div class="bg-dark-800/20 backdrop-blur-sm border border-dark-700/30 rounded-2xl p-6">
-                    <h3 class="text-lg font-light text-white mb-4">Quick Setup</h3>
-                    <p class="text-dark-300 mb-4 font-light text-sm">Generate a default configuration file:</p>
-                    <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30">
-                        <code class="text-accent-400 font-mono text-sm">goingenv status --config</code>
-                    </div>
-                    <p class="text-dark-300 text-xs font-light mt-2">Shows current configuration and creates default if none exists.</p>
-                </div>
             </div>
-        </section>
 
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+              <div>
+                <h4 class="font-medium text-white mb-3">Pattern Options</h4>
+                <ul class="space-y-2 text-dark-300">
+                  <li>
+                    <code
+                      class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono"
+                      >env_patterns</code
+                    >
+                    - Files to include (regex patterns)
+                  </li>
+                  <li>
+                    <code
+                      class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono"
+                      >env_exclude_patterns</code
+                    >
+                    - Environment files to exclude
+                  </li>
+                  <li>
+                    <code
+                      class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono"
+                      >exclude_patterns</code
+                    >
+                    - Directories to skip
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h4 class="font-medium text-white mb-3">Behavior Options</h4>
+                <ul class="space-y-2 text-dark-300">
+                  <li>
+                    <code
+                      class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono"
+                      >default_depth</code
+                    >
+                    - Directory scan depth (1-10)
+                  </li>
+                  <li>
+                    <code
+                      class="bg-dark-800 px-2 py-1 rounded text-accent-400 font-mono"
+                      >max_file_size</code
+                    >
+                    - Maximum file size in bytes
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pattern Examples -->
+          <div
+            class="bg-gradient-to-r from-accent-500/10 to-accent-600/10 border border-accent-500/20 rounded-2xl p-8 backdrop-blur-sm"
+          >
+            <h3 class="text-xl font-light text-white mb-6">Pattern Examples</h3>
+
+            <div class="space-y-6">
+              <div>
+                <h4 class="font-medium text-accent-400 mb-3">
+                  All-Inclusive (Default)
+                </h4>
+                <div
+                  class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2"
+                >
+                  <code class="text-accent-400 font-mono text-sm"
+                    >"env_patterns": ["\\.env.*"]</code
+                  >
+                </div>
+                <p class="text-dark-300 text-xs font-light">
+                  Matches: .env, .env.local, .env.development, .env.custom, etc.
+                </p>
+              </div>
+
+              <div>
+                <h4 class="font-medium text-accent-400 mb-3">
+                  Specific Patterns
+                </h4>
+                <div
+                  class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2"
+                >
+                  <code class="text-accent-400 font-mono text-sm"
+                    >"env_patterns": ["\\.env$", "\\.env\\.local$",
+                    "\\.env\\.production$"]</code
+                  >
+                </div>
+                <p class="text-dark-300 text-xs font-light">
+                  Matches only: .env, .env.local, .env.production
+                </p>
+              </div>
+
+              <div>
+                <h4 class="font-medium text-accent-400 mb-3">
+                  Exclude Backups
+                </h4>
+                <div
+                  class="bg-black/50 rounded-lg p-3 border border-dark-700/30 mb-2"
+                >
+                  <code class="text-accent-400 font-mono text-sm"
+                    >"env_exclude_patterns": ["\\.env\\.backup$",
+                    "\\.env\\.bak$", "\\.env\\.old$"]</code
+                  >
+                </div>
+                <p class="text-dark-300 text-xs font-light">
+                  Excludes: .env.backup, .env.bak, .env.old files
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Configuration -->
+          <div
+            class="bg-dark-800/20 backdrop-blur-sm border border-dark-700/30 rounded-2xl p-6"
+          >
+            <h3 class="text-lg font-light text-white mb-4">Quick Setup</h3>
+            <p class="text-dark-300 mb-4 font-light text-sm">
+              View current configuration:
+            </p>
+            <div class="bg-black/50 rounded-lg p-3 border border-dark-700/30">
+              <code class="text-accent-400 font-mono text-sm"
+                >goingenv status --verbose</code
+              >
+            </div>
+            <p class="text-dark-300 text-xs font-light mt-2">
+              Shows current configuration settings and detected files.
+            </p>
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-dark-700/50 bg-dark-900/50 backdrop-blur-sm py-16">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="text-center">
-                <p class="text-lg text-dark-300 mb-8 font-light">&copy; 2024 GoingEnv. Open source under MIT License.</p>
-                <div class="flex justify-center space-x-8">
-                    <a href="https://github.com/spencerjirehcebrian/goingenv" class="text-dark-400 hover:text-accent-400 font-medium transition-colors duration-200">GitHub Repository</a>
-                    <a href="https://github.com/spencerjirehcebrian/goingenv/releases" class="text-dark-400 hover:text-accent-400 font-medium transition-colors duration-200">Download</a>
-                    <a href="https://github.com/spencerjirehcebrian/goingenv/issues" class="text-dark-400 hover:text-accent-400 font-medium transition-colors duration-200">Report Issues</a>
-                </div>
-            </div>
+    <footer
+      class="border-t border-dark-700/50 bg-dark-900/50 backdrop-blur-sm py-16"
+    >
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center">
+          <p class="text-lg text-dark-300 mb-8 font-light">
+            &copy; 2024 GoingEnv. Open source under MIT License.
+          </p>
+          <div class="flex justify-center space-x-8">
+            <a
+              href="https://github.com/spencerjirehcebrian/goingenv"
+              class="text-dark-400 hover:text-accent-400 font-medium transition-colors duration-200"
+              >GitHub Repository</a
+            >
+            <a
+              href="https://github.com/spencerjirehcebrian/goingenv/releases"
+              class="text-dark-400 hover:text-accent-400 font-medium transition-colors duration-200"
+              >Download</a
+            >
+            <a
+              href="https://github.com/spencerjirehcebrian/goingenv/issues"
+              class="text-dark-400 hover:text-accent-400 font-medium transition-colors duration-200"
+              >Report Issues</a
+            >
+          </div>
         </div>
+      </div>
     </footer>
-</body>
+  </body>
 </html>

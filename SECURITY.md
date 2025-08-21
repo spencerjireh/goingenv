@@ -93,7 +93,7 @@ unset MY_PASSWORD  # Clear after use
 ```
 
 **Password Management:**
-- **Never use `-k` flag** - passwords visible in shell history and process lists
+- **Never use command-line passwords** - would be visible in shell history and process lists
 - Use environment variables carefully - visible to other processes
 - Interactive prompts are most secure for manual operations
 - Store passwords in secure password managers
@@ -109,9 +109,6 @@ chmod 700 ~/.goingenv
 
 # Secure individual archives
 chmod 600 ~/.goingenv/*.enc
-
-# Secure password files (if used)
-chmod 600 ~/.goingenv/password-file
 ```
 
 **Temporary Files:**
@@ -244,11 +241,11 @@ if strings.TrimSpace(opts.PasswordEnv) == "" {
 ```
 
 **Security Improvements:**
-- **Eliminated `-k` flag** - prevents command-line password exposure
+- **No command-line password exposure** - passwords never visible in shell history or process lists
 - **Memory clearing** - ensures passwords are zeroed after use
 - **Environment variable warnings** - alerts users to potential security risks
 - **Input priority system** - environment variable → interactive prompt
-- **Simplified attack surface** - removed file-based password handling
+- **Simplified attack surface** - minimal password input methods for reduced risk
 
 ### Code Security
 

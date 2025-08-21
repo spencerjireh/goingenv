@@ -4,9 +4,9 @@
 
 GoingEnv is a CLI tool that scans, encrypts, and archives your `.env` files with AES-256 encryption. Perfect for securely backing up, transferring, and restoring environment configurations across development environments.
 
-## Documentation
+## Website
 
-**[Documentation](https://spencerjirehcebrian.github.io/goingenv/)** - Installation guide, usage examples, and tutorials
+**[Website](https://spencerjirehcebrian.github.io/goingenv/)** - Installation guide, usage examples, and documentation
 
 > [!WARNING]
 > Educational purposes only. Not audited for production use. Use at your own risk in sensitive environments.
@@ -70,14 +70,19 @@ goingenv
 # Check what files would be processed
 goingenv status
 
-# Create encrypted backup
-goingenv pack -k "your-secure-password" -o backup.enc
+# Create encrypted backup (interactive password prompt)
+goingenv pack
+
+# Create backup with environment variable password
+export MY_PASSWORD="your-secure-password"
+goingenv pack --password-env MY_PASSWORD -o backup.enc
+unset MY_PASSWORD
 
 # List archive contents
-goingenv list -f backup.enc -k "your-password"
+goingenv list -f backup.enc --password-env MY_PASSWORD
 
 # Restore from backup
-goingenv unpack -f backup.enc -k "your-password"
+goingenv unpack -f backup.enc --password-env MY_PASSWORD
 ```
 
 ## Documentation
@@ -102,11 +107,11 @@ goingenv init
 # 4. Check what would be archived
 goingenv status
 
-# 5. Create encrypted backup
-goingenv pack -k "secure-password" -o project-backup.enc
+# 5. Create encrypted backup (interactive password prompt)
+goingenv pack -o project-backup.enc
 
 # 6. Later, restore from backup
-goingenv unpack -f project-backup.enc -k "secure-password"
+goingenv unpack -f project-backup.enc
 ```
 
 ## Common Commands

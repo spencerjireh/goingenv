@@ -259,7 +259,7 @@ test-functional:
 	fi
 	
 	@echo "Step 6: Testing pack/unpack functionality..."
-	@cd test_env_files_functional && ../goingenv pack -k "test123" -o functional-test.enc > /dev/null
+	@cd test_env_files_functional && echo "test123" | ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null 2>&1 || TEST_PASSWORD="test123" ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null
 	@if [ -f test_env_files_functional/.goingenv/functional-test.enc ]; then \
 		echo -e "$(GREEN)✓$(NC) Pack functionality working"; \
 	else \
@@ -267,7 +267,7 @@ test-functional:
 		exit 1; \
 	fi
 	@mkdir -p test_env_files_functional/unpacked
-	@cd test_env_files_functional && ../goingenv unpack -f .goingenv/functional-test.enc -k "test123" -t unpacked > /dev/null
+	@cd test_env_files_functional && TEST_PASSWORD="test123" ../goingenv unpack -f .goingenv/functional-test.enc --password-env TEST_PASSWORD -t unpacked > /dev/null
 	@unpacked_files=$$(find test_env_files_functional/unpacked -name ".env*" | wc -l); \
 	if [ "$$unpacked_files" -eq 5 ]; then \
 		echo -e "$(GREEN)✓$(NC) Unpack functionality working ($$unpacked_files files restored)"; \
@@ -621,8 +621,8 @@ clean-demo:
 demo-scenario: demo build
 	@echo -e "$(BLUE)Running demo scenario...$(NC)"
 	cd demo/project1 && ../../$(BINARY_NAME) status
-	cd demo/project1 && ../../$(BINARY_NAME) pack -k "demo123" -o demo-backup.enc
-	cd demo/project1 && ../../$(BINARY_NAME) list -f .goingenv/demo-backup.enc -k "demo123"
+	cd demo/project1 && DEMO_PASSWORD="demo123" ../../$(BINARY_NAME) pack --password-env DEMO_PASSWORD -o demo-backup.enc
+	cd demo/project1 && DEMO_PASSWORD="demo123" ../../$(BINARY_NAME) list -f .goingenv/demo-backup.enc --password-env DEMO_PASSWORD
 	@echo "Demo scenario completed$(NC)\""
 
 # Development server (for TUI testing)
@@ -634,13 +634,13 @@ dev-server: dev
 # Profile the application
 profile:
 	@echo -e "$(BLUE)Running with CPU profiling...$(NC)"
-	go run $(MAIN_PATH) pack -k "test" -cpuprofile=cpu.prof
+	TEST_PASSWORD="test" go run $(MAIN_PATH) pack --password-env TEST_PASSWORD -cpuprofile=cpu.prof
 	go tool pprof cpu.prof
 
 # Memory profile
 profile-mem:
 	@echo -e "$(BLUE)Running with memory profiling...$(NC)"
-	go run $(MAIN_PATH) pack -k "test" -memprofile=mem.prof
+	TEST_PASSWORD="test" go run $(MAIN_PATH) pack --password-env TEST_PASSWORD -memprofile=mem.prof
 	go tool pprof mem.prof
 
 # Security scan (requires gosec)
@@ -758,7 +758,7 @@ help:
 	@echo " make quick-alpha              # Create and publish alpha release"
 	@echo " make quick-beta               # Create and publish beta release"  
 	@echo " make quick-stable             # Create and publish stable release"
-	@echo " make run ARGS='pack -k pass'  # Run pack command"
+	@echo " make run ARGS='pack'          # Run pack command (interactive password)"
 	@echo " make demo-scenario            # Full demo with sample files"
 
 # Phony targets
