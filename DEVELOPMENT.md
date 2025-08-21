@@ -129,6 +129,7 @@ goingenv/
 
 **`internal/cli/`**: Cobra-based CLI commands
 - `root.go`: Root command and TUI launcher
+- `init.go`: Project initialization command (required first step)
 - `pack.go`: Pack command implementation
 - `unpack.go`: Unpack command implementation
 - `list.go`: List command implementation
@@ -305,9 +306,47 @@ func TestFullWorkflow(t *testing.T) {
     // Create test files
     testutils.CreateTestFiles(t, tempDir)
     
+    // IMPORTANT: Initialize .goingenv for archive operations
+    testutils.CreateTempGoingEnvDir(t, tempDir)
+    
     // Test pack operation
     // Test unpack operation
     // Verify results
+}
+```
+
+### Testing Initialization Requirements
+
+Since GoingEnv now requires initialization before use, tests involving archive operations must set up the `.goingenv` directory structure:
+
+```go
+// Use helper functions for proper test setup
+func TestArchiveOperations(t *testing.T) {
+    tmpDir := testutils.CreateTempEnvFiles(t)
+    defer os.RemoveAll(tmpDir)
+    
+    // Initialize .goingenv structure for archive operations
+    testutils.CreateTempGoingEnvDir(t, tmpDir)
+    
+    // Now archive operations will work
+    // ... test code
+}
+
+// Test initialization requirements specifically
+func TestInitializationRequired(t *testing.T) {
+    tmpDir := testutils.CreateTempEnvFiles(t)
+    defer os.RemoveAll(tmpDir)
+    
+    // Archive operations should fail without initialization
+    err := archiveService.Pack(packOpts)
+    if err == nil {
+        t.Error("Expected error when not initialized")
+    }
+    
+    // Initialize and test success
+    testutils.CreateTempGoingEnvDir(t, tmpDir)
+    err = archiveService.Pack(packOpts)
+    testutils.AssertNoError(t, err)
 }
 ```
 

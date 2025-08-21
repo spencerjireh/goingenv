@@ -175,6 +175,23 @@ goingenv --help
 which goingenv
 ```
 
+### First-time Setup
+
+Before using GoingEnv in a project, you must initialize it:
+
+```bash
+# Navigate to your project directory
+cd /path/to/your/project
+
+# Initialize GoingEnv (required first step)
+goingenv init
+
+# Verify initialization worked
+goingenv status
+```
+
+This creates the necessary `.goingenv` directory structure in your project.
+
 ## Post-Installation Setup
 
 ### Create Configuration Directory

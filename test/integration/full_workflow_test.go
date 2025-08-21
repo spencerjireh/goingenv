@@ -18,6 +18,9 @@ func TestFullWorkflow(t *testing.T) {
 	// Setup
 	tmpDir := testutils.CreateTempEnvFiles(t)
 	defer os.RemoveAll(tmpDir)
+	
+	// Initialize .goingenv structure for archive operations
+	testutils.CreateTempGoingEnvDir(t, tmpDir)
 
 	// Initialize services
 	cfg := testutils.CreateTestConfig()
@@ -69,7 +72,7 @@ func TestFullWorkflow(t *testing.T) {
 	testutils.AssertNoError(t, err)
 
 	// Test packing
-	archivePath := filepath.Join(tmpDir, "test-archive.enc")
+	archivePath := filepath.Join(tmpDir, ".goingenv", "test-archive.enc")
 	password := "test-password-123"
 
 	t.Run("Pack Files", func(t *testing.T) {
@@ -156,7 +159,7 @@ func TestFullWorkflow(t *testing.T) {
 
 	// Test list available archives
 	t.Run("List Available Archives", func(t *testing.T) {
-		archives, err := archiverService.GetAvailableArchives(tmpDir)
+		archives, err := archiverService.GetAvailableArchives(filepath.Join(tmpDir, ".goingenv"))
 		testutils.AssertNoError(t, err)
 
 		if len(archives) == 0 {
@@ -206,6 +209,9 @@ func TestErrorHandling(t *testing.T) {
 	t.Run("Unpack with Wrong Password", func(t *testing.T) {
 		tmpDir := testutils.CreateTempEnvFiles(t)
 		defer os.RemoveAll(tmpDir)
+		
+		// Initialize .goingenv structure for archive operations
+		testutils.CreateTempGoingEnvDir(t, tmpDir)
 
 		// Create valid archive first
 		scannerService := scanner.NewService(cfg)
@@ -215,7 +221,7 @@ func TestErrorHandling(t *testing.T) {
 		})
 		testutils.AssertNoError(t, err)
 
-		archivePath := filepath.Join(tmpDir, "test.enc")
+		archivePath := filepath.Join(tmpDir, ".goingenv", "test.enc")
 		correctPassword := "correct-password"
 
 		packOpts := types.PackOptions{
@@ -428,6 +434,9 @@ func TestLargeFileHandling(t *testing.T) {
 func TestConcurrentAccess(t *testing.T) {
 	tmpDir := testutils.CreateTempEnvFiles(t)
 	defer os.RemoveAll(tmpDir)
+	
+	// Initialize .goingenv structure for archive operations
+	testutils.CreateTempGoingEnvDir(t, tmpDir)
 
 	cfg := testutils.CreateTestConfig()
 	cryptoService := crypto.NewService()
@@ -448,7 +457,7 @@ func TestConcurrentAccess(t *testing.T) {
 		// Create archives concurrently
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
-				archivePath := filepath.Join(tmpDir, fmt.Sprintf("concurrent-test-%d.enc", id))
+				archivePath := filepath.Join(tmpDir, ".goingenv", fmt.Sprintf("concurrent-test-%d.enc", id))
 				packOpts := types.PackOptions{
 					Files:       files,
 					OutputPath:  archivePath,
@@ -471,7 +480,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 		// Verify all archives were created
 		for i := 0; i < numGoroutines; i++ {
-			archivePath := filepath.Join(tmpDir, fmt.Sprintf("concurrent-test-%d.enc", i))
+			archivePath := filepath.Join(tmpDir, ".goingenv", fmt.Sprintf("concurrent-test-%d.enc", i))
 			testutils.AssertFileExists(t, archivePath)
 		}
 	})
@@ -520,5 +529,134 @@ func TestMemoryUsage(t *testing.T) {
 				t.Error("File checksum missing")
 			}
 		}
+	})
+}
+
+// TestInitializationRequirement tests that archive operations fail without proper initialization
+func TestInitializationRequirement(t *testing.T) {
+	tmpDir := testutils.CreateTempEnvFiles(t)
+	defer os.RemoveAll(tmpDir)
+
+	cfg := testutils.CreateTestConfig()
+	cryptoService := crypto.NewService()
+	scannerService := scanner.NewService(cfg)
+	archiverService := archive.NewService(cryptoService)
+
+	// Get files for testing
+	files, err := scannerService.ScanFiles(types.ScanOptions{
+		RootPath: tmpDir,
+		MaxDepth: 2,
+	})
+	testutils.AssertNoError(t, err)
+
+	t.Run("Pack Fails Without .goingenv Directory", func(t *testing.T) {
+		archivePath := filepath.Join(tmpDir, ".goingenv", "test-archive.enc")
+		packOpts := types.PackOptions{
+			Files:       files,
+			OutputPath:  archivePath,
+			Password:    "test-password",
+			Description: "Test archive",
+		}
+
+		err := archiverService.Pack(packOpts)
+		if err == nil {
+			t.Error("Expected error when packing without .goingenv directory, got nil")
+		}
+
+		// Verify no directory was created
+		if _, err := os.Stat(filepath.Join(tmpDir, ".goingenv")); err == nil {
+			t.Error("Expected .goingenv directory to not exist, but it was created")
+		}
+	})
+
+	t.Run("Pack Succeeds With Proper Initialization", func(t *testing.T) {
+		// Initialize .goingenv structure
+		testutils.CreateTempGoingEnvDir(t, tmpDir)
+
+		archivePath := filepath.Join(tmpDir, ".goingenv", "test-archive.enc")
+		packOpts := types.PackOptions{
+			Files:       files,
+			OutputPath:  archivePath,
+			Password:    "test-password",
+			Description: "Test archive with proper initialization",
+		}
+
+		err := archiverService.Pack(packOpts)
+		testutils.AssertNoError(t, err)
+
+		// Verify archive was created
+		testutils.AssertFileExists(t, archivePath)
+	})
+}
+
+// TestConfigInitialization tests the initialization functions
+func TestConfigInitialization(t *testing.T) {
+	originalDir, err := os.Getwd()
+	testutils.AssertNoError(t, err)
+	
+	t.Run("IsInitialized Function", func(t *testing.T) {
+		tmpDir := testutils.CreateTempDir(t, "init-test-*")
+		defer os.RemoveAll(tmpDir)
+
+		// Change to test directory
+		err := os.Chdir(tmpDir)
+		testutils.AssertNoError(t, err)
+		defer func() {
+			err := os.Chdir(originalDir)
+			testutils.AssertNoError(t, err)
+		}()
+
+		// Should not be initialized initially
+		if config.IsInitialized() {
+			t.Error("Expected IsInitialized() to return false for empty directory")
+		}
+
+		// Initialize the project
+		err = config.InitializeProject()
+		testutils.AssertNoError(t, err)
+
+		// Should be initialized now
+		if !config.IsInitialized() {
+			t.Error("Expected IsInitialized() to return true after initialization")
+		}
+
+		// Verify .goingenv directory exists
+		testutils.AssertDirExists(t, ".goingenv")
+
+		// Verify .gitignore exists and has correct content
+		gitignorePath := filepath.Join(".goingenv", ".gitignore")
+		testutils.AssertFileExists(t, gitignorePath)
+
+		content := testutils.GetFileContent(t, gitignorePath)
+		testutils.AssertStringContains(t, content, "# This allows")
+		testutils.AssertStringContains(t, content, "safe env transfer")
+		// Check that *.enc is not an ignore pattern (not at start of line)
+		testutils.AssertStringNotContains(t, content, "\n*.enc")
+		testutils.AssertStringContains(t, content, "*.tmp")
+	})
+
+	t.Run("InitializeProject Function", func(t *testing.T) {
+		tmpDir := testutils.CreateTempDir(t, "init-project-test-*")
+		defer os.RemoveAll(tmpDir)
+
+		// Change to test directory
+		err := os.Chdir(tmpDir)
+		testutils.AssertNoError(t, err)
+		defer func() {
+			err := os.Chdir(originalDir)
+			testutils.AssertNoError(t, err)
+		}()
+
+		// Initialize
+		err = config.InitializeProject()
+		testutils.AssertNoError(t, err)
+
+		// Verify all expected files were created
+		testutils.AssertDirExists(t, ".goingenv")
+		testutils.AssertFileExists(t, filepath.Join(".goingenv", ".gitignore"))
+
+		// Test double initialization (should not error)
+		err = config.InitializeProject()
+		testutils.AssertNoError(t, err)
 	})
 }

@@ -51,6 +51,11 @@ Examples:
 
 // runStatusCommand executes the status command
 func runStatusCommand(cmd *cobra.Command, args []string) error {
+	// Check if GoingEnv is initialized
+	if !config.IsInitialized() {
+		return fmt.Errorf("GoingEnv is not initialized in this directory. Run 'goingenv init' first")
+	}
+
 	// Initialize application
 	app, err := NewApp()
 	if err != nil {

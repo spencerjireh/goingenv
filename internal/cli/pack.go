@@ -51,6 +51,11 @@ Examples:
 
 // runPackCommand executes the pack command
 func runPackCommand(cmd *cobra.Command, args []string) error {
+	// Check if GoingEnv is initialized
+	if !config.IsInitialized() {
+		return fmt.Errorf("GoingEnv is not initialized in this directory. Run 'goingenv init' first")
+	}
+
 	// Initialize application
 	app, err := NewApp()
 	if err != nil {
@@ -173,10 +178,6 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Ensure .goingenv directory exists
-	if err := config.EnsureGoingEnvDir(); err != nil {
-		return fmt.Errorf("failed to create .goingenv directory: %w", err)
-	}
 
 	// Prepare pack options
 	packOpts := types.PackOptions{

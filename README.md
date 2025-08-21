@@ -50,6 +50,14 @@ curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/in
 
 ### Basic Usage
 
+**First-time setup:**
+
+```bash
+# Initialize GoingEnv in your project directory
+cd /path/to/your/project
+goingenv init
+```
+
 **Interactive mode (recommended for beginners):**
 
 ```bash
@@ -88,13 +96,16 @@ curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/in
 # 2. Navigate to your project
 cd /path/to/your/project
 
-# 3. Check what would be archived
+# 3. Initialize GoingEnv (required first step)
+goingenv init
+
+# 4. Check what would be archived
 goingenv status
 
-# 4. Create encrypted backup
+# 5. Create encrypted backup
 goingenv pack -k "secure-password" -o project-backup.enc
 
-# 5. Later, restore from backup
+# 6. Later, restore from backup
 goingenv unpack -f project-backup.enc -k "secure-password"
 ```
 
@@ -102,6 +113,7 @@ goingenv unpack -f project-backup.enc -k "secure-password"
 
 | Command              | Description                      |
 | -------------------- | -------------------------------- |
+| `goingenv init`      | Initialize GoingEnv in project   |
 | `goingenv`           | Launch interactive TUI           |
 | `goingenv pack`      | Encrypt and archive env files    |
 | `goingenv unpack`    | Decrypt and restore files        |

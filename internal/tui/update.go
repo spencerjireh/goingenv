@@ -55,6 +55,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.SetError(string(msg))
 		return m, nil
 
+	case InitCompleteMsg:
+		m.debugLogger.LogMessage("init_complete", string(msg))
+		m.SetMessage(string(msg))
+		// Refresh the model to show full menu now that project is initialized
+		return m.refreshMenuAfterInit(), nil
+
 	case ProgressMsg:
 		m.debugLogger.LogProgress("operation", float64(msg))
 		m.progress.SetPercent(float64(msg))
@@ -119,6 +125,9 @@ func (m *Model) handleMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		selectedItem := m.GetSelectedMenuItem()
 		m.debugLogger.LogOperation("menu_selection", fmt.Sprintf("action: %s, title: %s", selectedItem.action, selectedItem.title))
 		switch selectedItem.action {
+		case "init":
+			m.debugLogger.LogOperation("init_start", "initializing project")
+			return m, InitProjectCmd()
 		case "pack":
 			// Start scanning for files
 			m.debugLogger.LogOperation("pack_start", "initiating file scan")

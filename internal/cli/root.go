@@ -59,6 +59,7 @@ backup, transfer, and restore your environment configurations.`,
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose debug logging for TUI mode")
 
 	// Add subcommands
+	rootCmd.AddCommand(newInitCommand())
 	rootCmd.AddCommand(newPackCommand())
 	rootCmd.AddCommand(newUnpackCommand())
 	rootCmd.AddCommand(newListCommand())
@@ -69,15 +70,17 @@ backup, transfer, and restore your environment configurations.`,
 
 // runInteractiveMode launches the TUI interface
 func runInteractiveMode(verbose bool) error {
+	// Check if GoingEnv is initialized
+	if !config.IsInitialized() {
+		fmt.Println("GoingEnv is not initialized in this directory.")
+		fmt.Println("Run 'goingenv init' first to set up GoingEnv.")
+		return nil
+	}
+
 	// Initialize application
 	app, err := NewApp()
 	if err != nil {
 		return fmt.Errorf("failed to initialize application: %w", err)
-	}
-
-	// Ensure .goingenv directory exists
-	if err := config.EnsureGoingEnvDir(); err != nil {
-		return fmt.Errorf("failed to setup .goingenv directory: %w", err)
 	}
 
 	// Create and run TUI

@@ -16,15 +16,23 @@ This guide provides comprehensive examples and workflows for using GoingEnv effe
 
 ### First Run
 
-After installation, start with the status command to see what GoingEnv detects:
+After installation, you must initialize GoingEnv in each project directory:
 
 ```bash
+# Navigate to your project directory
+cd /path/to/your/project
+
+# Initialize GoingEnv (required first step)
+goingenv init
+
 # Check current directory for environment files
 goingenv status
 
 # Verbose output with detailed information
 goingenv status --verbose
 ```
+
+> **⚠️ Important**: You must run `goingenv init` in each project directory before using any other commands. This creates the necessary `.goingenv` directory structure and configuration files.
 
 ### Launch Interactive Mode
 
@@ -51,6 +59,11 @@ The TUI provides a user-friendly interface for all GoingEnv operations.
 
 ### Main Menu Options
 
+**When Not Initialized:**
+1. **Initialize GoingEnv** - Set up GoingEnv in the current directory (required first step)
+2. **Help** - Interactive help and documentation
+
+**After Initialization:**
 1. **Pack Environment Files**
    - Scans current directory for env files
    - Shows preview of detected files
@@ -82,6 +95,26 @@ The TUI provides a user-friendly interface for all GoingEnv operations.
    - Command examples and usage tips
 
 ## Command Line Mode
+
+### Initialization
+
+**Initialize GoingEnv (required first step):**
+```bash
+# Initialize in current directory
+goingenv init
+
+# Force re-initialization (if already initialized)
+goingenv init --force
+
+# Check initialization status
+goingenv status
+```
+
+The `init` command creates:
+- `.goingenv/` directory in your project
+- `.goingenv/.gitignore` file (allows `*.enc` files for safe transfer)
+- Adds `.goingenv/` to your project's `.gitignore`
+- Default configuration in your home directory
 
 ### Pack Operations
 
@@ -207,20 +240,23 @@ echo "Backup created: ~/.goingenv/$BACKUP_NAME"
 git clone https://github.com/user/project.git
 cd project
 
-# 2. Check for available environment backups
+# 2. Initialize GoingEnv
+goingenv init
+
+# 3. Check for available environment backups
 goingenv status
 
-# 3. Restore environment files
+# 4. Restore environment files
 goingenv unpack -f project-env.enc -k "password"
 
-# 4. Verify restored files
+# 5. Verify restored files
 goingenv status --verbose
 ```
 
 ### 3. Environment Migration
 
 ```bash
-# On source machine
+# On source machine (assuming already initialized)
 cd /old/project
 goingenv pack -k "migration-key" -o migration.enc --description "Migration from server-1"
 
@@ -228,6 +264,7 @@ goingenv pack -k "migration-key" -o migration.enc --description "Migration from 
 
 # On target machine
 cd /new/project
+goingenv init  # Initialize if not already done
 goingenv unpack -f migration.enc -k "migration-key" --backup
 goingenv status
 ```
@@ -433,7 +470,17 @@ chmod 600 ~/.goingenv-password
 
 ### Common Issues
 
-**1. No Environment Files Found**
+**1. GoingEnv Not Initialized**
+```bash
+# Error: "GoingEnv is not initialized in this directory"
+# Solution: Initialize GoingEnv first
+goingenv init
+
+# Check initialization status
+goingenv status
+```
+
+**2. No Environment Files Found**
 ```bash
 # Check current directory
 goingenv status
@@ -445,7 +492,7 @@ goingenv status --verbose
 ls -la .env*
 ```
 
-**2. Permission Denied**
+**3. Permission Denied**
 ```bash
 # Check directory permissions
 ls -la ~/.goingenv
@@ -454,7 +501,7 @@ ls -la ~/.goingenv
 chmod 755 ~/.goingenv
 ```
 
-**3. Archive Corruption**
+**4. Archive Corruption**
 ```bash
 # Verify archive integrity
 goingenv list -f backup.enc -k "password"
@@ -463,7 +510,7 @@ goingenv list -f backup.enc -k "password"
 ls -la ~/.goingenv/backup.enc
 ```
 
-**4. Password Issues**
+**5. Password Issues**
 ```bash
 # Test password
 goingenv list -f backup.enc -k "password"
