@@ -7,13 +7,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
 	"goingenv/internal/config"
+	"goingenv/pkg/password"
 	"goingenv/pkg/types"
 	"goingenv/pkg/utils"
 )
@@ -32,15 +31,14 @@ The list command will:
 - Optionally filter files by patterns or show detailed information
 
 Examples:
-  goingenv list -f backup.enc -k "mypassword"
-  goingenv list -f archive.enc -k "mypassword" --verbose
-  goingenv list --all  # List all available archives
-  goingenv list -f archive.enc -k "pass" --pattern "*.env.prod*"`,
+  goingenv list -f backup.enc                           # Interactive password prompt
+  goingenv list --password-env MY_PASSWORD --all        # List all archives with env password
+  goingenv list -f archive.enc --pattern "*.env.prod*"  # Filter files by pattern`,
 		RunE: runListCommand,
 	}
 
 	// Add flags
-	cmd.Flags().StringP("key", "k", "", "Decryption password (will prompt if not provided)")
+	cmd.Flags().String("password-env", "", "Read password from environment variable")
 	cmd.Flags().StringP("file", "f", "", "Archive file to list (required unless --all is used)")
 	cmd.Flags().Bool("all", false, "List contents of all available archives")
 	cmd.Flags().BoolP("verbose", "v", false, "Show detailed file information")
@@ -71,7 +69,7 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 
 	// Parse flags
 	archiveFile, _ := cmd.Flags().GetString("file")
-	key, _ := cmd.Flags().GetString("key")
+	passwordEnv, _ := cmd.Flags().GetString("password-env")
 	listAll, _ := cmd.Flags().GetBool("all")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	showSizes, _ := cmd.Flags().GetBool("sizes")
@@ -83,9 +81,14 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 	format, _ := cmd.Flags().GetString("format")
 	limit, _ := cmd.Flags().GetInt("limit")
 
+	// Prepare password options
+	passwordOpts := password.Options{
+		PasswordEnv: passwordEnv,
+	}
+
 	// Handle --all flag
 	if listAll {
-		return listAllArchives(app, key, verbose)
+		return listAllArchives(app, passwordOpts, verbose)
 	}
 
 	// Require archive file if not listing all
@@ -98,20 +101,19 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("archive file not found: %s", archiveFile)
 	}
 
-	// Prompt for password if not provided
-	if key == "" {
-		fmt.Print("Enter decryption password: ")
-		passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
-		fmt.Println()
-		if err != nil {
-			return fmt.Errorf("failed to read password: %w", err)
-		}
-		key = string(passwordBytes)
+	// Validate password options
+	if err := password.ValidatePasswordOptions(passwordOpts); err != nil {
+		return fmt.Errorf("invalid password options: %w", err)
 	}
 
-	if key == "" {
-		return fmt.Errorf("password cannot be empty")
+	// Get password using new secure methods
+	key, err := password.GetPassword(passwordOpts)
+	if err != nil {
+		return fmt.Errorf("failed to get password: %w", err)
 	}
+
+	// Ensure password is cleared from memory when done
+	defer password.ClearPassword(&key)
 
 	// List archive contents
 	fmt.Printf("Reading archive: %s\n", filepath.Base(archiveFile))
@@ -157,7 +159,7 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 }
 
 // listAllArchives lists contents of all available archives
-func listAllArchives(app *types.App, key string, verbose bool) error {
+func listAllArchives(app *types.App, passwordOpts password.Options, verbose bool) error {
 	archives, err := app.Archiver.GetAvailableArchives("")
 	if err != nil {
 		return fmt.Errorf("failed to find archives: %w", err)
@@ -179,25 +181,30 @@ func listAllArchives(app *types.App, key string, verbose bool) error {
 			fmt.Printf("    Modified: %s\n", info.ModTime().Format("2006-01-02 15:04:05"))
 		}
 
-		if verbose && key != "" {
-			// Try to read archive contents
-			if archive, err := app.Archiver.List(archivePath, key); err == nil {
-				fmt.Printf("    Created: %s\n", archive.CreatedAt.Format("2006-01-02 15:04:05"))
-				fmt.Printf("    Files: %d\n", len(archive.Files))
-				fmt.Printf("    Total size: %s\n", utils.FormatSize(archive.TotalSize))
-				if archive.Description != "" {
-					fmt.Printf("    Description: %s\n", archive.Description)
+		if verbose && passwordOpts.PasswordEnv != "" {
+			// Try to read archive contents if password options are provided
+			if key, err := password.GetPassword(passwordOpts); err == nil {
+				defer password.ClearPassword(&key)
+				if archive, err := app.Archiver.List(archivePath, key); err == nil {
+					fmt.Printf("    Created: %s\n", archive.CreatedAt.Format("2006-01-02 15:04:05"))
+					fmt.Printf("    Files: %d\n", len(archive.Files))
+					fmt.Printf("    Total size: %s\n", utils.FormatSize(archive.TotalSize))
+					if archive.Description != "" {
+						fmt.Printf("    Description: %s\n", archive.Description)
+					}
+				} else {
+					fmt.Printf("    Status: Cannot read (wrong password or corrupted)\n")
 				}
 			} else {
-				fmt.Printf("    Status: Cannot read (wrong password or corrupted)\n")
+				fmt.Printf("    Status: Cannot read (password error)\n")
 			}
 		}
 		
 		fmt.Println()
 	}
 
-	if key == "" && verbose {
-		fmt.Println("💡 Tip: Provide a password with -k to see detailed archive information")
+	if passwordOpts.PasswordEnv == "" && verbose {
+		fmt.Println("💡 Tip: Provide a password with --password-env to see detailed archive information")
 	}
 
 	return nil

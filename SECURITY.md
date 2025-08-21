@@ -81,23 +81,24 @@ Archive Structure:
 
 ### Password Security
 
-**Strong Passwords:**
+**Secure Password Input Methods:**
 ```bash
-# Use long, complex passwords
-goingenv pack -k "MyVeryLongAndComplexPassword123!@#"
+# 1. Interactive prompt (most secure)
+goingenv pack  # Will prompt securely for password
 
-# Consider using passphrases
-goingenv pack -k "coffee-mountain-bicycle-sunshine-42"
-
-# Use password managers
-# Store passwords in secure password managers
+# 2. Environment variable (for automation)
+export MY_PASSWORD="coffee-mountain-bicycle-sunshine-42"
+goingenv pack --password-env MY_PASSWORD
+unset MY_PASSWORD  # Clear after use
 ```
 
 **Password Management:**
-- Never hardcode passwords in scripts
-- Use environment variables carefully
-- Consider key files with proper permissions
+- **Never use `-k` flag** - passwords visible in shell history and process lists
+- Use environment variables carefully - visible to other processes
+- Interactive prompts are most secure for manual operations
+- Store passwords in secure password managers
 - Rotate passwords regularly
+- Clear environment variables after use
 
 ### Secure File Handling
 
@@ -124,7 +125,11 @@ chmod 600 ~/.goingenv/password-file
 ```bash
 # Use dedicated environment for sensitive operations
 unset HISTFILE  # Disable shell history
-goingenv pack -k "$(read -s -p 'Password: '; echo $REPLY)"
+
+# Use environment variables for automation
+export BACKUP_PASSWORD="secure-password"
+goingenv pack --password-env BACKUP_PASSWORD
+unset BACKUP_PASSWORD
 ```
 
 **Regular Cleanup:**
@@ -194,7 +199,9 @@ rm -P old-archive.enc
 - Enforce strong password policies
 - Use secure password entry (hidden input)
 - Clear password variables after use
-- Implement password strength validation
+- Avoid command-line password exposure
+- Monitor environment variable usage
+- Use interactive prompts for maximum security
 
 **File System Security:**
 - Use appropriate file permissions
@@ -209,6 +216,39 @@ rm -P old-archive.enc
 - Secure development practices
 
 ## Security Implementation
+
+### Password Security Enhancements
+
+GoingEnv has been enhanced with secure password handling to eliminate command-line password exposure:
+
+**Secure Password Input Methods:**
+```go
+// Password options with validation
+type Options struct {
+    PasswordEnv string // Environment variable (with warnings)
+}
+
+// Secure memory clearing
+func ClearPassword(password *string) {
+    bytes := []byte(*password)
+    for i := range bytes {
+        bytes[i] = 0  // Zero out memory
+    }
+    *password = ""
+}
+
+// Environment variable validation
+if strings.TrimSpace(opts.PasswordEnv) == "" {
+    return fmt.Errorf("environment variable name cannot be empty")
+}
+```
+
+**Security Improvements:**
+- **Eliminated `-k` flag** - prevents command-line password exposure
+- **Memory clearing** - ensures passwords are zeroed after use
+- **Environment variable warnings** - alerts users to potential security risks
+- **Input priority system** - environment variable → interactive prompt
+- **Simplified attack surface** - removed file-based password handling
 
 ### Code Security
 

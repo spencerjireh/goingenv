@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
 	"goingenv/internal/config"
+	"goingenv/pkg/password"
 	"goingenv/pkg/types"
 	"goingenv/pkg/utils"
 )
@@ -29,15 +28,15 @@ The unpack command will:
 - Optionally create backups of existing files before overwriting
 
 Examples:
-  goingenv unpack -k "mypassword"
-  goingenv unpack -f backup-prod.enc -k "mypassword"
-  goingenv unpack -k "mypassword" --target /path/to/extract
-  goingenv unpack -f archive.enc -k "mypassword" --overwrite --backup`,
+  goingenv unpack                                         # Interactive password prompt
+  goingenv unpack --password-env MY_PASSWORD             # Read from environment variable
+  goingenv unpack -f backup-prod.enc --target /path/to/extract  # Specify archive and target
+  goingenv unpack -f archive.enc --overwrite --backup    # Overwrite with backup`,
 		RunE: runUnpackCommand,
 	}
 
 	// Add flags
-	cmd.Flags().StringP("key", "k", "", "Decryption password (will prompt if not provided)")
+	cmd.Flags().String("password-env", "", "Read password from environment variable")
 	cmd.Flags().StringP("file", "f", "", "Archive file to unpack (default: most recent)")
 	cmd.Flags().StringP("target", "t", "", "Target directory for extraction (default: current directory)")
 	cmd.Flags().Bool("overwrite", false, "Overwrite existing files without prompting")
@@ -84,7 +83,7 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("archive file not found: %s", archiveFile)
 	}
 
-	key, _ := cmd.Flags().GetString("key")
+	passwordEnv, _ := cmd.Flags().GetString("password-env")
 	targetDir, _ := cmd.Flags().GetString("target")
 	if targetDir == "" {
 		targetDir = "."
@@ -98,20 +97,23 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 	includePatterns, _ := cmd.Flags().GetStringSlice("include")
 	excludePatterns, _ := cmd.Flags().GetStringSlice("exclude")
 
-	// Prompt for password if not provided
-	if key == "" {
-		fmt.Print("Enter decryption password: ")
-		passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
-		fmt.Println()
-		if err != nil {
-			return fmt.Errorf("failed to read password: %w", err)
-		}
-		key = string(passwordBytes)
+	// Get password using secure methods
+	passwordOpts := password.Options{
+		PasswordEnv: passwordEnv,
 	}
 
-	if key == "" {
-		return fmt.Errorf("password cannot be empty")
+	// Validate password options
+	if err := password.ValidatePasswordOptions(passwordOpts); err != nil {
+		return fmt.Errorf("invalid password options: %w", err)
 	}
+
+	key, err := password.GetPassword(passwordOpts)
+	if err != nil {
+		return fmt.Errorf("failed to get password: %w", err)
+	}
+
+	// Ensure password is cleared from memory when done
+	defer password.ClearPassword(&key)
 
 	if verbose {
 		fmt.Printf("Archive: %s\n", archiveFile)
