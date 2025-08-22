@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide provides detailed installation instructions for GoingEnv on Linux and macOS systems.
+This guide provides detailed installation instructions for goingenv on Linux and macOS systems.
 
 ## Quick Installation
 

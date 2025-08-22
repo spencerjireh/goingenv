@@ -71,8 +71,8 @@ func NewModel(app *types.App, verbose bool) *Model {
 		// Only show init option if not initialized
 		items = []list.Item{
 			MenuItem{
-				title:       "Initialize GoingEnv",
-				description: "Set up GoingEnv in this directory",
+				title:       "Initialize goingenv",
+				description: "Set up goingenv in this directory",
 				icon:        "🚀",
 				action:      "init",
 			},
@@ -129,7 +129,7 @@ func NewModel(app *types.App, verbose bool) *Model {
 
 	// Create list component
 	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	l.Title = "GoingEnv - Environment File Manager"
+	l.Title = "goingenv - Environment File Manager"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 

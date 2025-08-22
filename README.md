@@ -1,15 +1,19 @@
-# GoingEnv
+# goingenv
 
-**Secure Environment File Manager with Encryption**
+**Share Environment Variables The Simple Way**
 
-GoingEnv is a CLI tool that scans, encrypts, and archives your `.env` files with AES-256 encryption. Perfect for securely backing up, transferring, and restoring environment configurations across development environments.
+Need to share environment variables with your teammates but your boss doesn't have the budget to self-host Vault? Project too small to bother with using Infisical? Need to share env files between devices for your small side-project? Other environment solutions too complicated and require third parties? Working on a private repository?
+
+**Then goingenv is for you!**
+
+Secure your env files in a fast and simple way, allowing you to backup and store them in your repositories for easy and safe sharing and coordination. No third-party services, no complex setup - just encrypt, commit, and share.
 
 ## Website
 
 **[Website](https://spencerjirehcebrian.github.io/goingenv/)** - Installation guide, usage examples, and documentation
 
 > [!WARNING]
-> Educational purposes only. Not audited for production use. Use at your own risk in sensitive environments.
+> Not security audited but tested in production environments. Use at your own risk and avoid use in public repositories.
 
 ## Key Features
 
@@ -53,7 +57,7 @@ curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/in
 **First-time setup:**
 
 ```bash
-# Initialize GoingEnv in your project directory
+# Initialize goingenv in your project directory
 cd /path/to/your/project
 goingenv init
 ```
@@ -95,13 +99,13 @@ goingenv unpack -f backup.enc --password-env MY_PASSWORD
 ## Example Workflow
 
 ```bash
-# 1. Install GoingEnv
+# 1. Install goingenv
 curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
 
 # 2. Navigate to your project
 cd /path/to/your/project
 
-# 3. Initialize GoingEnv (required first step)
+# 3. Initialize goingenv (required first step)
 goingenv init
 
 # 4. Check what would be archived
@@ -118,7 +122,7 @@ goingenv unpack -f project-backup.enc
 
 | Command              | Description                      |
 | -------------------- | -------------------------------- |
-| `goingenv init`      | Initialize GoingEnv in project   |
+| `goingenv init`      | Initialize goingenv in project   |
 | `goingenv`           | Launch interactive TUI           |
 | `goingenv pack`      | Encrypt and archive env files    |
 | `goingenv unpack`    | Decrypt and restore files        |
@@ -148,6 +152,7 @@ We welcome contributions! Please see our [Development Guide](DEVELOPMENT.md) for
 - Submitting pull requests
 - Code style guidelines
 
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
@@ -160,4 +165,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Star this repo if GoingEnv helps secure your environment files!**
+**Star this repo if goingenv helps secure your environment files!**

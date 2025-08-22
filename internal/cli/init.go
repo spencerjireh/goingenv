@@ -14,8 +14,8 @@ import (
 func newInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize GoingEnv in the current directory",
-		Long: `Initialize GoingEnv in the current directory by creating the .goingenv folder
+		Short: "Initialize goingenv in the current directory",
+		Long: `Initialize goingenv in the current directory by creating the .goingenv folder
 and generating configuration files.
 
 This command will:
@@ -24,7 +24,7 @@ This command will:
 - Create a default configuration file in your home directory if it doesn't exist
 - Ensure the project root .gitignore includes .goingenv/
 
-This must be run before using any other GoingEnv commands.
+This must be run before using any other goingenv commands.
 
 Examples:
   goingenv init`,
@@ -42,12 +42,12 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 
 	// Check if already initialized
 	if config.IsInitialized() && !force {
-		fmt.Println("GoingEnv is already initialized in this directory.")
+		fmt.Println("goingenv is already initialized in this directory.")
 		fmt.Println("Use 'goingenv init --force' to reinitialize.")
 		return nil
 	}
 
-	fmt.Println("Initializing GoingEnv in current directory...")
+	fmt.Println("Initializing goingenv in current directory...")
 
 	// Create .goingenv directory with proper gitignore
 	if err := config.InitializeProject(); err != nil {
@@ -72,7 +72,7 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 		fmt.Println("Please manually add '.goingenv/' to your project's .gitignore file.")
 	}
 
-	fmt.Println("✅ GoingEnv successfully initialized!")
+	fmt.Println("✅ goingenv successfully initialized!")
 	fmt.Println()
 	fmt.Println("What's been created:")
 	fmt.Printf("  • .goingenv/ directory\n")
@@ -114,7 +114,7 @@ func ensureProjectGitignore() error {
 	if content != "" && content[len(content)-1] != '\n' {
 		content += "\n"
 	}
-	content += "\n# GoingEnv directory\n.goingenv/\n"
+	content += "\n# goingenv directory\n.goingenv/\n"
 
 	// Write back to .gitignore
 	if err := os.WriteFile(gitignorePath, []byte(content), 0644); err != nil {

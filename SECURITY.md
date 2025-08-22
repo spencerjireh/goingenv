@@ -1,10 +1,10 @@
 # Security Guide
 
-This document outlines security considerations, best practices, and implementation details for GoingEnv.
+This document outlines security considerations, best practices, and implementation details for goingenv.
 
 ## ⚠️ Security Notice
 
-> **WARNING**: GoingEnv is created for educational purposes and has not been audited for production use. Use at your own risk in sensitive environments. Always review the code and consult with security professionals before using in production systems.
+> **WARNING**: goingenv has not been security audited but has been tested in production environments. Use at your own risk and avoid use in public repositories. Always review the code and consult with security professionals before using in production systems.
 
 ## Table of Contents
 
@@ -16,14 +16,14 @@ This document outlines security considerations, best practices, and implementati
 
 ## Security Model
 
-### What GoingEnv Protects
+### What goingenv Protects
 
 - **Data at Rest**: Environment files are encrypted using AES-256-GCM
 - **File Integrity**: SHA-256 checksums detect tampering
 - **Password-Based Security**: Strong key derivation using PBKDF2
 - **Local Storage**: Encrypted archives stored locally
 
-### What GoingEnv Does NOT Protect
+### What goingenv Does NOT Protect
 
 - **Data in Transit**: No network transmission (local tool only)
 - **Memory Protection**: Passwords/keys may be visible in memory during operation
@@ -112,7 +112,7 @@ chmod 600 ~/.goingenv/*.enc
 ```
 
 **Temporary Files:**
-- GoingEnv uses secure temporary directories
+- goingenv uses secure temporary directories
 - Temporary files are cleaned up automatically
 - Avoid interrupting operations to prevent temp file leaks
 
@@ -216,7 +216,7 @@ rm -P old-archive.enc
 
 ### Password Security Enhancements
 
-GoingEnv has been enhanced with secure password handling to eliminate command-line password exposure:
+goingenv has been enhanced with secure password handling to eliminate command-line password exposure:
 
 **Secure Password Input Methods:**
 ```go
@@ -343,7 +343,7 @@ Security updates are published as:
 - [ ] Use strong, unique passwords
 - [ ] Store archives in secure locations
 - [ ] Set proper file permissions
-- [ ] Regularly update GoingEnv
+- [ ] Regularly update goingenv
 - [ ] Monitor for security advisories
 - [ ] Use secure backup practices
 - [ ] Avoid password reuse
@@ -394,4 +394,4 @@ Security updates are published as:
 
 This security guide is provided for informational purposes only. Security is a complex topic and this guide does not guarantee complete security. Users should perform their own security assessments and consult with security professionals for sensitive applications.
 
-The GoingEnv project makes no warranties about the security of the software and users assume all risks associated with its use.
+The goingenv project makes no warranties about the security of the software and users assume all risks associated with its use.

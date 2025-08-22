@@ -1,6 +1,6 @@
-# GoingEnv Usage Guide
+# goingenv Usage Guide
 
-This guide provides comprehensive examples and workflows for using GoingEnv effectively.
+This guide provides comprehensive examples and workflows for using goingenv effectively.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This guide provides comprehensive examples and workflows for using GoingEnv effe
 
 ### First Run
 
-After installation, you must initialize GoingEnv in each project directory:
+After installation, you must initialize goingenv in each project directory:
 
 ```bash
 # Navigate to your project directory

@@ -1,6 +1,6 @@
-# GoingEnv Testing Guide
+# goingenv Testing Guide
 
-This document provides comprehensive information about testing in the GoingEnv project, including test structure, running tests, and writing new tests.
+This document provides comprehensive information about testing in the goingenv project, including test structure, running tests, and writing new tests.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This document provides comprehensive information about testing in the GoingEnv p
 
 ## Test Architecture
 
-GoingEnv uses a comprehensive testing strategy with multiple layers:
+goingenv uses a comprehensive testing strategy with multiple layers:
 
 ```
 test/

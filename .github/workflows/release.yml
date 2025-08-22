@@ -1,5 +1,10 @@
 name: Release
 
+# This workflow creates releases when tags are pushed.
+# Tags can be created:
+# 1. Automatically by auto-release.yml when pushing to main branch
+# 2. Manually using Makefile commands (make tag-release, etc.)
+
 on:
   push:
     tags:

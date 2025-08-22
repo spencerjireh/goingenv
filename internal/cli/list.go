@@ -58,7 +58,7 @@ Examples:
 func runListCommand(cmd *cobra.Command, args []string) error {
 	// Check if GoingEnv is initialized
 	if !config.IsInitialized() {
-		return fmt.Errorf("GoingEnv is not initialized in this directory. Run 'goingenv init' first")
+		return fmt.Errorf("goingenv is not initialized in this directory. Run 'goingenv init' first")
 	}
 
 	// Initialize application

@@ -1,6 +1,6 @@
-# GoingEnv Development Guide
+# goingenv Development Guide
 
-This guide provides everything you need to know for contributing to GoingEnv development.
+This guide provides everything you need to know for contributing to goingenv development.
 
 ## Table of Contents
 
@@ -477,14 +477,41 @@ func (m *Model) handleNewFeatureKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 ### Version Management
 
-GoingEnv uses semantic versioning (SemVer):
+goingenv uses semantic versioning (SemVer):
 - `MAJOR.MINOR.PATCH` (e.g., `1.2.3`)
 - Pre-release: `1.2.3-alpha.1`, `1.2.3-beta.1`, `1.2.3-rc.1`
 - Tags must follow format: `v1.2.3` or `v1.2.3-alpha.1`
 
-### Automated Release Workflow
+### Automatic Releases (Recommended)
 
-**Simple Two-Step Process:**
+**Main Branch Auto-Release:**
+When code is pushed or merged to the `main` branch, stable releases are automatically created:
+
+```bash
+# Automatic patch release (1.0.0 → 1.0.1)
+git push origin main
+
+# Control version bump with commit message flags:
+git commit -m "feat: add new feature [minor]"    # 1.0.0 → 1.1.0
+git commit -m "breaking: major refactor [major]" # 1.0.0 → 2.0.0
+git commit -m "docs: update readme [skip-release]" # No release
+```
+
+**Auto-Release Process:**
+1. **CI Validation**: Waits for all CI jobs to complete successfully
+2. **Version Calculation**: Automatically determines next semantic version
+3. **Tag Creation**: Creates and pushes release tag
+4. **Release Build**: Triggers existing release workflow automatically
+
+**Version Control Flags:**
+- `[major]` - Breaking changes (1.0.0 → 2.0.0)
+- `[minor]` - New features (1.0.0 → 1.1.0)
+- `[skip-release]` - Skip automatic release
+- Default: Patch version bump (1.0.0 → 1.0.1)
+
+### Manual Pre-Release Workflow
+
+**For Alpha/Beta Releases:**
 ```bash
 # 1. Create and validate release
 make tag-release
@@ -500,6 +527,13 @@ make push-release-tag
 # - Push the tag to GitHub
 # - Trigger GitHub Actions release workflow
 # - Provide monitoring link
+```
+
+**Quick Release Commands:**
+```bash
+make quick-alpha    # Create and publish alpha release
+make quick-beta     # Create and publish beta release
+make quick-stable   # Create and publish stable release
 ```
 
 **What GitHub Actions Does Automatically:**

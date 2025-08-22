@@ -44,7 +44,7 @@ func NewRootCommand(version string) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "goingenv",
 		Short: "Environment File Manager with Encryption",
-		Long: `GoingEnv is a CLI tool for managing environment files with encryption capabilities.
+		Long: `goingenv is a CLI tool for managing environment files with encryption capabilities.
 		
 It can scan, encrypt, and archive your .env files securely, making it easy to
 backup, transfer, and restore your environment configurations.`,
@@ -72,8 +72,8 @@ backup, transfer, and restore your environment configurations.`,
 func runInteractiveMode(verbose bool) error {
 	// Check if GoingEnv is initialized
 	if !config.IsInitialized() {
-		fmt.Println("GoingEnv is not initialized in this directory.")
-		fmt.Println("Run 'goingenv init' first to set up GoingEnv.")
+		fmt.Println("goingenv is not initialized in this directory.")
+		fmt.Println("Run 'goingenv init' first to set up goingenv.")
 		return nil
 	}
 

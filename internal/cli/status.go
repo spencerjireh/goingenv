@@ -53,7 +53,7 @@ Examples:
 func runStatusCommand(cmd *cobra.Command, args []string) error {
 	// Check if GoingEnv is initialized
 	if !config.IsInitialized() {
-		return fmt.Errorf("GoingEnv is not initialized in this directory. Run 'goingenv init' first")
+		return fmt.Errorf("goingenv is not initialized in this directory. Run 'goingenv init' first")
 	}
 
 	// Initialize application
@@ -86,7 +86,7 @@ func runStatusCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("GoingEnv Status Report\n")
+	fmt.Printf("goingenv Status Report\n")
 	fmt.Printf("Generated: %s\n", time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Println(strings.Repeat("=", 60))
 
@@ -158,12 +158,12 @@ func displaySystemInfo(directory string, verbose bool) {
 		}
 	}
 	
-	// GoingEnv directory
+	// goingenv directory
 	goingenvDir := config.GetGoingEnvDir()
 	if _, err := os.Stat(goingenvDir); err == nil {
-		fmt.Printf("GoingEnv directory: %s (exists)\n", goingenvDir)
+		fmt.Printf("goingenv directory: %s (exists)\n", goingenvDir)
 	} else {
-		fmt.Printf("GoingEnv directory: %s (not created)\n", goingenvDir)
+		fmt.Printf("goingenv directory: %s (not created)\n", goingenvDir)
 	}
 }
 

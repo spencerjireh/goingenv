@@ -1,4 +1,4 @@
-# GoingEnv Makefile - Refactored Structure
+# goingenv Makefile - Refactored Structure
 
 # Color variables for output
 GREEN=\033[0;32m
@@ -259,6 +259,9 @@ test-functional:
 	fi
 	
 	@echo "Step 6: Testing pack/unpack functionality..."
+	@echo "Step 6a: Initializing goingenv in test directory..."
+	@cd test_env_files_functional && ../goingenv init > /dev/null 2>&1
+	@echo -e "$(GREEN)✓$(NC) goingenv initialized in test directory"
 	@cd test_env_files_functional && echo "test123" | ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null 2>&1 || TEST_PASSWORD="test123" ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null
 	@if [ -f test_env_files_functional/.goingenv/functional-test.enc ]; then \
 		echo -e "$(GREEN)✓$(NC) Pack functionality working"; \
@@ -685,7 +688,7 @@ stats:
 
 # Show help
 help:
-	@echo "GoingEnv Build System"
+	@echo "goingenv Build System"
 	@echo "===================="
 	@echo ""
 	@echo "Build Commands:"
@@ -760,6 +763,9 @@ help:
 	@echo " make quick-stable             # Create and publish stable release"
 	@echo " make run ARGS='pack'          # Run pack command (interactive password)"
 	@echo " make demo-scenario            # Full demo with sample files"
+	@echo ""
+	@echo "Note: Pushing to main branch automatically creates stable releases."
+	@echo "Use commit message flags: [major], [minor], [skip-release]"
 
 # Phony targets
 .PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration \
