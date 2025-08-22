@@ -1,19 +1,19 @@
 # goingenv
 
-**Share Environment Variables The Simple Way**
+**Share envs the easy way**
 
-Need to share environment variables with your teammates but your boss doesn't have the budget to self-host Vault? Project too small to bother with using Infisical? Need to share env files between devices for your small side-project? Other environment solutions too complicated and require third parties? Working on a private repository?
+Tired of complex tools just to share .env files? goingenv is perfect for small teams, personal projects, and private repositories. Get you and your teammates sharing encrypted environments in seconds - no third parties, no setup headaches.
 
-**Then goingenv is for you!**
+**Made by devs who want easier solutions.**
 
-Secure your env files in a fast and simple way, allowing you to backup and store them in your repositories for easy and safe sharing and coordination. No third-party services, no complex setup - just encrypt, commit, and share.
+Strong encryption, zero config needed. Just encrypt, commit, share. Your envs are secure in seconds, not hours. Perfect for small-scale projects where simplicity matters more than enterprise features.
 
 ## Website
 
 **[Website](https://spencerjirehcebrian.github.io/goingenv/)** - Installation guide, usage examples, and documentation
 
-> [!WARNING]
-> Not security audited but tested in production environments. Use at your own risk and avoid use in public repositories.
+> [!WARNING]  
+> goingenv hasn't undergone formal security audits, though it's been used successfully in production. Great for private repositories and internal team projects. Always exercise caution with sensitive data.
 
 ## Key Features
 
