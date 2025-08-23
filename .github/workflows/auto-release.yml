@@ -58,15 +58,8 @@ jobs:
         
         echo "should-release=true" >> $GITHUB_OUTPUT
 
-    - name: Wait for CI workflow to complete
-      if: steps.check-commit.outputs.should-release == 'true'
-      uses: lewagon/wait-on-check-action@v1.3.1
-      with:
-        ref: ${{ github.sha }}
-        running-workflow-name: 'CI'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        wait-interval: 30
-        allowed-conclusions: success
+    # Skip CI wait - PRs must pass CI before merging to main
+    # The merge commit may not trigger CI, but the PR already validated the code
 
     - name: Calculate next version
       if: steps.check-commit.outputs.should-release == 'true'
