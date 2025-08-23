@@ -145,7 +145,7 @@ jobs:
         
         echo "✅ Pre-release checks passed"
 
-    - name: Create release tag
+    - name: Create release tag and trigger release
       run: |
         VERSION="v${{ needs.check-ci.outputs.next-version }}"
         echo "🏷️ Creating release tag: $VERSION"
@@ -159,10 +159,18 @@ jobs:
         
         🤖 This release was created automatically by GitHub Actions"
         
-        # Push the tag to trigger release workflow
+        # Push the tag
         git push origin "$VERSION"
         
         echo "✅ Tag $VERSION created and pushed"
+        
+        # Trigger the release workflow directly using GitHub CLI
+        echo "🚀 Triggering release workflow..."
+        gh workflow run release.yml --ref "$VERSION" --field tag="$VERSION"
+        
+        echo "✅ Release workflow triggered for tag $VERSION"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create release summary
       run: |
