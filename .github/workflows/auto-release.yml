@@ -159,18 +159,14 @@ jobs:
         
         🤖 This release was created automatically by GitHub Actions"
         
-        # Push the tag
-        git push origin "$VERSION"
+        # Push the tag using a different approach that triggers workflows
+        git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git "$VERSION"
         
         echo "✅ Tag $VERSION created and pushed"
         
-        # Trigger the release workflow directly using GitHub CLI
-        echo "🚀 Triggering release workflow..."
-        gh workflow run release.yml --ref "$VERSION" --field tag="$VERSION"
-        
-        echo "✅ Release workflow triggered for tag $VERSION"
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The tag push should automatically trigger the release workflow
+        echo "🚀 Tag pushed - release workflow should start automatically..."
+        echo "✅ Monitor release progress at: https://github.com/${{ github.repository }}/actions"
 
     - name: Create release summary
       run: |
