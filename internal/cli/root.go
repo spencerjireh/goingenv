@@ -44,7 +44,7 @@ func NewRootCommand(version string) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "goingenv",
 		Short: "Environment File Manager with Encryption",
-		Long: `GoingEnv is a CLI tool for managing environment files with encryption capabilities.
+		Long: `goingenv is a CLI tool for managing environment files with encryption capabilities.
 		
 It can scan, encrypt, and archive your .env files securely, making it easy to
 backup, transfer, and restore your environment configurations.`,
@@ -59,6 +59,7 @@ backup, transfer, and restore your environment configurations.`,
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose debug logging for TUI mode")
 
 	// Add subcommands
+	rootCmd.AddCommand(newInitCommand())
 	rootCmd.AddCommand(newPackCommand())
 	rootCmd.AddCommand(newUnpackCommand())
 	rootCmd.AddCommand(newListCommand())
@@ -69,15 +70,17 @@ backup, transfer, and restore your environment configurations.`,
 
 // runInteractiveMode launches the TUI interface
 func runInteractiveMode(verbose bool) error {
+	// Check if GoingEnv is initialized
+	if !config.IsInitialized() {
+		fmt.Println("goingenv is not initialized in this directory.")
+		fmt.Println("Run 'goingenv init' first to set up goingenv.")
+		return nil
+	}
+
 	// Initialize application
 	app, err := NewApp()
 	if err != nil {
 		return fmt.Errorf("failed to initialize application: %w", err)
-	}
-
-	// Ensure .goingenv directory exists
-	if err := config.EnsureGoingEnvDir(); err != nil {
-		return fmt.Errorf("failed to setup .goingenv directory: %w", err)
 	}
 
 	// Create and run TUI

@@ -179,6 +179,7 @@ func LoadConfigCmd(app *types.App) tea.Cmd {
 type (
 	SuccessMsg     string
 	ArchiveListMsg []string
+	InitCompleteMsg string
 )
 
 // Helper function to format archive contents for display
@@ -293,5 +294,17 @@ func QuickPackCmd(app *types.App, password string) tea.Cmd {
 		}
 
 		return SuccessMsg(fmt.Sprintf("Quick pack completed: %d files archived", len(files)))
+	}
+}
+
+// InitProjectCmd initializes goingenv in the current directory
+func InitProjectCmd() tea.Cmd {
+	return func() tea.Msg {
+		// Initialize the project
+		if err := config.InitializeProject(); err != nil {
+			return ErrorMsg(fmt.Sprintf("Failed to initialize project: %v", err))
+		}
+
+		return InitCompleteMsg("goingenv successfully initialized! You can now use all features.")
 	}
 }

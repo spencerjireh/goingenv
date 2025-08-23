@@ -45,7 +45,7 @@ func (m *Model) View() string {
 
 // renderMenu renders the main menu screen
 func (m *Model) renderMenu() string {
-	title := "GoingEnv v1.0.0"
+	title := "goingenv v1.0.0"
 	if m.debugLogger.IsEnabled() {
 		title += " [DEBUG MODE]"
 	}
@@ -267,7 +267,7 @@ func (m *Model) renderSettings() string {
 	
 	view += HeaderStyle.Render("Configuration:") + "\n"
 	view += fmt.Sprintf("  • Max File Size: %s\n", utils.FormatSize(m.app.Config.MaxFileSize))
-	view += fmt.Sprintf("  • GoingEnv Directory: %s\n", config.GetGoingEnvDir())
+	view += fmt.Sprintf("  • goingenv Directory: %s\n", config.GetGoingEnvDir())
 	view += "\n"
 	
 	view += "Press Esc to go back"

@@ -1,10 +1,10 @@
 # Security Guide
 
-This document outlines security considerations, best practices, and implementation details for GoingEnv.
+This document outlines security considerations, best practices, and implementation details for goingenv.
 
 ## ⚠️ Security Notice
 
-> **WARNING**: GoingEnv is created for educational purposes and has not been audited for production use. Use at your own risk in sensitive environments. Always review the code and consult with security professionals before using in production systems.
+> **WARNING**: goingenv has not been security audited but has been tested in production environments. Use at your own risk and avoid use in public repositories. Always review the code and consult with security professionals before using in production systems.
 
 ## Table of Contents
 
@@ -16,14 +16,14 @@ This document outlines security considerations, best practices, and implementati
 
 ## Security Model
 
-### What GoingEnv Protects
+### What goingenv Protects
 
 - **Data at Rest**: Environment files are encrypted using AES-256-GCM
 - **File Integrity**: SHA-256 checksums detect tampering
 - **Password-Based Security**: Strong key derivation using PBKDF2
 - **Local Storage**: Encrypted archives stored locally
 
-### What GoingEnv Does NOT Protect
+### What goingenv Does NOT Protect
 
 - **Data in Transit**: No network transmission (local tool only)
 - **Memory Protection**: Passwords/keys may be visible in memory during operation
@@ -81,23 +81,24 @@ Archive Structure:
 
 ### Password Security
 
-**Strong Passwords:**
+**Secure Password Input Methods:**
 ```bash
-# Use long, complex passwords
-goingenv pack -k "MyVeryLongAndComplexPassword123!@#"
+# 1. Interactive prompt (most secure)
+goingenv pack  # Will prompt securely for password
 
-# Consider using passphrases
-goingenv pack -k "coffee-mountain-bicycle-sunshine-42"
-
-# Use password managers
-# Store passwords in secure password managers
+# 2. Environment variable (for automation)
+export MY_PASSWORD="coffee-mountain-bicycle-sunshine-42"
+goingenv pack --password-env MY_PASSWORD
+unset MY_PASSWORD  # Clear after use
 ```
 
 **Password Management:**
-- Never hardcode passwords in scripts
-- Use environment variables carefully
-- Consider key files with proper permissions
+- **Never use command-line passwords** - would be visible in shell history and process lists
+- Use environment variables carefully - visible to other processes
+- Interactive prompts are most secure for manual operations
+- Store passwords in secure password managers
 - Rotate passwords regularly
+- Clear environment variables after use
 
 ### Secure File Handling
 
@@ -108,13 +109,10 @@ chmod 700 ~/.goingenv
 
 # Secure individual archives
 chmod 600 ~/.goingenv/*.enc
-
-# Secure password files (if used)
-chmod 600 ~/.goingenv/password-file
 ```
 
 **Temporary Files:**
-- GoingEnv uses secure temporary directories
+- goingenv uses secure temporary directories
 - Temporary files are cleaned up automatically
 - Avoid interrupting operations to prevent temp file leaks
 
@@ -124,7 +122,11 @@ chmod 600 ~/.goingenv/password-file
 ```bash
 # Use dedicated environment for sensitive operations
 unset HISTFILE  # Disable shell history
-goingenv pack -k "$(read -s -p 'Password: '; echo $REPLY)"
+
+# Use environment variables for automation
+export BACKUP_PASSWORD="secure-password"
+goingenv pack --password-env BACKUP_PASSWORD
+unset BACKUP_PASSWORD
 ```
 
 **Regular Cleanup:**
@@ -194,7 +196,9 @@ rm -P old-archive.enc
 - Enforce strong password policies
 - Use secure password entry (hidden input)
 - Clear password variables after use
-- Implement password strength validation
+- Avoid command-line password exposure
+- Monitor environment variable usage
+- Use interactive prompts for maximum security
 
 **File System Security:**
 - Use appropriate file permissions
@@ -209,6 +213,39 @@ rm -P old-archive.enc
 - Secure development practices
 
 ## Security Implementation
+
+### Password Security Enhancements
+
+goingenv has been enhanced with secure password handling to eliminate command-line password exposure:
+
+**Secure Password Input Methods:**
+```go
+// Password options with validation
+type Options struct {
+    PasswordEnv string // Environment variable (with warnings)
+}
+
+// Secure memory clearing
+func ClearPassword(password *string) {
+    bytes := []byte(*password)
+    for i := range bytes {
+        bytes[i] = 0  // Zero out memory
+    }
+    *password = ""
+}
+
+// Environment variable validation
+if strings.TrimSpace(opts.PasswordEnv) == "" {
+    return fmt.Errorf("environment variable name cannot be empty")
+}
+```
+
+**Security Improvements:**
+- **No command-line password exposure** - passwords never visible in shell history or process lists
+- **Memory clearing** - ensures passwords are zeroed after use
+- **Environment variable warnings** - alerts users to potential security risks
+- **Input priority system** - environment variable → interactive prompt
+- **Simplified attack surface** - minimal password input methods for reduced risk
 
 ### Code Security
 
@@ -306,7 +343,7 @@ Security updates are published as:
 - [ ] Use strong, unique passwords
 - [ ] Store archives in secure locations
 - [ ] Set proper file permissions
-- [ ] Regularly update GoingEnv
+- [ ] Regularly update goingenv
 - [ ] Monitor for security advisories
 - [ ] Use secure backup practices
 - [ ] Avoid password reuse
@@ -357,4 +394,4 @@ Security updates are published as:
 
 This security guide is provided for informational purposes only. Security is a complex topic and this guide does not guarantee complete security. Users should perform their own security assessments and consult with security professionals for sensitive applications.
 
-The GoingEnv project makes no warranties about the security of the software and users assume all risks associated with its use.
+The goingenv project makes no warranties about the security of the software and users assume all risks associated with its use.

@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"goingenv/internal/config"
 	"goingenv/pkg/types"
 )
 
@@ -16,6 +17,7 @@ import (
 type Screen string
 
 const (
+	ScreenInit           Screen = "init"
 	ScreenMenu           Screen = "menu"
 	ScreenPackPassword   Screen = "pack_password"
 	ScreenUnpackSelect   Screen = "unpack_select"
@@ -60,49 +62,74 @@ type Model struct {
 func NewModel(app *types.App, verbose bool) *Model {
 	// Initialize debug logger
 	debugLogger := NewDebugLogger(verbose)
-	// Initialize menu items
-	items := []list.Item{
-		MenuItem{
-			title:       "Pack Environment Files",
-			description: "Scan and encrypt environment files",
-			icon:        "📦",
-			action:      "pack",
-		},
-		MenuItem{
-			title:       "Unpack Archive",
-			description: "Decrypt and restore archived files",
-			icon:        "📂",
-			action:      "unpack",
-		},
-		MenuItem{
-			title:       "List Archive Contents",
-			description: "Browse archive contents without extracting",
-			icon:        "📋",
-			action:      "list",
-		},
-		MenuItem{
-			title:       "Status",
-			description: "View current directory and available archives",
-			icon:        "📊",
-			action:      "status",
-		},
-		MenuItem{
-			title:       "Settings",
-			description: "Configure default options",
-			icon:        "⚙️",
-			action:      "settings",
-		},
-		MenuItem{
-			title:       "Help",
-			description: "Command documentation and examples",
-			icon:        "❓",
-			action:      "help",
-		},
+	
+	// Check if project is initialized and create appropriate menu items
+	var items []list.Item
+	var initialScreen Screen
+	
+	if !config.IsInitialized() {
+		// Only show init option if not initialized
+		items = []list.Item{
+			MenuItem{
+				title:       "Initialize goingenv",
+				description: "Set up goingenv in this directory",
+				icon:        "🚀",
+				action:      "init",
+			},
+			MenuItem{
+				title:       "Help",
+				description: "Command documentation and examples",
+				icon:        "❓",
+				action:      "help",
+			},
+		}
+		initialScreen = ScreenInit
+	} else {
+		// Show full menu if initialized
+		items = []list.Item{
+			MenuItem{
+				title:       "Pack Environment Files",
+				description: "Scan and encrypt environment files",
+				icon:        "📦",
+				action:      "pack",
+			},
+			MenuItem{
+				title:       "Unpack Archive",
+				description: "Decrypt and restore archived files",
+				icon:        "📂",
+				action:      "unpack",
+			},
+			MenuItem{
+				title:       "List Archive Contents",
+				description: "Browse archive contents without extracting",
+				icon:        "📋",
+				action:      "list",
+			},
+			MenuItem{
+				title:       "Status",
+				description: "View current directory and available archives",
+				icon:        "📊",
+				action:      "status",
+			},
+			MenuItem{
+				title:       "Settings",
+				description: "Configure default options",
+				icon:        "⚙️",
+				action:      "settings",
+			},
+			MenuItem{
+				title:       "Help",
+				description: "Command documentation and examples",
+				icon:        "❓",
+				action:      "help",
+			},
+		}
+		initialScreen = ScreenMenu
 	}
 
 	// Create list component
 	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	l.Title = "GoingEnv - Environment File Manager"
+	l.Title = "goingenv - Environment File Manager"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 
@@ -121,7 +148,7 @@ func NewModel(app *types.App, verbose bool) *Model {
 
 	model := &Model{
 		app:           app,
-		currentScreen: ScreenMenu,
+		currentScreen: initialScreen,
 		menu:         l,
 		textInput:    ti,
 		filepicker:   fp,
@@ -239,4 +266,53 @@ func (m *Model) Cleanup() {
 	if m.debugLogger != nil {
 		m.debugLogger.Close()
 	}
+}
+
+// refreshMenuAfterInit refreshes the menu to show all options after initialization
+func (m *Model) refreshMenuAfterInit() *Model {
+	// Create full menu items now that project is initialized
+	items := []list.Item{
+		MenuItem{
+			title:       "Pack Environment Files",
+			description: "Scan and encrypt environment files",
+			icon:        "📦",
+			action:      "pack",
+		},
+		MenuItem{
+			title:       "Unpack Archive",
+			description: "Decrypt and restore archived files",
+			icon:        "📂",
+			action:      "unpack",
+		},
+		MenuItem{
+			title:       "List Archive Contents",
+			description: "Browse archive contents without extracting",
+			icon:        "📋",
+			action:      "list",
+		},
+		MenuItem{
+			title:       "Status",
+			description: "View current directory and available archives",
+			icon:        "📊",
+			action:      "status",
+		},
+		MenuItem{
+			title:       "Settings",
+			description: "Configure default options",
+			icon:        "⚙️",
+			action:      "settings",
+		},
+		MenuItem{
+			title:       "Help",
+			description: "Command documentation and examples",
+			icon:        "❓",
+			action:      "help",
+		},
+	}
+
+	// Update the menu with new items
+	m.menu.SetItems(items)
+	m.SetScreen(ScreenMenu)
+	
+	return m
 }

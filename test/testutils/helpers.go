@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"goingenv/internal/config"
 	"goingenv/pkg/types"
 )
 
@@ -383,4 +384,71 @@ func CreateLargeTestFile(t *testing.T, path string, sizeBytes int64) {
 		}
 		written += toWrite
 	}
+}
+
+// CreateTempGoingEnvDir creates a .goingenv directory structure in the given parent directory
+func CreateTempGoingEnvDir(t *testing.T, parentDir string) string {
+	goingEnvDir := filepath.Join(parentDir, ".goingenv")
+	
+	if err := os.MkdirAll(goingEnvDir, 0755); err != nil {
+		t.Fatalf("Failed to create .goingenv directory %s: %v", goingEnvDir, err)
+	}
+
+	// Create proper .gitignore file that doesn't ignore *.enc files
+	gitignorePath := filepath.Join(goingEnvDir, ".gitignore")
+	gitignoreContent := "# GoingEnv directory gitignore\n# This allows *.enc files to be committed for safe env transfer\n# Ignore temporary files\n*.tmp\n*.temp\n"
+	
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
+		t.Fatalf("Failed to create .gitignore in %s: %v", goingEnvDir, err)
+	}
+
+	return goingEnvDir
+}
+
+// InitializeTestProject initializes a GoingEnv project in the given directory for testing
+func InitializeTestProject(t *testing.T, dir string) {
+	// Change to the test directory temporarily
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Failed to change to test directory %s: %v", dir, err)
+	}
+	
+	// Ensure we change back after the test
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Logf("Warning: Failed to change back to original directory: %v", err)
+		}
+	})
+
+	// Initialize the project using the config package
+	if err := config.InitializeProject(); err != nil {
+		t.Fatalf("Failed to initialize test project in %s: %v", dir, err)
+	}
+}
+
+// EnsureGoingEnvSetup ensures .goingenv is properly set up for archive operations
+func EnsureGoingEnvSetup(t *testing.T, baseDir string) string {
+	goingEnvDir := CreateTempGoingEnvDir(t, baseDir)
+	
+	// Verify it's properly initialized
+	if !config.IsInitialized() {
+		// If the check fails due to working directory, create it manually
+		gitignorePath := filepath.Join(goingEnvDir, ".gitignore")
+		if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
+			t.Fatalf(".goingenv directory was created but not properly initialized")
+		}
+	}
+	
+	return goingEnvDir
+}
+
+// CreateInitializedTempDir creates a temporary directory with .goingenv properly initialized
+func CreateInitializedTempDir(t *testing.T, pattern string) string {
+	tmpDir := CreateTempDir(t, pattern)
+	CreateTempGoingEnvDir(t, tmpDir)
+	return tmpDir
 }

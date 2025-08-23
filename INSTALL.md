@@ -1,6 +1,6 @@
-# GoingEnv Installation Guide
+# Installation Guide
 
-This guide provides detailed installation instructions for GoingEnv on Linux and macOS systems.
+This guide provides detailed installation instructions for goingenv on Linux and macOS systems.
 
 ## Quick Installation
 
@@ -174,6 +174,23 @@ goingenv --help
 # Check installation
 which goingenv
 ```
+
+### First-time Setup
+
+Before using GoingEnv in a project, you must initialize it:
+
+```bash
+# Navigate to your project directory
+cd /path/to/your/project
+
+# Initialize GoingEnv (required first step)
+goingenv init
+
+# Verify initialization worked
+goingenv status
+```
+
+This creates the necessary `.goingenv` directory structure in your project.
 
 ## Post-Installation Setup
 

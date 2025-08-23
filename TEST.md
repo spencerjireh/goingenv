@@ -1,6 +1,6 @@
-# GoingEnv Testing Guide
+# goingenv Testing Guide
 
-This document provides comprehensive information about testing in the GoingEnv project, including test structure, running tests, and writing new tests.
+This document provides comprehensive information about testing in the goingenv project, including test structure, running tests, and writing new tests.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This document provides comprehensive information about testing in the GoingEnv p
 
 ## Test Architecture
 
-GoingEnv uses a comprehensive testing strategy with multiple layers:
+goingenv uses a comprehensive testing strategy with multiple layers:
 
 ```
 test/
@@ -56,6 +56,12 @@ internal/
 ```bash
 # Run all tests
 make test
+
+# Run automated functional tests
+make test-functional
+
+# Run complete test suite (unit + integration + functional)
+make test-complete
 
 # Run with coverage report
 make test-coverage
@@ -153,6 +159,43 @@ go test ./internal/scanner
 - Configuration management
 - Large file handling
 - Concurrent operations
+
+### Functional Tests
+
+**Command**: `make test-functional`
+
+**Purpose**: Automated end-to-end testing that validates real-world usage scenarios
+
+**What it tests**:
+1. **Application Build**: Ensures the binary compiles successfully
+2. **Test Environment Setup**: Creates realistic .env file scenarios
+3. **All-Inclusive Pattern Detection**: Tests that `\.env.*` pattern detects all variants
+4. **Exclusion Pattern Functionality**: Validates that exclusion patterns work correctly
+5. **Pack/Unpack Workflow**: Tests the complete archive creation and extraction process
+6. **Configuration Management**: Validates config backup, usage, and restoration
+7. **Cleanup**: Ensures all test artifacts are properly removed
+
+**Test Files Created**:
+- `.env` - Basic environment file
+- `.env.local` - Local overrides
+- `.env.development` - Development settings
+- `.env.custom` - Custom configuration
+- `.env.backup` - Backup file (used for exclusion testing)
+- `.env.new_format` - Novel format testing
+- `regular.txt` - Non-env file (should be ignored)
+
+**Validation Steps**:
+- ✅ All 6 .env files detected with default all-inclusive pattern
+- ✅ 5 files detected when `.env.backup` is excluded
+- ✅ Pack operation creates encrypted archive successfully
+- ✅ Unpack operation restores files correctly
+- ✅ Configuration backup and restoration works safely
+
+**Safe Testing**:
+- Automatically backs up existing `~/.goingenv.json` config
+- Uses temporary test directory (`test_env_files_functional/`)
+- Restores original configuration after testing
+- Cleans up all test artifacts automatically
 
 ### Mock Tests
 
@@ -503,6 +546,8 @@ testutils.AssertStringContains(t, output, expectedSubstring)
 
 ```bash
 make test                 # Run all tests
+make test-functional     # Automated functional workflow tests
+make test-complete       # Complete test suite (unit + integration + functional)
 make test-coverage       # Generate coverage report
 make test-unit          # Unit tests only
 make test-integration   # Integration tests only

@@ -11,6 +11,7 @@ import (
 	"golang.org/x/term"
 
 	"goingenv/internal/config"
+	"goingenv/pkg/password"
 	"goingenv/pkg/types"
 	"goingenv/pkg/utils"
 )
@@ -29,15 +30,15 @@ The pack command will:
 - Store the encrypted archive in the .goingenv directory
 
 Examples:
-  goingenv pack -k "mypassword"
-  goingenv pack -k "mypassword" -d /path/to/project
-  goingenv pack -k "mypassword" -o backup-prod.enc
-  goingenv pack -d . --depth 5`,
+  goingenv pack                                    # Interactive password prompt
+  goingenv pack --password-env MY_PASSWORD        # Read from environment variable
+  goingenv pack -d /path/to/project -o backup.enc # Specify directory and output
+  goingenv pack -d . --depth 5                    # Custom scan depth`,
 		RunE: runPackCommand,
 	}
 
 	// Add flags
-	cmd.Flags().StringP("key", "k", "", "Encryption password (will prompt if not provided)")
+	cmd.Flags().String("password-env", "", "Read password from environment variable")
 	cmd.Flags().StringP("directory", "d", "", "Directory to scan (default: current directory)")
 	cmd.Flags().StringP("output", "o", "", "Output archive name (default: auto-generated with timestamp)")
 	cmd.Flags().IntP("depth", "", 0, "Maximum directory depth to scan (default: from config)")
@@ -51,6 +52,11 @@ Examples:
 
 // runPackCommand executes the pack command
 func runPackCommand(cmd *cobra.Command, args []string) error {
+	// Check if GoingEnv is initialized
+	if !config.IsInitialized() {
+		return fmt.Errorf("goingenv is not initialized in this directory. Run 'goingenv init' first")
+	}
+
 	// Initialize application
 	app, err := NewApp()
 	if err != nil {
@@ -73,27 +79,30 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	key, _ := cmd.Flags().GetString("key")
+	passwordEnv, _ := cmd.Flags().GetString("password-env")
 	depth, _ := cmd.Flags().GetInt("depth")
 	includePatterns, _ := cmd.Flags().GetStringSlice("include")
 	excludePatterns, _ := cmd.Flags().GetStringSlice("exclude")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 
-	// Prompt for password if not provided
-	if key == "" {
-		fmt.Print("Enter encryption password: ")
-		passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
-		fmt.Println()
-		if err != nil {
-			return fmt.Errorf("failed to read password: %w", err)
-		}
-		key = string(passwordBytes)
+	// Get password using secure methods
+	passwordOpts := password.Options{
+		PasswordEnv: passwordEnv,
 	}
 
-	if key == "" {
-		return fmt.Errorf("password cannot be empty")
+	// Validate password options
+	if err := password.ValidatePasswordOptions(passwordOpts); err != nil {
+		return fmt.Errorf("invalid password options: %w", err)
 	}
+
+	key, err := password.GetPassword(passwordOpts)
+	if err != nil {
+		return fmt.Errorf("failed to get password: %w", err)
+	}
+
+	// Ensure password is cleared from memory when done
+	defer password.ClearPassword(&key)
 
 	// Prepare scan options
 	scanOpts := types.ScanOptions{
@@ -173,10 +182,6 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Ensure .goingenv directory exists
-	if err := config.EnsureGoingEnvDir(); err != nil {
-		return fmt.Errorf("failed to create .goingenv directory: %w", err)
-	}
 
 	// Prepare pack options
 	packOpts := types.PackOptions{

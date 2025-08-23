@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to GoingEnv will be documented in this file.
+All notable changes to goingenv will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -8,21 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`goingenv init` command** - Required initialization step for each project directory
+- **Automatic release system** - Pushes to main branch automatically create stable releases
 - Comprehensive CI/CD pipeline with GitHub Actions
 - Automated release creation with cross-platform binaries
 - Install script for Linux and macOS with platform detection
 - Debug logging system for TUI mode with --verbose flag
 - Comprehensive documentation split into specialized guides
+- New TUI initialization screen for uninitialized projects
+- Initialization requirement verification tests
+- Semantic version control via commit message flags ([major], [minor], [skip-release])
 
 ### Changed
+- **BREAKING**: All commands now require `goingenv init` to be run first in each project directory
+- TUI now shows initialization screen when project is not initialized
+- Archive operations no longer auto-create `.goingenv` directory
+- Updated `.goingenv/.gitignore` to allow `*.enc` files for safe environment transfer
 - Restructured README.md for better user experience
 - Enhanced Makefile with CI and release targets
 - Improved TUI with debug mode indicators
+- Updated documentation to reflect initialization requirement
 
 ### Security
 - Added security scanning with gosec and nancy
 - Implemented checksum verification for releases
 - Enhanced install script with security features
+- Improved initialization workflow prevents accidental directory creation
 
 ## [1.0.0] - 2025-08-19
 

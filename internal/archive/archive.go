@@ -36,14 +36,6 @@ func (s *Service) Pack(opts types.PackOptions) error {
 		}
 	}
 
-	// Ensure .goingenv directory exists
-	if err := config.EnsureGoingEnvDir(); err != nil {
-		return &types.ArchiveError{
-			Operation: "pack",
-			Path:      opts.OutputPath,
-			Err:       fmt.Errorf("failed to create .goingenv directory: %w", err),
-		}
-	}
 
 	// Calculate total size
 	var totalSize int64

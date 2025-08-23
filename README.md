@@ -1,15 +1,19 @@
-# GoingEnv
+# goingenv
 
-**Secure Environment File Manager with Encryption**
+**Share envs the easy way**
 
-GoingEnv is a CLI tool that scans, encrypts, and archives your `.env` files with AES-256 encryption. Perfect for securely backing up, transferring, and restoring environment configurations across development environments.
+Tired of complex tools just to share .env files? goingenv is perfect for small teams, personal projects, and private repositories. Get you and your teammates sharing encrypted environments in seconds - no third parties, no setup headaches.
 
-## Documentation
+**Made by devs who want easier solutions.**
 
-📖 **[View Full Documentation](https://spencerjirehcebrian.github.io/goingenv/)** - Complete installation guide, usage examples, and tutorials
+Strong encryption, zero config needed. Just encrypt, commit, share. Your envs are secure in seconds, not hours. Perfect for small-scale projects where simplicity matters more than enterprise features.
 
-> [!WARNING]
-> Educational purposes only. Not audited for production use. Use at your own risk in sensitive environments.
+## Website
+
+**[Website](https://spencerjirehcebrian.github.io/goingenv/)** - Installation guide, usage examples, and documentation
+
+> [!WARNING]  
+> goingenv hasn't undergone formal security audits, though it's been used successfully in production. Great for private repositories and internal team projects. Always exercise caution with sensitive data.
 
 ## Key Features
 
@@ -17,7 +21,7 @@ GoingEnv is a CLI tool that scans, encrypts, and archives your `.env` files with
 - **AES-256 Encryption** - Military-grade security with PBKDF2 key derivation
 - **Beautiful TUI** - Interactive terminal interface with real-time preview
 - **Archive Management** - Compressed, encrypted archives with metadata
-- ✅ **Integrity Checks** - SHA-256 checksums ensure data integrity
+- **Integrity Checks** - SHA-256 checksums ensure data integrity
 - **CLI & TUI Modes** - Perfect for both interactive use and automation
 - **Cross-Platform** - Works on Linux, macOS (Intel & Apple Silicon)
 
@@ -50,6 +54,14 @@ curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/in
 
 ### Basic Usage
 
+**First-time setup:**
+
+```bash
+# Initialize goingenv in your project directory
+cd /path/to/your/project
+goingenv init
+```
+
 **Interactive mode (recommended for beginners):**
 
 ```bash
@@ -62,14 +74,19 @@ goingenv
 # Check what files would be processed
 goingenv status
 
-# Create encrypted backup
-goingenv pack -k "your-secure-password" -o backup.enc
+# Create encrypted backup (interactive password prompt)
+goingenv pack
+
+# Create backup with environment variable password
+export MY_PASSWORD="your-secure-password"
+goingenv pack --password-env MY_PASSWORD -o backup.enc
+unset MY_PASSWORD
 
 # List archive contents
-goingenv list -f backup.enc -k "your-password"
+goingenv list -f backup.enc --password-env MY_PASSWORD
 
 # Restore from backup
-goingenv unpack -f backup.enc -k "your-password"
+goingenv unpack -f backup.enc --password-env MY_PASSWORD
 ```
 
 ## Documentation
@@ -82,26 +99,30 @@ goingenv unpack -f backup.enc -k "your-password"
 ## Example Workflow
 
 ```bash
-# 1. Install GoingEnv
+# 1. Install goingenv
 curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
 
 # 2. Navigate to your project
 cd /path/to/your/project
 
-# 3. Check what would be archived
+# 3. Initialize goingenv (required first step)
+goingenv init
+
+# 4. Check what would be archived
 goingenv status
 
-# 4. Create encrypted backup
-goingenv pack -k "secure-password" -o project-backup.enc
+# 5. Create encrypted backup (interactive password prompt)
+goingenv pack -o project-backup.enc
 
-# 5. Later, restore from backup
-goingenv unpack -f project-backup.enc -k "secure-password"
+# 6. Later, restore from backup
+goingenv unpack -f project-backup.enc
 ```
 
 ## Common Commands
 
 | Command              | Description                      |
 | -------------------- | -------------------------------- |
+| `goingenv init`      | Initialize goingenv in project   |
 | `goingenv`           | Launch interactive TUI           |
 | `goingenv pack`      | Encrypt and archive env files    |
 | `goingenv unpack`    | Decrypt and restore files        |
@@ -131,6 +152,7 @@ We welcome contributions! Please see our [Development Guide](DEVELOPMENT.md) for
 - Submitting pull requests
 - Code style guidelines
 
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
@@ -143,4 +165,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Star this repo if GoingEnv helps secure your environment files!**
+**Star this repo if goingenv helps secure your environment files!**

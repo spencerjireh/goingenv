@@ -55,6 +55,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.SetError(string(msg))
 		return m, nil
 
+	case InitCompleteMsg:
+		m.debugLogger.LogMessage("init_complete", string(msg))
+		m.SetMessage(string(msg))
+		// Refresh the model to show full menu now that project is initialized
+		return m.refreshMenuAfterInit(), nil
+
 	case ProgressMsg:
 		m.debugLogger.LogProgress("operation", float64(msg))
 		m.progress.SetPercent(float64(msg))
@@ -67,8 +73,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle component updates based on current screen
 	switch m.currentScreen {
-	case ScreenMenu:
-		m.menu, cmd = m.menu.Update(msg)
 	case ScreenPackPassword, ScreenUnpackPassword, ScreenListPassword:
 		m.textInput, cmd = m.textInput.Update(msg)
 	case ScreenUnpackSelect, ScreenListSelect:
@@ -112,10 +116,18 @@ func (m *Model) handleMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q", "ctrl+c":
 		m.debugLogger.LogOperation("quit", "user requested quit")
 		return m, tea.Quit
+	case "?":
+		// Direct help access with ? key
+		m.debugLogger.LogOperation("help_view", "showing help screen via ? key")
+		m.SetScreen(ScreenHelp)
+		return m, nil
 	case "enter":
 		selectedItem := m.GetSelectedMenuItem()
 		m.debugLogger.LogOperation("menu_selection", fmt.Sprintf("action: %s, title: %s", selectedItem.action, selectedItem.title))
 		switch selectedItem.action {
+		case "init":
+			m.debugLogger.LogOperation("init_start", "initializing project")
+			return m, InitProjectCmd()
 		case "pack":
 			// Start scanning for files
 			m.debugLogger.LogOperation("pack_start", "initiating file scan")
@@ -141,6 +153,11 @@ func (m *Model) handleMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.SetScreen(ScreenHelp)
 			return m, nil
 		}
+	default:
+		// Pass all other keys (including navigation keys) to the menu component
+		var cmd tea.Cmd
+		m.menu, cmd = m.menu.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }

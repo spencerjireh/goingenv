@@ -1,6 +1,6 @@
-# GoingEnv Usage Guide
+# goingenv Usage Guide
 
-This guide provides comprehensive examples and workflows for using GoingEnv effectively.
+This guide provides comprehensive examples and workflows for using goingenv effectively.
 
 ## Table of Contents
 
@@ -16,15 +16,23 @@ This guide provides comprehensive examples and workflows for using GoingEnv effe
 
 ### First Run
 
-After installation, start with the status command to see what GoingEnv detects:
+After installation, you must initialize goingenv in each project directory:
 
 ```bash
+# Navigate to your project directory
+cd /path/to/your/project
+
+# Initialize GoingEnv (required first step)
+goingenv init
+
 # Check current directory for environment files
 goingenv status
 
 # Verbose output with detailed information
 goingenv status --verbose
 ```
+
+> **⚠️ Important**: You must run `goingenv init` in each project directory before using any other commands. This creates the necessary `.goingenv` directory structure and configuration files.
 
 ### Launch Interactive Mode
 
@@ -51,37 +59,90 @@ The TUI provides a user-friendly interface for all GoingEnv operations.
 
 ### Main Menu Options
 
-1. **📦 Pack Environment Files**
+**When Not Initialized:**
+1. **Initialize GoingEnv** - Set up GoingEnv in the current directory (required first step)
+2. **Help** - Interactive help and documentation
+
+**After Initialization:**
+1. **Pack Environment Files**
    - Scans current directory for env files
    - Shows preview of detected files
    - Prompts for encryption password
    - Creates encrypted archive
 
-2. **📂 Unpack Archive**
+2. **Unpack Archive**
    - Browse available `.enc` files
    - Prompts for decryption password
    - Extracts files to current directory
 
-3. **📋 List Archive Contents**
+3. **List Archive Contents**
    - Browse and select archive file
    - Shows archive metadata and file list
    - No files are extracted
 
-4. **📊 Status**
+4. **Status**
    - Shows current directory information
    - Lists available archives
    - Displays detected environment files
    - Shows configuration settings
 
-5. **⚙️ Settings**
+5. **Settings**
    - View current configuration
    - Shows scan depth, patterns, and limits
 
-6. **❓ Help**
+6. **Help**
    - Interactive help and documentation
    - Command examples and usage tips
 
 ## Command Line Mode
+
+### Initialization
+
+**Initialize GoingEnv (required first step):**
+```bash
+# Initialize in current directory
+goingenv init
+
+# Force re-initialization (if already initialized)
+goingenv init --force
+
+# Check initialization status
+goingenv status
+```
+
+The `init` command creates:
+- `.goingenv/` directory in your project
+- `.goingenv/.gitignore` file (allows `*.enc` files for safe transfer)
+- Adds `.goingenv/` to your project's `.gitignore`
+- Default configuration in your home directory
+
+### Password Security
+
+GoingEnv provides two secure methods for password input:
+
+**1. Interactive Prompt (Most Secure)**
+```bash
+# Password is hidden during input
+goingenv pack  # Will prompt for password
+```
+
+**2. Environment Variable (For Automation)**
+```bash
+# Set password in environment variable
+export MY_PASSWORD="your-password"
+
+# Use environment variable (shows security warning)
+goingenv pack --password-env MY_PASSWORD
+
+# Clear after use
+unset MY_PASSWORD
+```
+
+**Security Best Practices:**
+- **Never use passwords on command line** (visible in shell history and process lists)
+- **Interactive prompts** are the most secure for manual operations
+- **Environment variables** are visible to other processes - use carefully
+- **Clear passwords** from environment variables after use
 
 ### Pack Operations
 
@@ -90,17 +151,17 @@ The TUI provides a user-friendly interface for all GoingEnv operations.
 # Pack with password prompt
 goingenv pack
 
-# Pack with password specified
-goingenv pack -k "your-secure-password"
+# Pack with password from environment
+goingenv pack --password-env MY_PASSWORD
 
 # Pack from specific directory
-goingenv pack -d /path/to/project -k "password"
+goingenv pack -d /path/to/project --password-env MY_PASSWORD
 
 # Pack with custom output name
-goingenv pack -k "password" -o backup-2024.enc
+goingenv pack --password-env MY_PASSWORD -o backup-2024.enc
 
 # Pack with description
-goingenv pack -k "password" --description "Production backup before deployment"
+goingenv pack --password-env MY_PASSWORD --description "Production backup before deployment"
 ```
 
 **Advanced Packing:**
@@ -109,14 +170,14 @@ goingenv pack -k "password" --description "Production backup before deployment"
 goingenv pack --dry-run
 
 # Verbose output
-goingenv pack -k "password" --verbose
+goingenv pack --password-env MY_PASSWORD --verbose
 
 # Custom scan depth
-goingenv pack -k "password" --depth 3
+goingenv pack --password-env MY_PASSWORD --depth 3
 
 # Pack from multiple directories
-cd /project1 && goingenv pack -k "pass" -o project1.enc
-cd /project2 && goingenv pack -k "pass" -o project2.enc
+cd /project1 && goingenv pack --password-env MY_PASSWORD -o project1.enc
+cd /project2 && goingenv pack --password-env MY_PASSWORD -o project2.enc
 ```
 
 ### Unpack Operations
@@ -127,28 +188,28 @@ cd /project2 && goingenv pack -k "pass" -o project2.enc
 goingenv unpack
 
 # Unpack specific archive
-goingenv unpack -f backup.enc -k "password"
+goingenv unpack -f backup.enc --password-env MY_PASSWORD
 
 # Unpack to specific directory
-goingenv unpack -f backup.enc -k "password" --target-dir /restore/path
+goingenv unpack -f backup.enc --password-env MY_PASSWORD --target /restore/path
 
 # Unpack with overwrite protection
-goingenv unpack -f backup.enc -k "password" --backup
+goingenv unpack -f backup.enc --password-env MY_PASSWORD --backup
 ```
 
 **Advanced Unpacking:**
 ```bash
 # Dry run (preview what would be extracted)
-goingenv unpack -f backup.enc -k "password" --dry-run
+goingenv unpack -f backup.enc --password-env MY_PASSWORD --dry-run
 
 # Force overwrite existing files
-goingenv unpack -f backup.enc -k "password" --overwrite
+goingenv unpack -f backup.enc --password-env MY_PASSWORD --overwrite
 
 # Verbose output with progress
-goingenv unpack -f backup.enc -k "password" --verbose
+goingenv unpack -f backup.enc --password-env MY_PASSWORD --verbose
 
 # Unpack with file verification
-goingenv unpack -f backup.enc -k "password" --verify
+goingenv unpack -f backup.enc --password-env MY_PASSWORD --verify
 ```
 
 ### List Operations
@@ -159,13 +220,13 @@ goingenv unpack -f backup.enc -k "password" --verify
 goingenv list
 
 # List specific archive
-goingenv list -f backup.enc -k "password"
+goingenv list -f backup.enc --password-env MY_PASSWORD
 
 # List with detailed file information
-goingenv list -f backup.enc -k "password" --verbose
+goingenv list -f backup.enc --password-env MY_PASSWORD --verbose
 
 # List with formatted output
-goingenv list -f backup.enc -k "password" --format table
+goingenv list -f backup.enc --password-env MY_PASSWORD --format table
 ```
 
 ### Status Operations
@@ -195,7 +256,7 @@ PROJECT_NAME=$(basename $(pwd))
 BACKUP_NAME="${PROJECT_NAME}-${DATE}.enc"
 
 echo "Creating daily backup: $BACKUP_NAME"
-goingenv pack -k "$BACKUP_PASSWORD" -o "$BACKUP_NAME" --description "Daily backup"
+goingenv pack --password-env BACKUP_PASSWORD -o "$BACKUP_NAME" --description "Daily backup"
 
 echo "Backup created: ~/.goingenv/$BACKUP_NAME"
 ```
@@ -207,28 +268,36 @@ echo "Backup created: ~/.goingenv/$BACKUP_NAME"
 git clone https://github.com/user/project.git
 cd project
 
-# 2. Check for available environment backups
+# 2. Initialize GoingEnv
+goingenv init
+
+# 3. Check for available environment backups
 goingenv status
 
-# 3. Restore environment files
-goingenv unpack -f project-env.enc -k "password"
+# 4. Restore environment files
+goingenv unpack -f project-env.enc --password-env MY_PASSWORD
 
-# 4. Verify restored files
+# 5. Verify restored files
 goingenv status --verbose
 ```
 
 ### 3. Environment Migration
 
 ```bash
-# On source machine
+# On source machine (assuming already initialized)
 cd /old/project
-goingenv pack -k "migration-key" -o migration.enc --description "Migration from server-1"
+export MIGRATION_PASSWORD="migration-key"
+goingenv pack --password-env MIGRATION_PASSWORD -o migration.enc --description "Migration from server-1"
+unset MIGRATION_PASSWORD
 
 # Transfer migration.enc to new machine
 
 # On target machine
 cd /new/project
-goingenv unpack -f migration.enc -k "migration-key" --backup
+goingenv init  # Initialize if not already done
+export MIGRATION_PASSWORD="migration-key"
+goingenv unpack -f migration.enc --password-env MIGRATION_PASSWORD --backup
+unset MIGRATION_PASSWORD
 goingenv status
 ```
 
@@ -236,10 +305,10 @@ goingenv status
 
 ```bash
 # Team lead creates template
-goingenv pack -k "team-password" -o team-template.enc --description "Team environment template"
+goingenv pack --password-env TEAM_PASSWORD -o team-template.enc --description "Team environment template"
 
 # Team members restore template
-goingenv unpack -f team-template.enc -k "team-password"
+goingenv unpack -f team-template.enc --password-env TEAM_PASSWORD
 
 # Customize local environment
 cp .env .env.local
@@ -258,7 +327,7 @@ ENVIRONMENT=${1:-production}
 echo "Creating pre-deployment backup for $ENVIRONMENT ($VERSION)"
 
 goingenv pack \
-  -k "$DEPLOY_BACKUP_PASSWORD" \
+  --password-env DEPLOY_BACKUP_PASSWORD \
   -o "pre-deploy-${ENVIRONMENT}-${VERSION}.enc" \
   --description "Pre-deployment backup for $ENVIRONMENT v$VERSION" \
   --verbose
@@ -273,9 +342,6 @@ echo "Backup completed: ~/.goingenv/pre-deploy-${ENVIRONMENT}-${VERSION}.enc"
 Configure GoingEnv behavior with environment variables:
 
 ```bash
-# Set default password (not recommended for security)
-export GOINGENV_DEFAULT_PASSWORD="your-password"
-
 # Custom configuration directory
 export GOINGENV_CONFIG_DIR="$HOME/.config/goingenv"
 
@@ -299,15 +365,13 @@ set -e
 # Configuration
 PROJECTS_DIR="$HOME/projects"
 BACKUP_DIR="$HOME/backups/env-files"
-PASSWORD_FILE="$HOME/.goingenv-password"
-
-# Read password from secure file
-if [[ -f "$PASSWORD_FILE" ]]; then
-    PASSWORD=$(cat "$PASSWORD_FILE")
-else
-    echo "Password file not found: $PASSWORD_FILE"
+# Read password from environment variable
+if [[ -z "$BACKUP_PASSWORD" ]]; then
+    echo "Please set BACKUP_PASSWORD environment variable"
     exit 1
 fi
+
+PASSWORD="$BACKUP_PASSWORD"
 
 # Create backup directory
 mkdir -p "$BACKUP_DIR"
@@ -322,7 +386,7 @@ for project in "$PROJECTS_DIR"/*; do
         echo "Backing up: $project_name"
         cd "$project"
         
-        if goingenv pack -k "$PASSWORD" -o "$backup_file" --description "Automated backup"; then
+        if goingenv pack --password-env BACKUP_PASSWORD -o "$backup_file" --description "Automated backup"; then
             echo "✅ $project_name backed up successfully"
         else
             echo "❌ Failed to backup $project_name"
@@ -353,7 +417,7 @@ jobs:
       
       - name: Create Environment Backup
         run: |
-          goingenv pack -k "${{ secrets.BACKUP_PASSWORD }}" -o "production-backup.enc"
+          goingenv pack --password-env BACKUP_PASSWORD -o "production-backup.enc"
         env:
           BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
       
@@ -418,22 +482,34 @@ Archive naming convention:
 - Use strong, unique passwords for each archive
 - Consider using a password manager
 - Avoid storing passwords in scripts or environment variables
-- Use secure file permissions for password files
+- Use environment variables carefully for passwords
 
 **File Permissions:**
 ```bash
 # Secure archive directory
 chmod 700 ~/.goingenv
 
-# Secure password file (if using)
-chmod 600 ~/.goingenv-password
+# Secure environment variable handling
+# Avoid storing passwords in shell history
+# Clear environment variables after use
+unset MY_PASSWORD
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-**1. No Environment Files Found**
+**1. GoingEnv Not Initialized**
+```bash
+# Error: "GoingEnv is not initialized in this directory"
+# Solution: Initialize GoingEnv first
+goingenv init
+
+# Check initialization status
+goingenv status
+```
+
+**2. No Environment Files Found**
 ```bash
 # Check current directory
 goingenv status
@@ -445,7 +521,7 @@ goingenv status --verbose
 ls -la .env*
 ```
 
-**2. Permission Denied**
+**3. Permission Denied**
 ```bash
 # Check directory permissions
 ls -la ~/.goingenv
@@ -454,19 +530,19 @@ ls -la ~/.goingenv
 chmod 755 ~/.goingenv
 ```
 
-**3. Archive Corruption**
+**4. Archive Corruption**
 ```bash
 # Verify archive integrity
-goingenv list -f backup.enc -k "password"
+goingenv list -f backup.enc --password-env MY_PASSWORD
 
 # Check file size
 ls -la ~/.goingenv/backup.enc
 ```
 
-**4. Password Issues**
+**5. Password Issues**
 ```bash
 # Test password
-goingenv list -f backup.enc -k "password"
+goingenv list -f backup.enc --password-env MY_PASSWORD
 
 # If password is forgotten, archive cannot be recovered
 ```
@@ -476,7 +552,7 @@ goingenv list -f backup.enc -k "password"
 Enable verbose logging for troubleshooting:
 ```bash
 # CLI debug mode
-goingenv pack -k "password" --verbose
+goingenv pack --password-env MY_PASSWORD --verbose
 
 # TUI debug mode
 goingenv --verbose

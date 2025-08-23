@@ -1,6 +1,6 @@
-# GoingEnv Development Guide
+# goingenv Development Guide
 
-This guide provides everything you need to know for contributing to GoingEnv development.
+This guide provides everything you need to know for contributing to goingenv development.
 
 ## Table of Contents
 
@@ -129,6 +129,7 @@ goingenv/
 
 **`internal/cli/`**: Cobra-based CLI commands
 - `root.go`: Root command and TUI launcher
+- `init.go`: Project initialization command (required first step)
 - `pack.go`: Pack command implementation
 - `unpack.go`: Unpack command implementation
 - `list.go`: List command implementation
@@ -217,6 +218,12 @@ go build -ldflags="-X main.Version=1.0.0 -X main.BuildTime=$(date -u +%Y-%m-%dT%
 # Run all tests
 make test
 
+# Run automated functional workflow tests
+make test-functional
+
+# Run complete test suite (recommended for development)
+make test-complete
+
 # Run unit tests only
 make test-unit
 
@@ -299,9 +306,47 @@ func TestFullWorkflow(t *testing.T) {
     // Create test files
     testutils.CreateTestFiles(t, tempDir)
     
+    // IMPORTANT: Initialize .goingenv for archive operations
+    testutils.CreateTempGoingEnvDir(t, tempDir)
+    
     // Test pack operation
     // Test unpack operation
     // Verify results
+}
+```
+
+### Testing Initialization Requirements
+
+Since GoingEnv now requires initialization before use, tests involving archive operations must set up the `.goingenv` directory structure:
+
+```go
+// Use helper functions for proper test setup
+func TestArchiveOperations(t *testing.T) {
+    tmpDir := testutils.CreateTempEnvFiles(t)
+    defer os.RemoveAll(tmpDir)
+    
+    // Initialize .goingenv structure for archive operations
+    testutils.CreateTempGoingEnvDir(t, tmpDir)
+    
+    // Now archive operations will work
+    // ... test code
+}
+
+// Test initialization requirements specifically
+func TestInitializationRequired(t *testing.T) {
+    tmpDir := testutils.CreateTempEnvFiles(t)
+    defer os.RemoveAll(tmpDir)
+    
+    // Archive operations should fail without initialization
+    err := archiveService.Pack(packOpts)
+    if err == nil {
+        t.Error("Expected error when not initialized")
+    }
+    
+    // Initialize and test success
+    testutils.CreateTempGoingEnvDir(t, tmpDir)
+    err = archiveService.Pack(packOpts)
+    testutils.AssertNoError(t, err)
 }
 ```
 
@@ -345,8 +390,9 @@ func TestWithMock(t *testing.T) {
 
 4. **Test Changes**
    ```bash
-   make check-full  # Run all checks
-   make test        # Run tests
+   make test-complete   # Run complete test suite (recommended)
+   make check-full      # Run all checks including linting
+   make test-functional # Quick functional validation
    ```
 
 5. **Commit Changes**
@@ -431,14 +477,41 @@ func (m *Model) handleNewFeatureKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 ### Version Management
 
-GoingEnv uses semantic versioning (SemVer):
+goingenv uses semantic versioning (SemVer):
 - `MAJOR.MINOR.PATCH` (e.g., `1.2.3`)
 - Pre-release: `1.2.3-alpha.1`, `1.2.3-beta.1`, `1.2.3-rc.1`
 - Tags must follow format: `v1.2.3` or `v1.2.3-alpha.1`
 
-### Automated Release Workflow
+### Automatic Releases (Recommended)
 
-**Simple Two-Step Process:**
+**Main Branch Auto-Release:**
+When code is pushed or merged to the `main` branch, stable releases are automatically created:
+
+```bash
+# Automatic patch release (1.0.0 → 1.0.1)
+git push origin main
+
+# Control version bump with commit message flags:
+git commit -m "feat: add new feature [minor]"    # 1.0.0 → 1.1.0
+git commit -m "breaking: major refactor [major]" # 1.0.0 → 2.0.0
+git commit -m "docs: update readme [skip-release]" # No release
+```
+
+**Auto-Release Process:**
+1. **CI Validation**: Waits for all CI jobs to complete successfully
+2. **Version Calculation**: Automatically determines next semantic version
+3. **Tag Creation**: Creates and pushes release tag
+4. **Release Build**: Triggers existing release workflow automatically
+
+**Version Control Flags:**
+- `[major]` - Breaking changes (1.0.0 → 2.0.0)
+- `[minor]` - New features (1.0.0 → 1.1.0)
+- `[skip-release]` - Skip automatic release
+- Default: Patch version bump (1.0.0 → 1.0.1)
+
+### Manual Pre-Release Workflow
+
+**For Alpha/Beta Releases:**
 ```bash
 # 1. Create and validate release
 make tag-release
@@ -454,6 +527,13 @@ make push-release-tag
 # - Push the tag to GitHub
 # - Trigger GitHub Actions release workflow
 # - Provide monitoring link
+```
+
+**Quick Release Commands:**
+```bash
+make quick-alpha    # Create and publish alpha release
+make quick-beta     # Create and publish beta release
+make quick-stable   # Create and publish stable release
 ```
 
 **What GitHub Actions Does Automatically:**
