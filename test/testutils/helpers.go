@@ -18,13 +18,13 @@ func CreateTempEnvFiles(t *testing.T) string {
 	}
 
 	files := map[string]string{
-		".env":              "DATABASE_URL=postgres://localhost/test\nAPI_KEY=test123\nSECRET_KEY=mysecret",
-		".env.local":        "DEBUG=true\nLOG_LEVEL=debug\nLOCAL_OVERRIDE=true",
-		".env.development":  "NODE_ENV=development\nAPI_URL=http://localhost:3000\nDB_HOST=localhost",
-		".env.production":   "NODE_ENV=production\nAPI_URL=https://api.example.com\nDB_HOST=prod.example.com",
-		"config/.env.test":  "TEST_DB=memory\nTEST_TIMEOUT=30s\nTEST_MODE=unit",
-		"app/.env.staging":  "NODE_ENV=staging\nAPI_URL=https://staging.example.com\nDEBUG=false",
-		"nested/deep/.env":  "NESTED_VAR=deep_value\nDEEP_CONFIG=true",
+		".env":             "DATABASE_URL=postgres://localhost/test\nAPI_KEY=test123\nSECRET_KEY=mysecret",
+		".env.local":       "DEBUG=true\nLOG_LEVEL=debug\nLOCAL_OVERRIDE=true",
+		".env.development": "NODE_ENV=development\nAPI_URL=http://localhost:3000\nDB_HOST=localhost",
+		".env.production":  "NODE_ENV=production\nAPI_URL=https://api.example.com\nDB_HOST=prod.example.com",
+		"config/.env.test": "TEST_DB=memory\nTEST_TIMEOUT=30s\nTEST_MODE=unit",
+		"app/.env.staging": "NODE_ENV=staging\nAPI_URL=https://staging.example.com\nDEBUG=false",
+		"nested/deep/.env": "NESTED_VAR=deep_value\nDEEP_CONFIG=true",
 	}
 
 	for filename, content := range files {
@@ -42,9 +42,9 @@ func CreateTempEnvFiles(t *testing.T) string {
 
 	// Create some non-env files to test filtering
 	nonEnvFiles := map[string]string{
-		"package.json":     `{"name": "test", "version": "1.0.0"}`,
-		"README.md":        "# Test Project",
-		"config/app.yaml":  "database:\n  host: localhost",
+		"package.json":    `{"name": "test", "version": "1.0.0"}`,
+		"README.md":       "# Test Project",
+		"config/app.yaml": "database:\n  host: localhost",
 	}
 
 	for filename, content := range nonEnvFiles {
@@ -333,11 +333,11 @@ func CreateMinimalTestConfig() *types.Config {
 
 // Helper function to check if a string contains a substring
 func contains(str, substr string) bool {
-	return len(str) >= len(substr) && (str == substr || 
-		(len(str) > len(substr) && 
-		(str[:len(substr)] == substr || 
-		str[len(str)-len(substr):] == substr || 
-		contains(str[1:], substr))))
+	return len(str) >= len(substr) && (str == substr ||
+		(len(str) > len(substr) &&
+			(str[:len(substr)] == substr ||
+				str[len(str)-len(substr):] == substr ||
+				contains(str[1:], substr))))
 }
 
 // MockTime returns a fixed time for consistent testing
@@ -375,10 +375,10 @@ func CreateLargeTestFile(t *testing.T, path string, sizeBytes int64) {
 	written := int64(0)
 	for written < sizeBytes {
 		toWrite := chunkSize
-		if written + chunkSize > sizeBytes {
+		if written+chunkSize > sizeBytes {
 			toWrite = sizeBytes - written
 		}
-		
+
 		if _, err := file.Write(chunk[:toWrite]); err != nil {
 			t.Fatalf("Failed to write to file %s: %v", path, err)
 		}
@@ -389,7 +389,7 @@ func CreateLargeTestFile(t *testing.T, path string, sizeBytes int64) {
 // CreateTempGoingEnvDir creates a .goingenv directory structure in the given parent directory
 func CreateTempGoingEnvDir(t *testing.T, parentDir string) string {
 	goingEnvDir := filepath.Join(parentDir, ".goingenv")
-	
+
 	if err := os.MkdirAll(goingEnvDir, 0755); err != nil {
 		t.Fatalf("Failed to create .goingenv directory %s: %v", goingEnvDir, err)
 	}
@@ -397,7 +397,7 @@ func CreateTempGoingEnvDir(t *testing.T, parentDir string) string {
 	// Create proper .gitignore file that doesn't ignore *.enc files
 	gitignorePath := filepath.Join(goingEnvDir, ".gitignore")
 	gitignoreContent := "# GoingEnv directory gitignore\n# This allows *.enc files to be committed for safe env transfer\n# Ignore temporary files\n*.tmp\n*.temp\n"
-	
+
 	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
 		t.Fatalf("Failed to create .gitignore in %s: %v", goingEnvDir, err)
 	}
@@ -412,11 +412,11 @@ func InitializeTestProject(t *testing.T, dir string) {
 	if err != nil {
 		t.Fatalf("Failed to get current directory: %v", err)
 	}
-	
+
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("Failed to change to test directory %s: %v", dir, err)
 	}
-	
+
 	// Ensure we change back after the test
 	t.Cleanup(func() {
 		if err := os.Chdir(originalDir); err != nil {
@@ -433,7 +433,7 @@ func InitializeTestProject(t *testing.T, dir string) {
 // EnsureGoingEnvSetup ensures .goingenv is properly set up for archive operations
 func EnsureGoingEnvSetup(t *testing.T, baseDir string) string {
 	goingEnvDir := CreateTempGoingEnvDir(t, baseDir)
-	
+
 	// Verify it's properly initialized
 	if !config.IsInitialized() {
 		// If the check fails due to working directory, create it manually
@@ -442,7 +442,7 @@ func EnsureGoingEnvSetup(t *testing.T, baseDir string) string {
 			t.Fatalf(".goingenv directory was created but not properly initialized")
 		}
 	}
-	
+
 	return goingEnvDir
 }
 

@@ -18,7 +18,7 @@ func TestFullWorkflow(t *testing.T) {
 	// Setup
 	tmpDir := testutils.CreateTempEnvFiles(t)
 	defer os.RemoveAll(tmpDir)
-	
+
 	// Initialize .goingenv structure for archive operations
 	testutils.CreateTempGoingEnvDir(t, tmpDir)
 
@@ -209,7 +209,7 @@ func TestErrorHandling(t *testing.T) {
 	t.Run("Unpack with Wrong Password", func(t *testing.T) {
 		tmpDir := testutils.CreateTempEnvFiles(t)
 		defer os.RemoveAll(tmpDir)
-		
+
 		// Initialize .goingenv structure for archive operations
 		testutils.CreateTempGoingEnvDir(t, tmpDir)
 
@@ -380,10 +380,10 @@ func TestLargeFileHandling(t *testing.T) {
 
 	// Create a configuration with smaller max file size for testing
 	cfg := &types.Config{
-		DefaultDepth: 2,
-		EnvPatterns:  []string{`\.env$`},
+		DefaultDepth:    2,
+		EnvPatterns:     []string{`\.env$`},
 		ExcludePatterns: []string{},
-		MaxFileSize: 1024, // 1KB limit
+		MaxFileSize:     1024, // 1KB limit
 	}
 
 	scannerService := scanner.NewService(cfg)
@@ -434,7 +434,7 @@ func TestLargeFileHandling(t *testing.T) {
 func TestConcurrentAccess(t *testing.T) {
 	tmpDir := testutils.CreateTempEnvFiles(t)
 	defer os.RemoveAll(tmpDir)
-	
+
 	// Initialize .goingenv structure for archive operations
 	testutils.CreateTempGoingEnvDir(t, tmpDir)
 
@@ -593,7 +593,7 @@ func TestInitializationRequirement(t *testing.T) {
 func TestConfigInitialization(t *testing.T) {
 	originalDir, err := os.Getwd()
 	testutils.AssertNoError(t, err)
-	
+
 	t.Run("IsInitialized Function", func(t *testing.T) {
 		tmpDir := testutils.CreateTempDir(t, "init-test-*")
 		defer os.RemoveAll(tmpDir)

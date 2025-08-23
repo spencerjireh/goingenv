@@ -39,10 +39,10 @@ type Model struct {
 
 	// Current state
 	currentScreen   Screen
-	width          int
-	height         int
-	message        string
-	error          string
+	width           int
+	height          int
+	message         string
+	error           string
 	selectedArchive string
 
 	// UI components
@@ -62,11 +62,11 @@ type Model struct {
 func NewModel(app *types.App, verbose bool) *Model {
 	// Initialize debug logger
 	debugLogger := NewDebugLogger(verbose)
-	
+
 	// Check if project is initialized and create appropriate menu items
 	var items []list.Item
 	var initialScreen Screen
-	
+
 	if !config.IsInitialized() {
 		// Only show init option if not initialized
 		items = []list.Item{
@@ -149,10 +149,10 @@ func NewModel(app *types.App, verbose bool) *Model {
 	model := &Model{
 		app:           app,
 		currentScreen: initialScreen,
-		menu:         l,
-		textInput:    ti,
-		filepicker:   fp,
-		progress:     prog,
+		menu:          l,
+		textInput:     ti,
+		filepicker:    fp,
+		progress:      prog,
 		debugLogger:   debugLogger,
 	}
 
@@ -195,12 +195,12 @@ func (mi MenuItem) FilterValue() string {
 
 // Message types for async operations
 type (
-	PackCompleteMsg    string
-	UnpackCompleteMsg  string
-	ListCompleteMsg    string
-	ScanCompleteMsg    []types.EnvFile
-	ErrorMsg           string
-	ProgressMsg        float64
+	PackCompleteMsg   string
+	UnpackCompleteMsg string
+	ListCompleteMsg   string
+	ScanCompleteMsg   []types.EnvFile
+	ErrorMsg          string
+	ProgressMsg       float64
 )
 
 // Helper methods for state management
@@ -209,14 +209,14 @@ type (
 func (m *Model) SetScreen(screen Screen) {
 	oldScreen := m.currentScreen
 	m.currentScreen = screen
-	
+
 	// Log screen transition
 	m.debugLogger.LogScreen(oldScreen, screen)
-	
+
 	// Reset state when changing screens
 	m.message = ""
 	m.error = ""
-	
+
 	// Focus/blur components as needed
 	switch screen {
 	case ScreenPackPassword, ScreenUnpackPassword, ScreenListPassword:
@@ -313,6 +313,6 @@ func (m *Model) refreshMenuAfterInit() *Model {
 	// Update the menu with new items
 	m.menu.SetItems(items)
 	m.SetScreen(ScreenMenu)
-	
+
 	return m
 }

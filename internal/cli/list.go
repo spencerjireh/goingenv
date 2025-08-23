@@ -129,7 +129,7 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 	filesToShow := archive.Files
 	if len(patterns) > 0 {
 		filesToShow = filterFilesByPatterns(archive.Files, patterns)
-		fmt.Printf("Showing %d files matching patterns (out of %d total)\n", 
+		fmt.Printf("Showing %d files matching patterns (out of %d total)\n",
 			len(filesToShow), len(archive.Files))
 	}
 
@@ -174,7 +174,7 @@ func listAllArchives(app *types.App, passwordOpts password.Options, verbose bool
 
 	for i, archivePath := range archives {
 		fmt.Printf("[%d] %s\n", i+1, filepath.Base(archivePath))
-		
+
 		// Show basic info without requiring password
 		if info, err := os.Stat(archivePath); err == nil {
 			fmt.Printf("    Size: %s\n", utils.FormatSize(info.Size()))
@@ -199,7 +199,7 @@ func listAllArchives(app *types.App, passwordOpts password.Options, verbose bool
 				fmt.Printf("    Status: Cannot read (password error)\n")
 			}
 		}
-		
+
 		fmt.Println()
 	}
 
@@ -295,12 +295,12 @@ func displayFilesJSON(files []types.EnvFile) error {
 		"files": files,
 		"count": len(files),
 	}
-	
+
 	jsonData, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to format JSON: %w", err)
 	}
-	
+
 	fmt.Println(string(jsonData))
 	return nil
 }
@@ -327,14 +327,14 @@ func displaySummary(archive *types.Archive, displayedFiles []types.EnvFile) {
 
 	fmt.Println("Summary:")
 	fmt.Println(strings.Repeat("-", 40))
-	
+
 	// File type statistics
 	typeStats := make(map[string]int)
 	var totalDisplayedSize int64
-	
+
 	for _, file := range displayedFiles {
 		totalDisplayedSize += file.Size
-		
+
 		// Categorize by file extension/type
 		name := filepath.Base(file.RelativePath)
 		fileType := utils.CategorizeEnvFile(name)
@@ -346,25 +346,25 @@ func displaySummary(archive *types.Archive, displayedFiles []types.EnvFile) {
 	for fileType, count := range typeStats {
 		fmt.Printf("  • %s: %d\n", fileType, count)
 	}
-	
+
 	fmt.Printf("\nSize information:\n")
 	fmt.Printf("  • Displayed files: %s\n", utils.FormatSize(totalDisplayedSize))
 	if len(displayedFiles) < len(archive.Files) {
 		fmt.Printf("  • Total archive: %s\n", utils.FormatSize(archive.TotalSize))
 	}
-	
+
 	// Calculate average file size
 	if len(displayedFiles) > 0 {
 		avgSize := totalDisplayedSize / int64(len(displayedFiles))
 		fmt.Printf("  • Average file size: %s\n", utils.FormatSize(avgSize))
 	}
-	
+
 	// Time span information
 	if len(displayedFiles) > 1 {
 		var oldest, newest time.Time
 		oldest = displayedFiles[0].ModTime
 		newest = displayedFiles[0].ModTime
-		
+
 		for _, file := range displayedFiles {
 			if file.ModTime.Before(oldest) {
 				oldest = file.ModTime
@@ -373,12 +373,12 @@ func displaySummary(archive *types.Archive, displayedFiles []types.EnvFile) {
 				newest = file.ModTime
 			}
 		}
-		
+
 		fmt.Printf("\nTime span:\n")
 		fmt.Printf("  • Oldest file: %s\n", oldest.Format("2006-01-02 15:04:05"))
 		fmt.Printf("  • Newest file: %s\n", newest.Format("2006-01-02 15:04:05"))
 	}
-	
+
 	fmt.Println()
 }
 
@@ -387,7 +387,7 @@ func displaySummary(archive *types.Archive, displayedFiles []types.EnvFile) {
 // filterFilesByPatterns filters files based on glob patterns
 func filterFilesByPatterns(files []types.EnvFile, patterns []string) []types.EnvFile {
 	var filtered []types.EnvFile
-	
+
 	for _, file := range files {
 		for _, pattern := range patterns {
 			if matched, _ := filepath.Match(pattern, file.RelativePath); matched {
@@ -396,7 +396,7 @@ func filterFilesByPatterns(files []types.EnvFile, patterns []string) []types.Env
 			}
 		}
 	}
-	
+
 	return filtered
 }
 

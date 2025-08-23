@@ -177,8 +177,8 @@ func LoadConfigCmd(app *types.App) tea.Cmd {
 
 // Additional message types for new commands
 type (
-	SuccessMsg     string
-	ArchiveListMsg []string
+	SuccessMsg      string
+	ArchiveListMsg  []string
 	InitCompleteMsg string
 )
 

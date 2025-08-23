@@ -36,7 +36,6 @@ func (s *Service) Pack(opts types.PackOptions) error {
 		}
 	}
 
-
 	// Calculate total size
 	var totalSize int64
 	for _, file := range opts.Files {

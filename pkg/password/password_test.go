@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-
 func TestGetPasswordFromEnv(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -136,16 +135,16 @@ func TestGetPasswordPriority(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Mock interactive prompt to avoid blocking
 			// Note: This test assumes env is provided, so interactive won't be called
-			
+
 			password, err := GetPassword(tt.opts)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
-			
+
 			if password != tt.expectedPass {
 				t.Errorf("Expected password '%s', got '%s'", tt.expectedPass, password)
 			}
-			
+
 			// Test that password can be cleared
 			ClearPassword(&password)
 			if password != "" {
@@ -177,11 +176,10 @@ func TestClearPassword(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ClearPassword(tt.password)
-			
+
 			if tt.password != nil && *tt.password != "" {
 				t.Errorf("Password was not cleared, still contains: %s", *tt.password)
 			}
 		})
 	}
 }
-

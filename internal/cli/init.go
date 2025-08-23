@@ -90,7 +90,7 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 // ensureProjectGitignore ensures the project root .gitignore includes .goingenv/
 func ensureProjectGitignore() error {
 	gitignorePath := ".gitignore"
-	
+
 	// Check if .gitignore exists
 	content := ""
 	if _, err := os.Stat(gitignorePath); err == nil {

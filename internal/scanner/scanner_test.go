@@ -175,8 +175,8 @@ func TestService_ScanPatternMatching(t *testing.T) {
 	config := &types.Config{
 		DefaultDepth: 3,
 		EnvPatterns: []string{
-			`\.env$`,                // Only exact .env files
-			`\.env\.development$`,   // Only .env.development files
+			`\.env$`,              // Only exact .env files
+			`\.env\.development$`, // Only .env.development files
 		},
 		ExcludePatterns: []string{
 			`node_modules/`,
@@ -224,7 +224,7 @@ func TestService_ExcludePatterns(t *testing.T) {
 
 	config := &types.Config{
 		DefaultDepth: 3,
-		EnvPatterns: []string{`\.env`},
+		EnvPatterns:  []string{`\.env`},
 		ExcludePatterns: []string{
 			`node_modules/`,
 			`excluded/`,
@@ -299,8 +299,8 @@ func TestGetFileStats(t *testing.T) {
 		t.Error("files_by_pattern not found or wrong type")
 	} else {
 		expectedPatterns := map[string]int{
-			".env":         1, // .env
-			".env.local":   1, // .env.local
+			".env":             1, // .env
+			".env.local":       1, // .env.local
 			".env.development": 1, // .env.development
 		}
 
@@ -319,7 +319,7 @@ func TestService_ScanFilesPerformance(t *testing.T) {
 
 	config := &types.Config{
 		DefaultDepth: 5,
-		EnvPatterns: []string{`\.env`},
+		EnvPatterns:  []string{`\.env`},
 		ExcludePatterns: []string{
 			`node_modules/`,
 		},
@@ -353,10 +353,10 @@ func TestService_ScanFilesPerformance(t *testing.T) {
 
 func TestService_ErrorHandling(t *testing.T) {
 	config := &types.Config{
-		DefaultDepth: 3,
-		EnvPatterns: []string{`\.env`},
+		DefaultDepth:    3,
+		EnvPatterns:     []string{`\.env`},
 		ExcludePatterns: []string{},
-		MaxFileSize: 1024,
+		MaxFileSize:     1024,
 	}
 
 	service := NewService(config)
@@ -481,7 +481,7 @@ func BenchmarkScanFiles(b *testing.B) {
 
 	config := &types.Config{
 		DefaultDepth: 5,
-		EnvPatterns: []string{`\.env`},
+		EnvPatterns:  []string{`\.env`},
 		ExcludePatterns: []string{
 			`node_modules/`,
 		},

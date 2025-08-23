@@ -68,7 +68,7 @@ func runStatusCommand(cmd *cobra.Command, args []string) error {
 	if directory == "" {
 		directory = "."
 	}
-	
+
 	showArchives, _ := cmd.Flags().GetBool("archives")
 	showFiles, _ := cmd.Flags().GetBool("files")
 	showConfig, _ := cmd.Flags().GetBool("config")
@@ -137,27 +137,27 @@ func runStatusCommand(cmd *cobra.Command, args []string) error {
 func displaySystemInfo(directory string, verbose bool) {
 	fmt.Println("\n📍 System Information")
 	fmt.Println(strings.Repeat("-", 40))
-	
+
 	// Current directory
 	cwd, _ := os.Getwd()
 	fmt.Printf("Current directory: %s\n", cwd)
-	
+
 	if directory != "." {
 		absDir, _ := filepath.Abs(directory)
 		fmt.Printf("Target directory: %s\n", absDir)
 	}
-	
+
 	// System info
 	if verbose {
 		fmt.Printf("Operating system: %s %s\n", runtime.GOOS, runtime.GOARCH)
 		fmt.Printf("Go version: %s\n", runtime.Version())
-		
+
 		// Disk space (if available)
 		if stat, err := os.Stat(cwd); err == nil {
 			fmt.Printf("Directory permissions: %v\n", stat.Mode())
 		}
 	}
-	
+
 	// goingenv directory
 	goingenvDir := config.GetGoingEnvDir()
 	if _, err := os.Stat(goingenvDir); err == nil {
@@ -171,31 +171,31 @@ func displaySystemInfo(directory string, verbose bool) {
 func displayArchiveInfo(app *types.App, verbose bool) error {
 	fmt.Println("\n📦 Archive Information")
 	fmt.Println(strings.Repeat("-", 40))
-	
+
 	archives, err := app.Archiver.GetAvailableArchives("")
 	if err != nil {
 		return err
 	}
-	
+
 	if len(archives) == 0 {
 		fmt.Println("No archives found in .goingenv directory")
 		fmt.Println("💡 Use 'goingenv pack' to create your first archive")
 		return nil
 	}
-	
+
 	fmt.Printf("Found %d archive(s):\n", len(archives))
-	
+
 	var totalSize int64
 	var oldestDate, newestDate time.Time
-	
+
 	for i, archivePath := range archives {
 		info, err := os.Stat(archivePath)
 		if err != nil {
 			continue
 		}
-		
+
 		totalSize += info.Size()
-		
+
 		if i == 0 {
 			oldestDate = info.ModTime()
 			newestDate = info.ModTime()
@@ -207,7 +207,7 @@ func displayArchiveInfo(app *types.App, verbose bool) error {
 				newestDate = info.ModTime()
 			}
 		}
-		
+
 		fmt.Printf("  • %s\n", filepath.Base(archivePath))
 		if verbose {
 			fmt.Printf("    Size: %s\n", utils.FormatSize(info.Size()))
@@ -216,17 +216,17 @@ func displayArchiveInfo(app *types.App, verbose bool) error {
 			fmt.Printf("    %s - %s\n", utils.FormatSize(info.Size()), info.ModTime().Format("2006-01-02 15:04:05"))
 		}
 	}
-	
+
 	// Summary
 	fmt.Printf("\nArchive summary:\n")
 	fmt.Printf("  Total size: %s\n", utils.FormatSize(totalSize))
 	if len(archives) > 1 {
-		fmt.Printf("  Date range: %s to %s\n", 
-			oldestDate.Format("2006-01-02"), 
+		fmt.Printf("  Date range: %s to %s\n",
+			oldestDate.Format("2006-01-02"),
 			newestDate.Format("2006-01-02"))
 	}
 	fmt.Printf("  Average size: %s\n", utils.FormatSize(totalSize/int64(len(archives))))
-	
+
 	return nil
 }
 
@@ -234,38 +234,38 @@ func displayArchiveInfo(app *types.App, verbose bool) error {
 func displayDetectedFiles(app *types.App, directory string, verbose bool) error {
 	fmt.Println("\n🔍 Detected Environment Files")
 	fmt.Println(strings.Repeat("-", 40))
-	
+
 	// Scan for files
 	scanOpts := types.ScanOptions{
 		RootPath: directory,
 		MaxDepth: app.Config.DefaultDepth,
 	}
-	
+
 	files, err := app.Scanner.ScanFiles(scanOpts)
 	if err != nil {
 		return err
 	}
-	
+
 	if len(files) == 0 {
 		fmt.Println("No environment files detected")
 		fmt.Println("💡 Make sure you're in a directory with .env files")
 		return nil
 	}
-	
+
 	fmt.Printf("Found %d environment file(s):\n", len(files))
-	
+
 	// Group files by type
 	filesByType := make(map[string][]types.EnvFile)
 	var totalSize int64
-	
+
 	for _, file := range files {
 		totalSize += file.Size
-		
+
 		name := filepath.Base(file.RelativePath)
 		fileType := utils.CategorizeEnvFile(name)
 		filesByType[fileType] = append(filesByType[fileType], file)
 	}
-	
+
 	// Display by category
 	categories := []string{"Main", "Local", "Development", "Production", "Staging", "Test", "Other"}
 	for _, category := range categories {
@@ -284,20 +284,20 @@ func displayDetectedFiles(app *types.App, directory string, verbose bool) error 
 			}
 		}
 	}
-	
+
 	// File statistics
 	stats := scanner.GetFileStats(files)
 	fmt.Printf("\nFile statistics:\n")
 	fmt.Printf("  Total size: %s\n", utils.FormatSize(totalSize))
 	fmt.Printf("  Average size: %s\n", utils.FormatSize(stats["average_size"].(int64)))
-	
+
 	if verbose {
 		fmt.Printf("  Files by pattern:\n")
 		for pattern, count := range stats["files_by_pattern"].(map[string]int) {
 			fmt.Printf("    • %s: %d\n", pattern, count)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -305,12 +305,12 @@ func displayDetectedFiles(app *types.App, directory string, verbose bool) error 
 func displayConfigInfo(app *types.App, verbose bool) {
 	fmt.Println("\n⚙️ Configuration")
 	fmt.Println(strings.Repeat("-", 40))
-	
+
 	config := app.Config
-	
+
 	fmt.Printf("Scan depth: %d directories\n", config.DefaultDepth)
 	fmt.Printf("Max file size: %s\n", utils.FormatSize(config.MaxFileSize))
-	
+
 	fmt.Printf("\nFile patterns (%d):\n", len(config.EnvPatterns))
 	for i, pattern := range config.EnvPatterns {
 		if verbose || i < 5 {
@@ -320,7 +320,7 @@ func displayConfigInfo(app *types.App, verbose bool) {
 			break
 		}
 	}
-	
+
 	if verbose {
 		fmt.Printf("\nExclude patterns (%d):\n", len(config.ExcludePatterns))
 		for _, pattern := range config.ExcludePatterns {
@@ -333,7 +333,7 @@ func displayConfigInfo(app *types.App, verbose bool) {
 func displayStatsAndAnalysis(app *types.App, directory string, verbose bool) error {
 	fmt.Println("\n📊 Statistics & Analysis")
 	fmt.Println(strings.Repeat("-", 40))
-	
+
 	// Get files and archives
 	scanOpts := types.ScanOptions{
 		RootPath: directory,
@@ -343,16 +343,16 @@ func displayStatsAndAnalysis(app *types.App, directory string, verbose bool) err
 	if err != nil {
 		return err
 	}
-	
+
 	archives, err := app.Archiver.GetAvailableArchives("")
 	if err != nil {
 		return err
 	}
-	
+
 	// File analysis
 	if len(files) > 0 {
 		fmt.Printf("File analysis:\n")
-		
+
 		// Size distribution
 		var small, medium, large int
 		for _, file := range files {
@@ -364,10 +364,10 @@ func displayStatsAndAnalysis(app *types.App, directory string, verbose bool) err
 				large++
 			}
 		}
-		
-		fmt.Printf("  Size distribution: %d small (<1KB), %d medium (1-10KB), %d large (>10KB)\n", 
+
+		fmt.Printf("  Size distribution: %d small (<1KB), %d medium (1-10KB), %d large (>10KB)\n",
 			small, medium, large)
-		
+
 		// Age analysis
 		now := time.Now()
 		var recent, old int
@@ -379,38 +379,38 @@ func displayStatsAndAnalysis(app *types.App, directory string, verbose bool) err
 				old++
 			}
 		}
-		
+
 		fmt.Printf("  Age distribution: %d recent (<30 days), %d older (>30 days)\n", recent, old)
 	}
-	
+
 	// Archive analysis
 	if len(archives) > 0 {
 		fmt.Printf("\nArchive analysis:\n")
-		
+
 		var totalArchiveSize int64
 		for _, archivePath := range archives {
 			if info, err := os.Stat(archivePath); err == nil {
 				totalArchiveSize += info.Size()
 			}
 		}
-		
-		fmt.Printf("  Storage used: %s across %d archives\n", 
+
+		fmt.Printf("  Storage used: %s across %d archives\n",
 			utils.FormatSize(totalArchiveSize), len(archives))
-		
+
 		// Estimate compression ratio
 		if len(files) > 0 {
 			var totalFileSize int64
 			for _, file := range files {
 				totalFileSize += file.Size
 			}
-			
+
 			if totalFileSize > 0 && len(archives) > 0 {
 				avgCompressionRatio := float64(totalArchiveSize) / float64(totalFileSize) * 100
 				fmt.Printf("  Estimated compression: %.1f%% of original size\n", avgCompressionRatio)
 			}
 		}
 	}
-	
+
 	// Performance metrics
 	if verbose {
 		fmt.Printf("\nPerformance:\n")
@@ -419,7 +419,7 @@ func displayStatsAndAnalysis(app *types.App, directory string, verbose bool) err
 			fmt.Printf("  Encryption overhead: ~%d%% of file size\n", 10) // Rough estimate
 		}
 	}
-	
+
 	return nil
 }
 
@@ -427,7 +427,7 @@ func displayStatsAndAnalysis(app *types.App, directory string, verbose bool) err
 func displayRecommendations(app *types.App, directory string) error {
 	fmt.Println("\n💡 Recommendations")
 	fmt.Println(strings.Repeat("-", 40))
-	
+
 	// Get current state
 	scanOpts := types.ScanOptions{
 		RootPath: directory,
@@ -435,43 +435,43 @@ func displayRecommendations(app *types.App, directory string) error {
 	}
 	files, _ := app.Scanner.ScanFiles(scanOpts)
 	archives, _ := app.Archiver.GetAvailableArchives("")
-	
+
 	recommendations := []string{}
-	
+
 	// File-based recommendations
 	if len(files) == 0 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"No environment files detected. Make sure you're in the right directory.")
 	} else if len(files) > 10 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"Many environment files detected. Consider using exclude patterns for better performance.")
 	}
-	
+
 	// Archive-based recommendations
 	if len(archives) == 0 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"No archives found. Create your first backup with 'goingenv pack'.")
 	} else if len(archives) > 20 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"Many archives found. Consider cleaning up old archives to save space.")
 	}
-	
+
 	// Security recommendations
 	if len(files) > 0 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"Ensure .goingenv/ is in your .gitignore to avoid committing encrypted archives.")
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"Use strong, unique passwords for each archive.")
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"Verify archive contents regularly with 'goingenv list'.")
 	}
-	
+
 	// Performance recommendations
 	if app.Config.DefaultDepth > 5 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"Consider reducing scan depth for better performance in large projects.")
 	}
-	
+
 	// Display recommendations
 	if len(recommendations) == 0 {
 		fmt.Println("✅ Everything looks good! No specific recommendations at this time.")
@@ -480,12 +480,12 @@ func displayRecommendations(app *types.App, directory string) error {
 			fmt.Printf("%d. %s\n", i+1, rec)
 		}
 	}
-	
+
 	// General tips
 	fmt.Printf("\n📖 Tips:\n")
 	fmt.Println("  • Use 'goingenv pack --dry-run' to preview what will be archived")
 	fmt.Println("  • Run 'goingenv status --verbose' for detailed information")
 	fmt.Println("  • Check 'goingenv help' for all available commands")
-	
+
 	return nil
 }
