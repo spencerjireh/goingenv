@@ -58,42 +58,12 @@ jobs:
         
         echo "should-release=true" >> $GITHUB_OUTPUT
 
-    - name: Wait for CI to complete
+    - name: Wait for CI workflow to complete
       if: steps.check-commit.outputs.should-release == 'true'
       uses: lewagon/wait-on-check-action@v1.3.1
       with:
         ref: ${{ github.sha }}
-        check-name: 'test'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        wait-interval: 30
-        allowed-conclusions: success
-
-    - name: Wait for additional CI jobs
-      if: steps.check-commit.outputs.should-release == 'true'
-      uses: lewagon/wait-on-check-action@v1.3.1
-      with:
-        ref: ${{ github.sha }}
-        check-name: 'lint'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        wait-interval: 30
-        allowed-conclusions: success
-
-    - name: Wait for build job
-      if: steps.check-commit.outputs.should-release == 'true'
-      uses: lewagon/wait-on-check-action@v1.3.1
-      with:
-        ref: ${{ github.sha }}
-        check-name: 'build'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        wait-interval: 30
-        allowed-conclusions: success
-
-    - name: Wait for security job
-      if: steps.check-commit.outputs.should-release == 'true'
-      uses: lewagon/wait-on-check-action@v1.3.1
-      with:
-        ref: ${{ github.sha }}
-        check-name: 'security'
+        running-workflow-name: 'CI'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         wait-interval: 30
         allowed-conclusions: success
