@@ -63,7 +63,7 @@ jobs:
       uses: lewagon/wait-on-check-action@v1.3.1
       with:
         ref: ${{ github.sha }}
-        check-name: 'Test'
+        check-name: 'test'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         wait-interval: 30
         allowed-conclusions: success
@@ -73,7 +73,7 @@ jobs:
       uses: lewagon/wait-on-check-action@v1.3.1
       with:
         ref: ${{ github.sha }}
-        check-name: 'Lint'
+        check-name: 'lint'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         wait-interval: 30
         allowed-conclusions: success
@@ -83,7 +83,7 @@ jobs:
       uses: lewagon/wait-on-check-action@v1.3.1
       with:
         ref: ${{ github.sha }}
-        check-name: 'Build'
+        check-name: 'build'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         wait-interval: 30
         allowed-conclusions: success
@@ -93,7 +93,7 @@ jobs:
       uses: lewagon/wait-on-check-action@v1.3.1
       with:
         ref: ${{ github.sha }}
-        check-name: 'Security'
+        check-name: 'security'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         wait-interval: 30
         allowed-conclusions: success
