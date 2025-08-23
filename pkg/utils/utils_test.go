@@ -173,13 +173,13 @@ func TestFilterFilesByPatterns(t *testing.T) {
 				t.Errorf("FilterFilesByPatterns() = %v; want %v", result, tt.expected)
 				return
 			}
-			
+
 			// Check each expected item is in result
 			expectedMap := make(map[string]bool)
 			for _, expected := range tt.expected {
 				expectedMap[expected] = true
 			}
-			
+
 			for _, item := range result {
 				if !expectedMap[item] {
 					t.Errorf("Unexpected item in result: %s", item)

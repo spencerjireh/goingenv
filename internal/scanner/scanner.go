@@ -27,7 +27,7 @@ func NewService(config *types.Config) *Service {
 // ScanFiles scans for environment files based on the provided options
 func (s *Service) ScanFiles(opts types.ScanOptions) ([]types.EnvFile, error) {
 	var files []types.EnvFile
-	
+
 	// Use default values if not provided
 	if opts.RootPath == "" {
 		opts.RootPath = "."
@@ -166,7 +166,7 @@ func (s *Service) ValidateFile(path string) error {
 	if info.Size() > s.config.MaxFileSize {
 		return &types.ScanError{
 			Path: path,
-			Err:  fmt.Errorf("file size %d exceeds maximum allowed size %d", 
+			Err: fmt.Errorf("file size %d exceeds maximum allowed size %d",
 				info.Size(), s.config.MaxFileSize),
 		}
 	}
@@ -203,7 +203,7 @@ func (s *Service) calculateChecksum(filePath string) (string, error) {
 // compilePatterns compiles a slice of regex patterns
 func compilePatterns(patterns []string) ([]*regexp.Regexp, error) {
 	var regexes []*regexp.Regexp
-	
+
 	for _, pattern := range patterns {
 		regex, err := regexp.Compile(pattern)
 		if err != nil {
@@ -211,7 +211,7 @@ func compilePatterns(patterns []string) ([]*regexp.Regexp, error) {
 		}
 		regexes = append(regexes, regex)
 	}
-	
+
 	return regexes, nil
 }
 
@@ -223,7 +223,7 @@ func GetFileStats(files []types.EnvFile) map[string]interface{} {
 
 	for _, file := range files {
 		totalSize += file.Size
-		
+
 		// Extract pattern from filename
 		filename := filepath.Base(file.Path)
 		if strings.HasPrefix(filename, ".env") {
@@ -240,7 +240,7 @@ func GetFileStats(files []types.EnvFile) map[string]interface{} {
 	stats["total_size"] = totalSize
 	stats["files_by_pattern"] = filesByPattern
 	stats["average_size"] = int64(0)
-	
+
 	if len(files) > 0 {
 		stats["average_size"] = totalSize / int64(len(files))
 	}
@@ -251,13 +251,13 @@ func GetFileStats(files []types.EnvFile) map[string]interface{} {
 // FilterFilesBySize filters files by size constraints
 func FilterFilesBySize(files []types.EnvFile, minSize, maxSize int64) []types.EnvFile {
 	var filtered []types.EnvFile
-	
+
 	for _, file := range files {
 		if file.Size >= minSize && (maxSize == 0 || file.Size <= maxSize) {
 			filtered = append(filtered, file)
 		}
 	}
-	
+
 	return filtered
 }
 
@@ -267,9 +267,9 @@ func FilterFilesByPattern(files []types.EnvFile, patterns []string) ([]types.Env
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var filtered []types.EnvFile
-	
+
 	for _, file := range files {
 		filename := filepath.Base(file.Path)
 		for _, regex := range regexes {
@@ -279,6 +279,6 @@ func FilterFilesByPattern(files []types.EnvFile, patterns []string) ([]types.Env
 			}
 		}
 	}
-	
+
 	return filtered, nil
 }

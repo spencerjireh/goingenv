@@ -187,7 +187,7 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 
 	// Dry run - exit here if requested
 	if dryRun {
-		fmt.Printf("\nDry run completed. %d files would be extracted to %s\n", 
+		fmt.Printf("\nDry run completed. %d files would be extracted to %s\n",
 			len(filesToExtract), targetDir)
 		if len(conflicts) > 0 {
 			fmt.Printf("%d existing files would be affected\n", len(conflicts))
@@ -231,9 +231,9 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Success message
-	fmt.Printf("✅ Successfully extracted %d files from %s\n", 
+	fmt.Printf("✅ Successfully extracted %d files from %s\n",
 		len(filesToExtract), filepath.Base(archiveFile))
-	
+
 	if verbose {
 		fmt.Printf("Operation completed in %v\n", duration)
 	}
@@ -263,7 +263,7 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 // filterFiles filters files based on include/exclude patterns
 func filterFiles(files []types.EnvFile, includePatterns, excludePatterns []string) []types.EnvFile {
 	var filtered []types.EnvFile
-	
+
 	for _, file := range files {
 		// Check include patterns
 		if len(includePatterns) > 0 {
@@ -278,7 +278,7 @@ func filterFiles(files []types.EnvFile, includePatterns, excludePatterns []strin
 				continue
 			}
 		}
-		
+
 		// Check exclude patterns
 		excluded := false
 		for _, pattern := range excludePatterns {
@@ -290,60 +290,60 @@ func filterFiles(files []types.EnvFile, includePatterns, excludePatterns []strin
 		if excluded {
 			continue
 		}
-		
+
 		filtered = append(filtered, file)
 	}
-	
+
 	return filtered
 }
 
 // checkFileConflicts checks for existing files that would be overwritten
 func checkFileConflicts(files []types.EnvFile, targetDir string) []string {
 	var conflicts []string
-	
+
 	for _, file := range files {
 		targetPath := filepath.Join(targetDir, file.RelativePath)
 		if _, err := os.Stat(targetPath); err == nil {
 			conflicts = append(conflicts, file.RelativePath)
 		}
 	}
-	
+
 	return conflicts
 }
 
 // verifyExtractedFiles verifies that extracted files match their expected checksums
 func verifyExtractedFiles(files []types.EnvFile, targetDir string) []string {
 	var errors []string
-	
+
 	for _, file := range files {
 		targetPath := filepath.Join(targetDir, file.RelativePath)
-		
+
 		// Check if file exists
 		info, err := os.Stat(targetPath)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("%s: file not found after extraction", file.RelativePath))
 			continue
 		}
-		
+
 		// Check file size
 		if info.Size() != file.Size {
-			errors = append(errors, fmt.Sprintf("%s: size mismatch (expected %d, got %d)", 
+			errors = append(errors, fmt.Sprintf("%s: size mismatch (expected %d, got %d)",
 				file.RelativePath, file.Size, info.Size()))
 			continue
 		}
-		
+
 		// Calculate and verify checksum
 		actualChecksum, err := utils.CalculateFileChecksum(targetPath)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("%s: failed to calculate checksum: %v", 
+			errors = append(errors, fmt.Sprintf("%s: failed to calculate checksum: %v",
 				file.RelativePath, err))
 			continue
 		}
-		
+
 		if actualChecksum != file.Checksum {
 			errors = append(errors, fmt.Sprintf("%s: checksum mismatch", file.RelativePath))
 		}
 	}
-	
+
 	return errors
 }

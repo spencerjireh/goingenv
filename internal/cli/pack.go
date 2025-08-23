@@ -106,9 +106,9 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 
 	// Prepare scan options
 	scanOpts := types.ScanOptions{
-		RootPath: directory,
-		MaxDepth: depth,
-		Patterns: includePatterns,
+		RootPath:        directory,
+		MaxDepth:        depth,
+		Patterns:        includePatterns,
 		ExcludePatterns: excludePatterns,
 	}
 
@@ -154,8 +154,8 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 	for _, file := range files {
 		totalSize += file.Size
 		if verbose {
-			fmt.Printf("  • %s (%s) - %s - %s\n", 
-				file.RelativePath, 
+			fmt.Printf("  • %s (%s) - %s - %s\n",
+				file.RelativePath,
 				utils.FormatSize(file.Size),
 				file.ModTime.Format("2006-01-02 15:04:05"),
 				file.Checksum[:8]+"...")
@@ -182,13 +182,12 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-
 	// Prepare pack options
 	packOpts := types.PackOptions{
-		Files:       files,
-		OutputPath:  output,
-		Password:    key,
-		Description: fmt.Sprintf("Environment files archive created on %s from %s", 
+		Files:      files,
+		OutputPath: output,
+		Password:   key,
+		Description: fmt.Sprintf("Environment files archive created on %s from %s",
 			time.Now().Format("2006-01-02 15:04:05"), directory),
 	}
 
@@ -206,17 +205,17 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 
 	// Success message
 	fmt.Printf("✅ Successfully packed %d files to %s\n", len(files), output)
-	
+
 	if verbose {
 		fmt.Printf("Operation completed in %v\n", duration)
-		
+
 		// Show archive info
 		if info, err := os.Stat(output); err == nil {
 			compressionRatio := float64(info.Size()) / float64(totalSize) * 100
-			fmt.Printf("Archive size: %s (%.1f%% of original)\n", 
+			fmt.Printf("Archive size: %s (%.1f%% of original)\n",
 				utils.FormatSize(info.Size()), compressionRatio)
 		}
-		
+
 		fmt.Printf("Archive checksum: calculating...\n")
 		if checksum, err := utils.CalculateFileChecksum(output); err == nil {
 			fmt.Printf("Archive SHA-256: %s\n", checksum)

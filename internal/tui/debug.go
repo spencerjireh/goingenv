@@ -35,14 +35,14 @@ func NewDebugLogger(enabled bool) *DebugLogger {
 	// Create debug log file with timestamp
 	timestamp := time.Now().Format("20060102_150405")
 	logPath := filepath.Join(debugDir, fmt.Sprintf("tui_debug_%s.log", timestamp))
-	
+
 	file, err := os.Create(logPath)
 	if err != nil {
 		return &DebugLogger{enabled: false}
 	}
 
 	logger := log.New(file, "", log.LstdFlags|log.Lmicroseconds)
-	
+
 	return &DebugLogger{
 		enabled: true,
 		logger:  logger,
@@ -55,7 +55,7 @@ func (d *DebugLogger) Log(format string, args ...interface{}) {
 	if !d.enabled || d.logger == nil {
 		return
 	}
-	
+
 	d.logger.Printf("[DEBUG] "+format, args...)
 }
 

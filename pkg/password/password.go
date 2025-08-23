@@ -37,7 +37,6 @@ func GetPassword(opts Options) (string, error) {
 	return readPasswordInteractively()
 }
 
-
 // readPasswordFromEnv reads password from environment variable
 func readPasswordFromEnv(envVar string) (string, error) {
 	password := os.Getenv(envVar)
@@ -52,7 +51,7 @@ func readPasswordInteractively() (string, error) {
 	fmt.Print("Enter encryption password: ")
 	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
 	fmt.Println() // Add newline after hidden input
-	
+
 	if err != nil {
 		return "", fmt.Errorf("failed to read password: %w", err)
 	}
@@ -70,13 +69,13 @@ func ClearPassword(password *string) {
 	if password == nil {
 		return
 	}
-	
+
 	// Convert to byte slice and clear each byte
 	bytes := []byte(*password)
 	for i := range bytes {
 		bytes[i] = 0
 	}
-	
+
 	// Set string to empty
 	*password = ""
 }

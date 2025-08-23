@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	ConfigFileName = ".goingenv.json"
+	ConfigFileName     = ".goingenv.json"
 	DefaultMaxFileSize = 10 * 1024 * 1024 // 10MB
 )
 
@@ -163,7 +163,7 @@ func EnsureGoingEnvDir() error {
 
 // GetDefaultArchivePath generates a default archive path with timestamp
 func GetDefaultArchivePath() string {
-	return filepath.Join(GetGoingEnvDir(), fmt.Sprintf("archive-%s.enc", 
+	return filepath.Join(GetGoingEnvDir(), fmt.Sprintf("archive-%s.enc",
 		getCurrentTimestamp()))
 }
 
@@ -178,20 +178,20 @@ func IsInitialized() bool {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return false
 	}
-	
+
 	// Check if the directory contains the expected files
 	gitignorePath := filepath.Join(dir, ".gitignore")
 	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
 		return false
 	}
-	
+
 	return true
 }
 
 // InitializeProject initializes GoingEnv in the current directory
 func InitializeProject() error {
 	dir := GetGoingEnvDir()
-	
+
 	// Create .goingenv directory
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create .goingenv directory: %w", err)
@@ -200,7 +200,7 @@ func InitializeProject() error {
 	// Create .gitignore with corrected content (NOT ignoring *.enc files)
 	gitignorePath := filepath.Join(dir, ".gitignore")
 	gitignoreContent := "# GoingEnv directory gitignore\n# This allows *.enc files to be committed for safe env transfer\n# Ignore temporary files\n*.tmp\n*.temp\n"
-	
+
 	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
 		return fmt.Errorf("failed to create .gitignore: %w", err)
 	}

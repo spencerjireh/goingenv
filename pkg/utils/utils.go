@@ -43,10 +43,10 @@ func CalculateFileChecksum(filePath string) (string, error) {
 func SanitizeFilename(filename string) string {
 	result := ""
 	for _, char := range filename {
-		if (char >= 'a' && char <= 'z') || 
-		   (char >= 'A' && char <= 'Z') || 
-		   (char >= '0' && char <= '9') || 
-		   char == '-' || char == '_' {
+		if (char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '-' || char == '_' {
 			result += string(char)
 		} else {
 			result += "_"
@@ -90,7 +90,7 @@ func CategorizeEnvFile(filename string) string {
 // FilterFilesByPatterns filters files based on glob patterns
 func FilterFilesByPatterns(relativePaths []string, patterns []string) []string {
 	var filtered []string
-	
+
 	for _, filePath := range relativePaths {
 		for _, pattern := range patterns {
 			if matched, _ := filepath.Match(pattern, filePath); matched {
@@ -99,6 +99,6 @@ func FilterFilesByPatterns(relativePaths []string, patterns []string) []string {
 			}
 		}
 	}
-	
+
 	return filtered
 }
