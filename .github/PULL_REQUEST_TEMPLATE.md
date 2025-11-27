@@ -14,8 +14,15 @@ Brief description of the changes in this PR.
 
 ## Testing
 
-- [ ] Unit tests pass (`make ci-test`)
+Run full CI suite locally before creating PR:
+```bash
+make ci-full
+```
+
+Or run individual checks:
 - [ ] Linting passes (`make ci-lint`)
+- [ ] All tests pass (`make ci-test`)
+- [ ] Security checks pass (`make ci-security`)
 - [ ] Cross-compilation works (`make ci-cross-compile`)
 - [ ] Manual testing completed (describe below)
 
@@ -41,4 +48,14 @@ Brief description of the changes in this PR.
 
 ---
 
-**CI Status:** All CI checks must pass before merge.
+## Pipeline Stages
+
+The unified CI/CD pipeline runs in three stages:
+
+1. **VALIDATE** (runs on all PRs): Lint → Test → Security → Build Verification
+2. **BUILD** (main branch only): Cross-platform release builds
+3. **RELEASE** (main branch + `[release]` flag): GitHub Release creation
+
+**All tests must pass** - No test failures are ignored.
+
+See [CICD.md](CICD.md) for detailed pipeline architecture.

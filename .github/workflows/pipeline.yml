@@ -1,12 +1,18 @@
-name: Auto Release
+name: Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - 'index.html'
       - '.github/workflows/pages.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
       - 'index.html'
   workflow_dispatch:
     inputs:
@@ -28,18 +34,229 @@ permissions:
   contents: write
   packages: read
 
-# Ensure only one auto-release runs at a time
 concurrency:
-  group: auto-release-main
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  check-ci:
-    name: Wait for CI Completion
+  # ====================
+  # STAGE 1: VALIDATE
+  # ====================
+  
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+        check-latest: true
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-1.22-
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Check formatting
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Code is not formatted. Please run 'gofmt -s -w .'"
+          gofmt -s -l .
+          exit 1
+        fi
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Check go mod tidy
+      run: |
+        go mod tidy
+        if ! git diff --exit-code go.mod go.sum; then
+          echo "go.mod or go.sum is not tidy. Please run 'go mod tidy'"
+          exit 1
+        fi
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        args: --config=.golangci.yml
+
+  test:
+    name: Test (${{ matrix.os }}, Go ${{ matrix.go-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        go-version: ['1.21', '1.22']
+        exclude:
+          # Only test latest Go on macOS to save CI minutes
+          - os: macos-latest
+            go-version: '1.21'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go-version }}
+        check-latest: true
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: |
+        go mod download
+        go mod verify
+
+    - name: Run unit tests
+      run: go test -v -race -timeout=5m ./pkg/... ./internal/...
+
+    - name: Run integration tests
+      run: go test -v -timeout=2m ./test/integration/...
+
+    - name: Run functional tests
+      run: make test-functional
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+        check-latest: true
+
+    - name: Run govulncheck
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        govulncheck ./...
+
+    - name: Run gosec
+      uses: securecodewarrior/gosec-action@master
+      with:
+        args: '-no-fail -fmt sarif -out results.sarif ./...'
+        
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: results.sarif
+
+  build-verify:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    needs: [lint, test, security]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+        check-latest: true
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-1.22-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build for current platform
+      run: |
+        make build
+        ./goingenv --version
+
+    - name: Test cross-compilation
+      run: |
+        echo "Testing cross-compilation for all supported platforms..."
+        
+        # Linux
+        GOOS=linux GOARCH=amd64 go build -o goingenv-linux-amd64 ./cmd/goingenv
+        GOOS=linux GOARCH=arm64 go build -o goingenv-linux-arm64 ./cmd/goingenv
+        
+        # macOS
+        GOOS=darwin GOARCH=amd64 go build -o goingenv-darwin-amd64 ./cmd/goingenv
+        GOOS=darwin GOARCH=arm64 go build -o goingenv-darwin-arm64 ./cmd/goingenv
+        
+        # Verify binaries exist
+        ls -la goingenv-*
+        
+        echo "All platforms build successfully"
+
+  test-install-script:
+    name: Test Install Script (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [lint, test, security]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Test install script syntax
+      run: |
+        bash -n install.sh
+        echo "Install script syntax is valid"
+
+    - name: Test install script help
+      run: |
+        chmod +x install.sh
+        ./install.sh --help
+
+    - name: Test install script dry run
+      run: |
+        DEBUG=1 NO_SUDO=1 SKIP_SHELL_INTEGRATION=1 ./install.sh --version v99.99.99 || echo "Expected failure for non-existent version"
+
+  # ====================
+  # STAGE 2: BUILD (main branch only)
+  # ====================
+
+  check-release:
+    name: Check Release Status
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [build-verify, test-install-script]
     outputs:
       should-release: ${{ steps.check-commit.outputs.should-release }}
       next-version: ${{ steps.calculate-version.outputs.next-version }}
+      version-type: ${{ steps.check-commit.outputs.version-type }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -50,42 +267,39 @@ jobs:
       id: check-commit
       run: |
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          echo "🚀 Manual release triggered"
+          echo "Manual release triggered"
           echo "should-release=true" >> $GITHUB_OUTPUT
           
           # Use input version type or default to patch
           VERSION_TYPE="${{ github.event.inputs.version_type || 'patch' }}"
           echo "version-type=$VERSION_TYPE" >> $GITHUB_OUTPUT
-          echo "📈 Version type: $VERSION_TYPE (from input)"
+          echo "Version type: $VERSION_TYPE (from input)"
         else
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           echo "Commit message: $COMMIT_MSG"
           
-          # Check for release flag - now REQUIRED for auto-release
+          # Check for release flag - REQUIRED for auto-release
           if ! echo "$COMMIT_MSG" | grep -q '\[release\]'; then
             echo "should-release=false" >> $GITHUB_OUTPUT
-            echo "🚫 No release - [release] flag not found in commit message"
+            echo "No release - [release] flag not found in commit message"
             exit 0
           fi
           
           # Check for version override flags
           if echo "$COMMIT_MSG" | grep -q '\[major\]'; then
             echo "version-type=major" >> $GITHUB_OUTPUT
-            echo "📈 Major version bump requested"
+            echo "Major version bump requested"
           elif echo "$COMMIT_MSG" | grep -q '\[minor\]'; then
             echo "version-type=minor" >> $GITHUB_OUTPUT
-            echo "📈 Minor version bump requested"
+            echo "Minor version bump requested"
           else
             echo "version-type=patch" >> $GITHUB_OUTPUT
-            echo "📈 Patch version bump (default)"
+            echo "Patch version bump (default)"
           fi
           
           echo "should-release=true" >> $GITHUB_OUTPUT
-          echo "🚀 Release triggered by [release] flag"
+          echo "Release triggered by [release] flag"
         fi
-
-    # Skip CI wait - PRs must pass CI before merging to main
-    # The merge commit may not trigger CI, but the PR already validated the code
 
     - name: Calculate next version
       if: steps.check-commit.outputs.should-release == 'true'
@@ -96,7 +310,7 @@ jobs:
           OVERRIDE_VERSION="${{ github.event.inputs.version_override }}"
           # Remove v prefix if present
           NEXT_VERSION=${OVERRIDE_VERSION#v}
-          echo "📦 Using version override: v$NEXT_VERSION"
+          echo "Using version override: v$NEXT_VERSION"
         else
           VERSION_TYPE="${{ steps.check-commit.outputs.version-type }}"
           
@@ -125,7 +339,7 @@ jobs:
                 NEXT_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
                 ;;
               *)
-                echo "❌ Invalid version type: $VERSION_TYPE"
+                echo "Invalid version type: $VERSION_TYPE"
                 exit 1
                 ;;
             esac
@@ -133,68 +347,21 @@ jobs:
         fi
         
         echo "next-version=$NEXT_VERSION" >> $GITHUB_OUTPUT
-        echo "📦 Next version will be: v$NEXT_VERSION"
+        echo "Next version will be: v$NEXT_VERSION"
         
         # Check if this version already exists
         if git tag | grep -q "^v$NEXT_VERSION$"; then
-          echo "❌ Version v$NEXT_VERSION already exists!"
+          echo "Version v$NEXT_VERSION already exists!"
           exit 1
         fi
         
-        echo "✅ Version v$NEXT_VERSION is available"
+        echo "Version v$NEXT_VERSION is available"
 
-  quality-gates:
-    name: Quality Gates
+  build-release:
+    name: Build Release (${{ matrix.goos }}-${{ matrix.goarch }})
     runs-on: ubuntu-latest
-    needs: check-ci
-    if: needs.check-ci.outputs.should-release == 'true'
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.22'
-        check-latest: true
-
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-1.22-
-
-    - name: Run quality gates
-      run: |
-        echo "Running essential quality gates..."
-        
-        # Test dependencies
-        go mod download
-        go mod verify
-        
-        # Run tests
-        go test -v ./pkg/... ./internal/... || echo "Some tests failed but continuing..."
-        go test -v ./test/integration/... || echo "Some integration tests failed but continuing..."
-        
-        # Basic linting
-        go fmt ./...
-        go vet ./...
-        
-        # Test build
-        go build -o /tmp/test-binary ./cmd/goingenv
-        /tmp/test-binary --version
-        
-        echo "✅ Essential quality gates passed"
-
-  build:
-    name: Build (${{ matrix.goos }}-${{ matrix.goarch }})
-    runs-on: ubuntu-latest
-    needs: [check-ci, quality-gates]
-    if: needs.check-ci.outputs.should-release == 'true'
+    needs: check-release
+    if: needs.check-release.outputs.should-release == 'true'
     strategy:
       matrix:
         include:
@@ -230,7 +397,7 @@ jobs:
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
-        VERSION: ${{ needs.check-ci.outputs.next-version }}
+        VERSION: ${{ needs.check-release.outputs.next-version }}
         BUILD_TIME: ${{ github.event.head_commit.timestamp }}
         GIT_COMMIT: ${{ github.sha }}
       run: |
@@ -251,14 +418,14 @@ jobs:
           echo "Verifying Linux AMD64 binary..."
           ./goingenv-$GOOS-$GOARCH --version
         else
-          echo "✅ Cross-compiled binary for $GOOS/$GOARCH (verification skipped - incompatible platform)"
+          echo "Cross-compiled binary for $GOOS/$GOARCH (verification skipped - incompatible platform)"
         fi
         
-        echo "✅ Binary built successfully"
+        echo "Binary built successfully"
 
     - name: Create archive
       run: |
-        ARCHIVE_NAME="goingenv-v${{ needs.check-ci.outputs.next-version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
+        ARCHIVE_NAME="goingenv-v${{ needs.check-release.outputs.next-version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
         
         # Copy binary to standard name for archive
         cp goingenv-${{ matrix.goos }}-${{ matrix.goarch }} goingenv
@@ -276,16 +443,20 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: goingenv-v${{ needs.check-ci.outputs.next-version }}-${{ matrix.goos }}-${{ matrix.goarch }}
+        name: goingenv-v${{ needs.check-release.outputs.next-version }}-${{ matrix.goos }}-${{ matrix.goarch }}
         path: |
-          goingenv-v${{ needs.check-ci.outputs.next-version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
-          goingenv-v${{ needs.check-ci.outputs.next-version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz.sha256
+          goingenv-v${{ needs.check-release.outputs.next-version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          goingenv-v${{ needs.check-release.outputs.next-version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz.sha256
+
+  # ====================
+  # STAGE 3: RELEASE (main branch only, with release flag)
+  # ====================
 
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [check-ci, build]
-    if: needs.check-ci.outputs.should-release == 'true'
+    needs: [check-release, build-release]
+    if: needs.check-release.outputs.should-release == 'true'
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -324,8 +495,8 @@ jobs:
 
     - name: Create release tag
       run: |
-        VERSION="v${{ needs.check-ci.outputs.next-version }}"
-        echo "🏷️ Creating release tag: $VERSION"
+        VERSION="v${{ needs.check-release.outputs.next-version }}"
+        echo "Creating release tag: $VERSION"
         
         # Create annotated tag with release information
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -340,12 +511,12 @@ jobs:
         Commit: ${{ github.sha }}
         Triggered by: $TRIGGER_MSG
         
-        🤖 This release was created automatically by GitHub Actions"
+        This release was created automatically by GitHub Actions"
         
         # Push the tag
         git push origin "$VERSION"
         
-        echo "✅ Tag $VERSION created and pushed"
+        echo "Tag $VERSION created and pushed"
 
     - name: Get previous tag
       id: get_previous_tag
@@ -368,7 +539,7 @@ jobs:
     - name: Generate release notes
       id: release_notes
       run: |
-        VERSION="v${{ needs.check-ci.outputs.next-version }}"
+        VERSION="v${{ needs.check-release.outputs.next-version }}"
         PREVIOUS_TAG="${{ steps.get_previous_tag.outputs.previous_tag }}"
         
         # Get auto-generated release notes from GitHub API if previous tag exists
@@ -393,7 +564,7 @@ jobs:
 
         **Install Specific Version:**
         ```bash
-        curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.get_branch.outputs.branch }}/install.sh | bash -s -- --version ${{ needs.check-ci.outputs.next-version }}
+        curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.get_branch.outputs.branch }}/install.sh | bash -s -- --version ${{ needs.check-release.outputs.next-version }}
         ```
 
         **Manual Download:**
@@ -421,7 +592,7 @@ jobs:
     - name: Check if prerelease
       id: check_prerelease
       run: |
-        VERSION="v${{ needs.check-ci.outputs.next-version }}"
+        VERSION="v${{ needs.check-release.outputs.next-version }}"
         
         if [[ "$VERSION" =~ -.*$ ]]; then
           echo "prerelease=true" >> $GITHUB_OUTPUT
@@ -434,8 +605,8 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v${{ needs.check-ci.outputs.next-version }}
-        name: GoingEnv v${{ needs.check-ci.outputs.next-version }}
+        tag_name: v${{ needs.check-release.outputs.next-version }}
+        name: GoingEnv v${{ needs.check-release.outputs.next-version }}
         body: ${{ env.RELEASE_BODY }}
         draft: false
         prerelease: ${{ steps.check_prerelease.outputs.prerelease }}
@@ -446,10 +617,10 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   post-release-validation:
-    name: Post-Release Validation
+    name: Post-Release Validation (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    needs: [check-ci, create-release]
-    if: needs.check-ci.outputs.should-release == 'true'
+    needs: [check-release, create-release]
+    if: needs.check-release.outputs.should-release == 'true'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -460,10 +631,10 @@ jobs:
     - name: Wait for release to be available
       run: |
         echo "Waiting for release to be available..."
-        VERSION="v${{ needs.check-ci.outputs.next-version }}"
+        VERSION="v${{ needs.check-release.outputs.next-version }}"
         for i in {1..30}; do
           if curl -sSf "https://github.com/${{ github.repository }}/releases/download/$VERSION/checksums.txt" >/dev/null; then
-            echo "✅ Release is available"
+            echo "Release is available"
             break
           fi
           echo "Attempt $i/30: Release not yet available, waiting 10s..."
@@ -486,18 +657,18 @@ jobs:
         chmod +x install.sh
         
         # Test with new version
-        VERSION="v${{ needs.check-ci.outputs.next-version }}"
+        VERSION="v${{ needs.check-release.outputs.next-version }}"
         INSTALL_DIR="$TEMP_DIR/bin" NO_SUDO=1 SKIP_SHELL_INTEGRATION=1 YES=1 \
           ./install.sh --version $VERSION
         
         # Verify installation
         if [[ -f "$TEMP_DIR/bin/goingenv" ]]; then
-          echo "✅ Binary installed successfully"
+          echo "Binary installed successfully"
           "$TEMP_DIR/bin/goingenv" --version
           "$TEMP_DIR/bin/goingenv" --help >/dev/null
-          echo "✅ Basic functionality verified"
+          echo "Basic functionality verified"
         else
-          echo "❌ Binary not found after installation"
+          echo "Binary not found after installation"
           exit 1
         fi
         
@@ -525,7 +696,7 @@ jobs:
         echo "Testing platform: $PLATFORM"
         
         # Download and test binary
-        VERSION="v${{ needs.check-ci.outputs.next-version }}"
+        VERSION="v${{ needs.check-release.outputs.next-version }}"
         ARCHIVE_URL="https://github.com/${{ github.repository }}/releases/download/$VERSION/goingenv-$VERSION-$PLATFORM.tar.gz"
         
         curl -sSL "$ARCHIVE_URL" -o test-binary.tar.gz
@@ -535,47 +706,53 @@ jobs:
         ./goingenv --version
         ./goingenv --help >/dev/null
         
-        echo "✅ Direct download and execution successful"
+        echo "Direct download and execution successful"
+
+  # ====================
+  # NOTIFICATIONS
+  # ====================
 
   notify-success:
     name: Notify Success
     runs-on: ubuntu-latest
-    needs: [check-ci, post-release-validation]
-    if: success() && needs.check-ci.outputs.should-release == 'true'
+    needs: [check-release, post-release-validation]
+    if: success() && needs.check-release.outputs.should-release == 'true'
     steps:
     - name: Success notification
       run: |
-        VERSION="v${{ needs.check-ci.outputs.next-version }}"
-        echo "🎉 Release $VERSION completed successfully!"
+        VERSION="v${{ needs.check-release.outputs.next-version }}"
+        echo "Release $VERSION completed successfully!"
         echo ""
-        echo "📦 Release URL: https://github.com/${{ github.repository }}/releases/tag/$VERSION"
-        echo "📥 Install command: curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash"
+        echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/$VERSION"
+        echo "Install command: curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash"
         echo ""
-        echo "✅ All validation checks passed"
-        echo "✅ Binaries are available for download"
-        echo "✅ Install script works with new release"
+        echo "All validation checks passed"
+        echo "Binaries are available for download"
+        echo "Install script works with new release"
 
   notify-failure:
-    name: Notify Release Failure
+    name: Notify Failure
     runs-on: ubuntu-latest
-    needs: [check-ci, quality-gates, build, create-release, post-release-validation]
+    needs: [lint, test, security, build-verify, test-install-script, check-release, build-release, create-release, post-release-validation]
     if: failure()
     steps:
     - name: Failure notification
       run: |
-        echo "❌ Release failed!"
+        echo "Pipeline failed!"
         echo ""
-        echo "🔍 Check the workflow logs for details:"
+        echo "Check the workflow logs for details:"
         echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         echo ""
         echo "Common issues:"
-        echo "- Quality gates failed (tests, linting, security)"
+        echo "- Test failures (unit, integration, or functional)"
+        echo "- Linting failures (formatting, vet, golangci-lint)"
+        echo "- Security vulnerabilities detected"
         echo "- Build failures on specific platforms"
         echo "- Version calculation failed"
         echo "- Tag already exists"
         echo "- Release creation or asset upload issues"
         echo "- Post-release validation failures"
         echo ""
-        echo "💡 To trigger releases, include [release] in commit message"
-        echo "💡 To control version bump, use [major], [minor], or leave blank for patch"
-        echo "💡 Use workflow_dispatch for manual releases via GitHub Actions UI"
+        echo "To trigger releases, include [release] in commit message"
+        echo "To control version bump, use [major], [minor], or leave blank for patch"
+        echo "Use workflow_dispatch for manual releases via GitHub Actions UI"
