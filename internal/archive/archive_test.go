@@ -27,7 +27,7 @@ func TestService_Pack(t *testing.T) {
 	// Create test file
 	testContent := []byte("TEST_VAR=test_value\nAPI_KEY=secret123")
 	testFilePath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
+	if err := os.WriteFile(testFilePath, testContent, 0o600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -93,8 +93,8 @@ func TestService_Pack(t *testing.T) {
 				if err != nil {
 					t.Errorf("Failed to stat output file: %v", err)
 				}
-				if info.Mode().Perm() != 0600 {
-					t.Errorf("Output file permissions = %v, want 0600", info.Mode().Perm())
+				if info.Mode().Perm() != 0o600 {
+					t.Errorf("Output file permissions = %v, want 0o600", info.Mode().Perm())
 				}
 			}
 		})
@@ -115,7 +115,7 @@ func TestService_Unpack(t *testing.T) {
 	// Create and pack test file
 	testContent := []byte("TEST_VAR=test_value\nAPI_KEY=secret123")
 	testFilePath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
+	if err := os.WriteFile(testFilePath, testContent, 0o600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -143,7 +143,7 @@ func TestService_Unpack(t *testing.T) {
 	os.Remove(testFilePath)
 
 	targetDir := filepath.Join(tmpDir, "extracted")
-	if err := os.MkdirAll(targetDir, 0700); err != nil {
+	if err := os.MkdirAll(targetDir, 0o700); err != nil {
 		t.Fatalf("Failed to create target dir: %v", err)
 	}
 
@@ -220,7 +220,7 @@ func TestService_List(t *testing.T) {
 	// Create and pack test files
 	testContent := []byte("TEST_VAR=test_value")
 	testFilePath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
+	if err := os.WriteFile(testFilePath, testContent, 0o600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -282,6 +282,7 @@ func TestService_List(t *testing.T) {
 			if !tt.wantErr {
 				if archive == nil {
 					t.Error("Expected archive to be returned")
+					return
 				}
 				if len(archive.Files) != 1 {
 					t.Errorf("Expected 1 file, got %d", len(archive.Files))
@@ -308,14 +309,14 @@ func TestService_GetAvailableArchives(t *testing.T) {
 	// Create test .enc files
 	for i := 0; i < 3; i++ {
 		encPath := filepath.Join(tmpDir, "test"+string(rune('0'+i))+".enc")
-		if err := os.WriteFile(encPath, []byte("test"), 0600); err != nil {
-			t.Fatalf("Failed to create test enc file: %v", err)
+		if writeErr := os.WriteFile(encPath, []byte("test"), 0o600); writeErr != nil {
+			t.Fatalf("Failed to create test enc file: %v", writeErr)
 		}
 	}
 
 	// Create non-enc file
-	if err := os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0600); err != nil {
-		t.Fatalf("Failed to create test txt file: %v", err)
+	if writeErr := os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o600); writeErr != nil {
+		t.Fatalf("Failed to create test txt file: %v", writeErr)
 	}
 
 	archives, err := service.GetAvailableArchives(tmpDir)
@@ -348,7 +349,7 @@ func TestService_GetAvailableArchives_NonExistentDir(t *testing.T) {
 	}
 }
 
-func TestIsPathSafe(t *testing.T) {
+func TestSafePath(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "goingenv-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -356,42 +357,52 @@ func TestIsPathSafe(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	tests := []struct {
-		name       string
-		basePath   string
-		targetPath string
-		want       bool
+		name    string
+		relPath string
+		baseDir string
+		wantErr bool
 	}{
 		{
-			name:       "Safe path - same directory",
-			basePath:   tmpDir,
-			targetPath: filepath.Join(tmpDir, "file.txt"),
-			want:       true,
+			name:    "Safe path - same directory",
+			relPath: "file.txt",
+			baseDir: tmpDir,
+			wantErr: false,
 		},
 		{
-			name:       "Safe path - subdirectory",
-			basePath:   tmpDir,
-			targetPath: filepath.Join(tmpDir, "subdir", "file.txt"),
-			want:       true,
+			name:    "Safe path - subdirectory",
+			relPath: "subdir/file.txt",
+			baseDir: tmpDir,
+			wantErr: false,
 		},
 		{
-			name:       "Unsafe path - parent directory",
-			basePath:   tmpDir,
-			targetPath: filepath.Join(tmpDir, "..", "file.txt"),
-			want:       false,
+			name:    "Unsafe path - parent directory traversal",
+			relPath: "../file.txt",
+			baseDir: tmpDir,
+			wantErr: true,
 		},
 		{
-			name:       "Unsafe path - absolute path outside",
-			basePath:   tmpDir,
-			targetPath: "/etc/passwd",
-			want:       false,
+			name:    "Unsafe path - double parent traversal",
+			relPath: "../../file.txt",
+			baseDir: tmpDir,
+			wantErr: true,
+		},
+		{
+			name:    "Unsafe path - absolute path",
+			relPath: "/etc/passwd",
+			baseDir: tmpDir,
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isPathSafe(tt.basePath, tt.targetPath)
-			if got != tt.want {
-				t.Errorf("isPathSafe(%q, %q) = %v, want %v", tt.basePath, tt.targetPath, got, tt.want)
+			got, err := safePath(tt.relPath, tt.baseDir)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("safePath(%q, %q) error = %v, wantErr %v", tt.relPath, tt.baseDir, err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && got == "" {
+				t.Errorf("safePath(%q, %q) returned empty path for valid input", tt.relPath, tt.baseDir)
 			}
 		})
 	}
@@ -415,16 +426,16 @@ func TestService_Unpack_PathTraversalPrevention(t *testing.T) {
 	// Add a file with path traversal
 	header := &tar.Header{
 		Name: "../../../etc/malicious",
-		Mode: 0600,
+		Mode: 0o600,
 		Size: int64(len("malicious content")),
 	}
-	if err := tw.WriteHeader(header); err != nil {
-		t.Fatalf("Failed to write tar header: %v", err)
+	if headerErr := tw.WriteHeader(header); headerErr != nil {
+		t.Fatalf("Failed to write tar header: %v", headerErr)
 	}
-	if _, err := tw.Write([]byte("malicious content")); err != nil {
-		t.Fatalf("Failed to write tar content: %v", err)
+	if _, writeErr := tw.Write([]byte("malicious content")); writeErr != nil {
+		t.Fatalf("Failed to write tar content: %v", writeErr)
 	}
-	tw.Close()
+	_ = tw.Close()
 
 	// Encrypt the malicious tar
 	password := "testpassword123"
@@ -434,13 +445,13 @@ func TestService_Unpack_PathTraversalPrevention(t *testing.T) {
 	}
 
 	archivePath := filepath.Join(tmpDir, "malicious.enc")
-	if err := os.WriteFile(archivePath, encryptedData, 0600); err != nil {
-		t.Fatalf("Failed to write archive: %v", err)
+	if writeErr := os.WriteFile(archivePath, encryptedData, 0o600); writeErr != nil {
+		t.Fatalf("Failed to write archive: %v", writeErr)
 	}
 
 	targetDir := filepath.Join(tmpDir, "extracted")
-	if err := os.MkdirAll(targetDir, 0700); err != nil {
-		t.Fatalf("Failed to create target dir: %v", err)
+	if mkdirErr := os.MkdirAll(targetDir, 0o700); mkdirErr != nil {
+		t.Fatalf("Failed to create target dir: %v", mkdirErr)
 	}
 
 	// Attempt to unpack - should fail with path traversal error
@@ -481,16 +492,16 @@ func TestService_Unpack_AbsolutePathPrevention(t *testing.T) {
 	// Add a file with absolute path
 	header := &tar.Header{
 		Name: "/etc/malicious",
-		Mode: 0600,
+		Mode: 0o600,
 		Size: int64(len("malicious content")),
 	}
-	if err := tw.WriteHeader(header); err != nil {
-		t.Fatalf("Failed to write tar header: %v", err)
+	if headerErr := tw.WriteHeader(header); headerErr != nil {
+		t.Fatalf("Failed to write tar header: %v", headerErr)
 	}
-	if _, err := tw.Write([]byte("malicious content")); err != nil {
-		t.Fatalf("Failed to write tar content: %v", err)
+	if _, writeErr := tw.Write([]byte("malicious content")); writeErr != nil {
+		t.Fatalf("Failed to write tar content: %v", writeErr)
 	}
-	tw.Close()
+	_ = tw.Close()
 
 	// Encrypt the malicious tar
 	password := "testpassword123"
@@ -500,13 +511,13 @@ func TestService_Unpack_AbsolutePathPrevention(t *testing.T) {
 	}
 
 	archivePath := filepath.Join(tmpDir, "malicious.enc")
-	if err := os.WriteFile(archivePath, encryptedData, 0600); err != nil {
-		t.Fatalf("Failed to write archive: %v", err)
+	if writeErr := os.WriteFile(archivePath, encryptedData, 0o600); writeErr != nil {
+		t.Fatalf("Failed to write archive: %v", writeErr)
 	}
 
 	targetDir := filepath.Join(tmpDir, "extracted")
-	if err := os.MkdirAll(targetDir, 0700); err != nil {
-		t.Fatalf("Failed to create target dir: %v", err)
+	if mkdirErr := os.MkdirAll(targetDir, 0o700); mkdirErr != nil {
+		t.Fatalf("Failed to create target dir: %v", mkdirErr)
 	}
 
 	// Attempt to unpack - should fail with unsafe path error
@@ -550,11 +561,11 @@ func TestService_PackUnpack_RoundTrip(t *testing.T) {
 	for relPath, content := range files {
 		fullPath := filepath.Join(tmpDir, relPath)
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			t.Fatalf("Failed to create dir: %v", err)
+		if mkdirErr := os.MkdirAll(dir, 0o700); mkdirErr != nil {
+			t.Fatalf("Failed to create dir: %v", mkdirErr)
 		}
-		if err := os.WriteFile(fullPath, content, 0600); err != nil {
-			t.Fatalf("Failed to create test file: %v", err)
+		if writeErr := os.WriteFile(fullPath, content, 0o600); writeErr != nil {
+			t.Fatalf("Failed to create test file: %v", writeErr)
 		}
 		envFiles = append(envFiles, types.EnvFile{
 			Path:         fullPath,
@@ -585,8 +596,8 @@ func TestService_PackUnpack_RoundTrip(t *testing.T) {
 
 	// Unpack to new location
 	extractDir := filepath.Join(tmpDir, "extracted")
-	if err := os.MkdirAll(extractDir, 0700); err != nil {
-		t.Fatalf("Failed to create extract dir: %v", err)
+	if mkdirErr := os.MkdirAll(extractDir, 0o700); mkdirErr != nil {
+		t.Fatalf("Failed to create extract dir: %v", mkdirErr)
 	}
 
 	err = service.Unpack(types.UnpackOptions{
@@ -627,8 +638,8 @@ func TestService_Unpack_OverwriteAndBackup(t *testing.T) {
 	// Create test file and archive
 	testContent := []byte("ORIGINAL=content")
 	testFilePath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
+	if writeErr := os.WriteFile(testFilePath, testContent, 0o600); writeErr != nil {
+		t.Fatalf("Failed to create test file: %v", writeErr)
 	}
 
 	archivePath := filepath.Join(tmpDir, "test.enc")
@@ -652,14 +663,14 @@ func TestService_Unpack_OverwriteAndBackup(t *testing.T) {
 
 	// Create existing file in target directory
 	targetDir := filepath.Join(tmpDir, "target")
-	if err := os.MkdirAll(targetDir, 0700); err != nil {
-		t.Fatalf("Failed to create target dir: %v", err)
+	if mkdirErr := os.MkdirAll(targetDir, 0o700); mkdirErr != nil {
+		t.Fatalf("Failed to create target dir: %v", mkdirErr)
 	}
 
 	existingContent := []byte("EXISTING=file")
 	existingPath := filepath.Join(targetDir, ".env")
-	if err := os.WriteFile(existingPath, existingContent, 0600); err != nil {
-		t.Fatalf("Failed to create existing file: %v", err)
+	if writeErr := os.WriteFile(existingPath, existingContent, 0o600); writeErr != nil {
+		t.Fatalf("Failed to create existing file: %v", writeErr)
 	}
 
 	// Test with backup=true
@@ -708,7 +719,7 @@ func BenchmarkPack(b *testing.B) {
 	// Create test file
 	testContent := bytes.Repeat([]byte("TEST=value\n"), 1000)
 	testFilePath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
+	if err := os.WriteFile(testFilePath, testContent, 0o600); err != nil {
 		b.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -749,8 +760,8 @@ func BenchmarkUnpack(b *testing.B) {
 	// Create and pack test file
 	testContent := bytes.Repeat([]byte("TEST=value\n"), 1000)
 	testFilePath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
-		b.Fatalf("Failed to create test file: %v", err)
+	if writeErr := os.WriteFile(testFilePath, testContent, 0o600); writeErr != nil {
+		b.Fatalf("Failed to create test file: %v", writeErr)
 	}
 
 	archivePath := filepath.Join(tmpDir, "bench.enc")
@@ -776,8 +787,8 @@ func BenchmarkUnpack(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		os.RemoveAll(targetDir)
-		os.MkdirAll(targetDir, 0700)
+		_ = os.RemoveAll(targetDir)
+		_ = os.MkdirAll(targetDir, 0o700) //nolint:errcheck // benchmark setup
 
 		err := service.Unpack(types.UnpackOptions{
 			ArchivePath: archivePath,

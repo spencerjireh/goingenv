@@ -70,7 +70,7 @@ type UnpackOptions struct {
 
 // Scanner interface for file scanning operations
 type Scanner interface {
-	ScanFiles(opts ScanOptions) ([]EnvFile, error)
+	ScanFiles(opts *ScanOptions) ([]EnvFile, error)
 	ValidateFile(path string) error
 }
 

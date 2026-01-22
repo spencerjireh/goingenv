@@ -19,7 +19,7 @@ func ScanFilesCmd(app *types.App) tea.Cmd {
 			MaxDepth: app.Config.DefaultDepth,
 		}
 
-		files, err := app.Scanner.ScanFiles(scanOpts)
+		files, err := app.Scanner.ScanFiles(&scanOpts)
 		if err != nil {
 			return ErrorMsg(fmt.Sprintf("Error scanning files: %v", err))
 		}
@@ -165,12 +165,12 @@ func SaveConfigCmd(app *types.App) tea.Cmd {
 // LoadConfigCmd loads configuration from file
 func LoadConfigCmd(app *types.App) tea.Cmd {
 	return func() tea.Msg {
-		config, err := app.ConfigMgr.Load()
+		cfg, err := app.ConfigMgr.Load()
 		if err != nil {
 			return ErrorMsg(fmt.Sprintf("Error loading configuration: %v", err))
 		}
 
-		app.Config = config
+		app.Config = cfg
 		return SuccessMsg("Configuration loaded successfully")
 	}
 }
@@ -224,7 +224,7 @@ func BatchPackCmd(app *types.App, directories []string, password string) tea.Cmd
 				MaxDepth: app.Config.DefaultDepth,
 			}
 
-			files, err := app.Scanner.ScanFiles(scanOpts)
+			files, err := app.Scanner.ScanFiles(&scanOpts)
 			if err != nil {
 				results = append(results, fmt.Sprintf("Error scanning %s: %v", dir, err))
 				continue
@@ -270,7 +270,7 @@ func QuickPackCmd(app *types.App, password string) tea.Cmd {
 			MaxDepth: app.Config.DefaultDepth,
 		}
 
-		files, err := app.Scanner.ScanFiles(scanOpts)
+		files, err := app.Scanner.ScanFiles(&scanOpts)
 		if err != nil {
 			return ErrorMsg(fmt.Sprintf("Quick pack failed: %v", err))
 		}

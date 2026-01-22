@@ -80,7 +80,7 @@ func TestUnpack_OverwriteExistingFiles(t *testing.T) {
 	envPath := filepath.Join(tmpDir, ".env")
 	originalContent := testutils.GetFileContent(t, envPath)
 	modifiedContent := "MODIFIED=true\n"
-	if err := os.WriteFile(envPath, []byte(modifiedContent), 0644); err != nil {
+	if err := os.WriteFile(envPath, []byte(modifiedContent), 0o644); err != nil {
 		t.Fatalf("Failed to modify .env: %v", err)
 	}
 
@@ -111,7 +111,7 @@ func TestUnpack_WithBackup(t *testing.T) {
 
 	// Modify the original .env file
 	envPath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(envPath, []byte("MODIFIED=true\n"), 0644); err != nil {
+	if err := os.WriteFile(envPath, []byte("MODIFIED=true\n"), 0o644); err != nil {
 		t.Fatalf("Failed to modify .env: %v", err)
 	}
 
@@ -151,7 +151,7 @@ func TestUnpack_ToCustomTarget(t *testing.T) {
 
 	// Create a target directory
 	targetDir := filepath.Join(tmpDir, "restored")
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		t.Fatalf("Failed to create target directory: %v", err)
 	}
 
@@ -273,11 +273,11 @@ func TestUnpack_NotInitialized(t *testing.T) {
 
 	// Create goingenv dir and archive manually
 	goingenvDir := filepath.Join(tmpDir, ".goingenv")
-	os.MkdirAll(goingenvDir, 0755)
+	_ = os.MkdirAll(goingenvDir, 0o750) //nolint:errcheck // test setup
 
 	// Create a dummy file to simulate an archive
 	dummyArchive := filepath.Join(goingenvDir, "test.enc")
-	if err := os.WriteFile(dummyArchive, []byte("dummy"), 0644); err != nil {
+	if err := os.WriteFile(dummyArchive, []byte("dummy"), 0o644); err != nil {
 		t.Fatalf("Failed to create dummy archive: %v", err)
 	}
 
@@ -296,7 +296,7 @@ func TestUnpack_FileIntegrity(t *testing.T) {
 	// Create specific content for verification
 	envContent := "SPECIFIC_VAR=specific_value\nANOTHER_VAR=another_value"
 	envPath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(envPath, []byte(envContent), 0644); err != nil {
+	if err := os.WriteFile(envPath, []byte(envContent), 0o644); err != nil {
 		t.Fatalf("Failed to create .env: %v", err)
 	}
 
@@ -389,10 +389,10 @@ func TestUnpack_PreservesDirectoryStructure(t *testing.T) {
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("Failed to create directory: %v", err)
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -430,7 +430,7 @@ func TestUnpack_LatestArchive(t *testing.T) {
 
 	// Modify env files
 	envPath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(envPath, []byte("VERSION=2"), 0644); err != nil {
+	if err := os.WriteFile(envPath, []byte("VERSION=2"), 0o644); err != nil {
 		t.Fatalf("Failed to modify .env: %v", err)
 	}
 

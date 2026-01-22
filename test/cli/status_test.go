@@ -159,7 +159,7 @@ func TestStatus_InSubdirectory(t *testing.T) {
 
 	// Create subdirectory
 	subDir := filepath.Join(tmpDir, "src", "components")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		t.Fatalf("Failed to create subdirectory: %v", err)
 	}
 
@@ -184,7 +184,7 @@ func TestStatus_JSONOutput(t *testing.T) {
 	if result.Success() {
 		output := result.Stdout
 		// Should be valid JSON
-		if len(output) > 0 {
+		if output != "" {
 			t.Logf("JSON output: %s", output)
 		}
 	}
@@ -197,10 +197,10 @@ func TestStatus_DifferentDepthConfigurations(t *testing.T) {
 	// Create deep structure
 	deepPath := filepath.Join(tmpDir, "a", "b", "c", "d", ".env")
 	dir := filepath.Dir(deepPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
-	if err := os.WriteFile(deepPath, []byte("DEEP=value"), 0644); err != nil {
+	if err := os.WriteFile(deepPath, []byte("DEEP=value"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
@@ -224,10 +224,10 @@ func TestStatus_WithExcludedDirectories(t *testing.T) {
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("Failed to create directory: %v", err)
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -275,7 +275,7 @@ func TestStatus_EmptyGoingenvDirectory(t *testing.T) {
 
 	// Create .goingenv directory manually but empty
 	goingenvDir := filepath.Join(tmpDir, ".goingenv")
-	if err := os.MkdirAll(goingenvDir, 0755); err != nil {
+	if err := os.MkdirAll(goingenvDir, 0o755); err != nil {
 		t.Fatalf("Failed to create .goingenv: %v", err)
 	}
 
@@ -300,7 +300,7 @@ func TestStatus_MultipleEnvFileTypes(t *testing.T) {
 
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}

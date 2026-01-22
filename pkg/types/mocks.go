@@ -6,11 +6,11 @@ import (
 
 // MockScanner implements Scanner interface for testing
 type MockScanner struct {
-	ScanFilesFunc    func(opts ScanOptions) ([]EnvFile, error)
+	ScanFilesFunc    func(opts *ScanOptions) ([]EnvFile, error)
 	ValidateFileFunc func(path string) error
 }
 
-func (m *MockScanner) ScanFiles(opts ScanOptions) ([]EnvFile, error) {
+func (m *MockScanner) ScanFiles(opts *ScanOptions) ([]EnvFile, error) {
 	if m.ScanFilesFunc != nil {
 		return m.ScanFilesFunc(opts)
 	}

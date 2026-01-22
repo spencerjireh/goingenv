@@ -8,8 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"goingenv/internal/config"
-	"goingenv/pkg/password"
 	"goingenv/pkg/types"
 	"goingenv/pkg/utils"
 )
@@ -35,7 +33,6 @@ Examples:
 		RunE: runUnpackCommand,
 	}
 
-	// Add flags
 	cmd.Flags().String("password-env", "", "Read password from environment variable")
 	cmd.Flags().StringP("file", "f", "", "Archive file to unpack (default: most recent)")
 	cmd.Flags().StringP("target", "t", "", "Target directory for extraction (default: current directory)")
@@ -50,256 +47,225 @@ Examples:
 	return cmd
 }
 
+// showArchive displays archive info and files
+func showArchive(archive *types.Archive, files []types.EnvFile, verbose bool) {
+	fmt.Printf("Archive created: %s\n", archive.CreatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Archive version: %s\n", archive.Version)
+	if archive.Description != "" {
+		fmt.Printf("Description: %s\n", archive.Description)
+	}
+	fmt.Printf("Files to extract: %d of %d total\n", len(files), len(archive.Files))
+
+	if verbose || len(files) <= 20 {
+		fmt.Println("\nFiles to extract:")
+		for i, file := range files {
+			if i < 20 {
+				fmt.Printf("  - %s (%s) - %s\n",
+					file.RelativePath,
+					utils.FormatSize(file.Size),
+					file.ModTime.Format("2006-01-02 15:04:05"))
+			} else if i == 20 {
+				fmt.Printf("  - ... and %d more files\n", len(files)-20)
+				break
+			}
+		}
+	}
+}
+
+// showConflicts displays conflicting files
+func showConflicts(conflicts []string, limit int) {
+	fmt.Printf("\nWarning: Found %d existing files that would be overwritten:\n", len(conflicts))
+	for i, conflict := range conflicts {
+		if i < limit {
+			fmt.Printf("  - %s\n", conflict)
+		} else if i == limit {
+			fmt.Printf("  - ... and %d more files\n", len(conflicts)-limit)
+			break
+		}
+	}
+}
+
+// showUnpackResult displays extraction result
+func showUnpackResult(files []types.EnvFile, conflicts []string, duration time.Duration, opts *UnpackOpts) {
+	fmt.Printf("Successfully extracted %d files\n", len(files))
+
+	if opts.Verbose {
+		fmt.Printf("Operation completed in %v\n", duration)
+	}
+
+	if len(conflicts) > 0 {
+		if opts.Backup {
+			fmt.Printf("Created backups for %d existing files\n", len(conflicts))
+		} else {
+			fmt.Printf("Overwrote %d existing files\n", len(conflicts))
+		}
+	}
+
+	fmt.Println("\nNext steps:")
+	fmt.Println("   - Review extracted files for correctness")
+	fmt.Println("   - Update any file permissions if needed")
+	if len(conflicts) > 0 && opts.Backup {
+		fmt.Println("   - Remove .backup files once you've verified the extraction")
+	}
+}
+
+// filterArchiveFiles filters files based on include/exclude patterns
+func filterArchiveFiles(files []types.EnvFile, include, exclude []string) []types.EnvFile {
+	if len(include) == 0 && len(exclude) == 0 {
+		return files
+	}
+	return filterFiles(files, include, exclude)
+}
+
+// doUnpack performs the actual unpacking
+func doUnpack(app *types.App, opts types.UnpackOptions) (time.Duration, error) {
+	start := time.Now()
+	err := app.Archiver.Unpack(opts)
+	return time.Since(start), err
+}
+
+// verifyFiles verifies extracted files and displays results
+func verifyFiles(files []types.EnvFile, targetDir string, verbose bool) {
+	fmt.Printf("Verifying extracted files...\n")
+	errs := verifyExtractedFiles(files, targetDir)
+	if len(errs) > 0 {
+		fmt.Printf("Verification warnings:\n")
+		for _, e := range errs {
+			fmt.Printf("  - %s\n", e)
+		}
+	} else if verbose {
+		fmt.Printf("All files verified successfully\n")
+	}
+}
+
+// showVerboseInfo displays verbose info before unpacking
+func showVerboseInfo(archiveFile string, opts *UnpackOpts) {
+	if !opts.Verbose {
+		return
+	}
+	fmt.Printf("Archive: %s\n", archiveFile)
+	fmt.Printf("Target directory: %s\n", opts.Target)
+	fmt.Printf("Overwrite mode: %v\n", opts.Overwrite)
+	fmt.Printf("Backup mode: %v\n", opts.Backup)
+	fmt.Println()
+}
+
+// handleConflictsPrompt handles conflict resolution with user
+func handleConflictsPrompt(conflicts []string, dryRun bool) (proceed, overwrite bool) {
+	if len(conflicts) == 0 {
+		return true, false
+	}
+	showConflicts(conflicts, 10)
+
+	if dryRun {
+		return true, false
+	}
+
+	fmt.Printf("\nUse --overwrite to replace existing files, or --backup to create backups.\n")
+	if !confirm("Continue anyway?") {
+		fmt.Println("Operation cancelled.")
+		return false, false
+	}
+	return true, true
+}
+
+// showDryRunResult displays dry run summary
+func showDryRunResult(fileCount int, target string, conflicts []string) {
+	fmt.Printf("\nDry run completed. %d files would be extracted to %s\n", fileCount, target)
+	if len(conflicts) > 0 {
+		fmt.Printf("%d existing files would be affected\n", len(conflicts))
+	}
+}
+
 // runUnpackCommand executes the unpack command
 func runUnpackCommand(cmd *cobra.Command, args []string) error {
-	// Check if GoingEnv is initialized
-	if !config.IsInitialized() {
-		return fmt.Errorf("goingenv is not initialized in this directory. Run 'goingenv init' first")
+	app, err := initApp()
+	if err != nil {
+		return err
 	}
 
-	// Initialize application
-	app, err := NewApp()
+	opts, err := parseUnpackOpts(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to initialize application: %w", err)
+		return err
 	}
 
-	// Parse flags with error handling
-	archiveFile, err := cmd.Flags().GetString("file")
+	archiveFile, err := pickArchive(app, opts.Archive)
 	if err != nil {
-		return fmt.Errorf("failed to get file flag: %w", err)
+		return err
 	}
-	if archiveFile == "" {
-		// Find the most recent archive
-		archives, err := app.Archiver.GetAvailableArchives("")
-		if err != nil {
-			return fmt.Errorf("failed to find archives: %w", err)
-		}
-		if len(archives) == 0 {
-			return fmt.Errorf("no archives found in %s directory. Use -f flag to specify an archive", config.GetGoingEnvDir())
-		}
-		archiveFile = archives[len(archives)-1] // Use the last one (most recent)
+	if opts.Archive == "" {
 		fmt.Printf("Using most recent archive: %s\n", filepath.Base(archiveFile))
 	}
 
-	// Verify archive exists
-	if _, err := os.Stat(archiveFile); os.IsNotExist(err) {
+	if _, statErr := os.Stat(archiveFile); os.IsNotExist(statErr) {
 		return fmt.Errorf("archive file not found: %s", archiveFile)
 	}
 
-	passwordEnv, err := cmd.Flags().GetString("password-env")
+	key, cleanup, err := getPass(opts.PassEnv)
 	if err != nil {
-		return fmt.Errorf("failed to get password-env flag: %w", err)
+		return err
 	}
-	targetDir, err := cmd.Flags().GetString("target")
-	if err != nil {
-		return fmt.Errorf("failed to get target flag: %w", err)
-	}
-	if targetDir == "" {
-		targetDir = "."
-	}
+	defer cleanup()
 
-	overwrite, err := cmd.Flags().GetBool("overwrite")
-	if err != nil {
-		return fmt.Errorf("failed to get overwrite flag: %w", err)
-	}
-	backup, err := cmd.Flags().GetBool("backup")
-	if err != nil {
-		return fmt.Errorf("failed to get backup flag: %w", err)
-	}
-	verify, err := cmd.Flags().GetBool("verify")
-	if err != nil {
-		return fmt.Errorf("failed to get verify flag: %w", err)
-	}
-	verbose, err := cmd.Flags().GetBool("verbose")
-	if err != nil {
-		return fmt.Errorf("failed to get verbose flag: %w", err)
-	}
-	dryRun, err := cmd.Flags().GetBool("dry-run")
-	if err != nil {
-		return fmt.Errorf("failed to get dry-run flag: %w", err)
-	}
-	includePatterns, err := cmd.Flags().GetStringSlice("include")
-	if err != nil {
-		return fmt.Errorf("failed to get include flag: %w", err)
-	}
-	excludePatterns, err := cmd.Flags().GetStringSlice("exclude")
-	if err != nil {
-		return fmt.Errorf("failed to get exclude flag: %w", err)
-	}
+	showVerboseInfo(archiveFile, opts)
 
-	// Get password using secure methods
-	passwordOpts := password.Options{
-		PasswordEnv: passwordEnv,
-	}
-
-	// Validate password options
-	if err := password.ValidatePasswordOptions(passwordOpts); err != nil {
-		return fmt.Errorf("invalid password options: %w", err)
-	}
-
-	key, err := password.GetPassword(passwordOpts)
-	if err != nil {
-		return fmt.Errorf("failed to get password: %w", err)
-	}
-
-	// Ensure password is cleared from memory when done
-	defer password.ClearPassword(&key)
-
-	if verbose {
-		fmt.Printf("Archive: %s\n", archiveFile)
-		fmt.Printf("Target directory: %s\n", targetDir)
-		fmt.Printf("Overwrite mode: %v\n", overwrite)
-		fmt.Printf("Backup mode: %v\n", backup)
-		fmt.Println()
-	}
-
-	// First, list the archive contents to show what will be extracted
 	fmt.Printf("Reading archive: %s\n", filepath.Base(archiveFile))
 	archive, err := app.Archiver.List(archiveFile, key)
 	if err != nil {
 		return fmt.Errorf("failed to read archive (check password): %w", err)
 	}
 
-	// Filter files if patterns are specified
-	filesToExtract := archive.Files
-	if len(includePatterns) > 0 || len(excludePatterns) > 0 {
-		filesToExtract = filterFiles(archive.Files, includePatterns, excludePatterns)
+	filesToExtract := filterArchiveFiles(archive.Files, opts.Include, opts.Exclude)
+	showArchive(archive, filesToExtract, opts.Verbose)
+
+	conflicts := checkFileConflicts(filesToExtract, opts.Target)
+	if !opts.Overwrite {
+		proceed, overwrite := handleConflictsPrompt(conflicts, opts.DryRun)
+		if !proceed {
+			return nil
+		}
+		opts.Overwrite = overwrite
 	}
 
-	// Display archive information
-	fmt.Printf("Archive created: %s\n", archive.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Archive version: %s\n", archive.Version)
-	if archive.Description != "" {
-		fmt.Printf("Description: %s\n", archive.Description)
-	}
-	fmt.Printf("Files to extract: %d of %d total\n", len(filesToExtract), len(archive.Files))
-
-	if verbose || len(filesToExtract) <= 20 {
-		fmt.Println("\nFiles to extract:")
-		for i, file := range filesToExtract {
-			if i < 20 {
-				fmt.Printf("  • %s (%s) - %s\n",
-					file.RelativePath,
-					utils.FormatSize(file.Size),
-					file.ModTime.Format("2006-01-02 15:04:05"))
-			} else if i == 20 {
-				fmt.Printf("  • ... and %d more files\n", len(filesToExtract)-20)
-				break
-			}
-		}
-	}
-
-	// Check for conflicts with existing files
-	conflicts := checkFileConflicts(filesToExtract, targetDir)
-	if len(conflicts) > 0 && !overwrite {
-		fmt.Printf("\n⚠️  Found %d existing files that would be overwritten:\n", len(conflicts))
-		for i, conflict := range conflicts {
-			if i < 10 {
-				fmt.Printf("  • %s\n", conflict)
-			} else if i == 10 {
-				fmt.Printf("  • ... and %d more files\n", len(conflicts)-10)
-				break
-			}
-		}
-
-		if !dryRun {
-			fmt.Printf("\nUse --overwrite to replace existing files, or --backup to create backups.\n")
-			fmt.Printf("Continue anyway? [y/N]: ")
-			var response string
-			fmt.Scanln(&response)
-			if response != "y" && response != "Y" && response != "yes" {
-				fmt.Println("Operation cancelled.")
-				return nil
-			}
-			overwrite = true // User confirmed
-		}
-	}
-
-	// Dry run - exit here if requested
-	if dryRun {
-		fmt.Printf("\nDry run completed. %d files would be extracted to %s\n",
-			len(filesToExtract), targetDir)
-		if len(conflicts) > 0 {
-			fmt.Printf("%d existing files would be affected\n", len(conflicts))
-		}
+	if opts.DryRun {
+		showDryRunResult(len(filesToExtract), opts.Target, conflicts)
 		return nil
 	}
 
-	// Prepare unpack options
-	unpackOpts := types.UnpackOptions{
+	if opts.Verbose {
+		fmt.Printf("\nExtracting files to %s...\n", opts.Target)
+	}
+
+	duration, err := doUnpack(app, types.UnpackOptions{
 		ArchivePath: archiveFile,
 		Password:    key,
-		TargetDir:   targetDir,
-		Overwrite:   overwrite,
-		Backup:      backup,
-	}
-
-	if verbose {
-		fmt.Printf("\nExtracting files to %s...\n", targetDir)
-	}
-
-	// Unpack files
-	startTime := time.Now()
-	err = app.Archiver.Unpack(unpackOpts)
+		TargetDir:   opts.Target,
+		Overwrite:   opts.Overwrite,
+		Backup:      opts.Backup,
+	})
 	if err != nil {
 		return fmt.Errorf("error unpacking files: %w", err)
 	}
-	duration := time.Since(startTime)
 
-	// Verify extracted files if requested
-	if verify {
-		fmt.Printf("Verifying extracted files...\n")
-		verifyErrors := verifyExtractedFiles(filesToExtract, targetDir)
-		if len(verifyErrors) > 0 {
-			fmt.Printf("⚠️  Verification warnings:\n")
-			for _, verifyErr := range verifyErrors {
-				fmt.Printf("  • %s\n", verifyErr)
-			}
-		} else if verbose {
-			fmt.Printf("✅ All files verified successfully\n")
-		}
+	if opts.Verify {
+		verifyFiles(filesToExtract, opts.Target, opts.Verbose)
 	}
 
-	// Success message
-	fmt.Printf("✅ Successfully extracted %d files from %s\n",
-		len(filesToExtract), filepath.Base(archiveFile))
-
-	if verbose {
-		fmt.Printf("Operation completed in %v\n", duration)
-	}
-
-	// Show summary of what was done
-	if len(conflicts) > 0 {
-		if backup {
-			fmt.Printf("📋 Created backups for %d existing files\n", len(conflicts))
-		} else {
-			fmt.Printf("📝 Overwrote %d existing files\n", len(conflicts))
-		}
-	}
-
-	// Helpful next steps
-	fmt.Println("\n💡 Next steps:")
-	fmt.Println("   • Review extracted files for correctness")
-	fmt.Println("   • Update any file permissions if needed")
-	if len(conflicts) > 0 && backup {
-		fmt.Println("   • Remove .backup files once you've verified the extraction")
-	}
+	showUnpackResult(filesToExtract, conflicts, duration, opts)
 
 	return nil
 }
-
-// Helper functions
 
 // filterFiles filters files based on include/exclude patterns
 func filterFiles(files []types.EnvFile, includePatterns, excludePatterns []string) []types.EnvFile {
 	var filtered []types.EnvFile
 
 	for _, file := range files {
-		// Check include patterns
 		if len(includePatterns) > 0 {
 			included := false
 			for _, pattern := range includePatterns {
-				if matched, _ := filepath.Match(pattern, file.RelativePath); matched {
+				matched, matchErr := filepath.Match(pattern, file.RelativePath)
+				if matchErr == nil && matched {
 					included = true
 					break
 				}
@@ -309,10 +275,10 @@ func filterFiles(files []types.EnvFile, includePatterns, excludePatterns []strin
 			}
 		}
 
-		// Check exclude patterns
 		excluded := false
 		for _, pattern := range excludePatterns {
-			if matched, _ := filepath.Match(pattern, file.RelativePath); matched {
+			matched, matchErr := filepath.Match(pattern, file.RelativePath)
+			if matchErr == nil && matched {
 				excluded = true
 				break
 			}
@@ -348,21 +314,18 @@ func verifyExtractedFiles(files []types.EnvFile, targetDir string) []string {
 	for _, file := range files {
 		targetPath := filepath.Join(targetDir, file.RelativePath)
 
-		// Check if file exists
 		info, err := os.Stat(targetPath)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("%s: file not found after extraction", file.RelativePath))
 			continue
 		}
 
-		// Check file size
 		if info.Size() != file.Size {
 			errors = append(errors, fmt.Sprintf("%s: size mismatch (expected %d, got %d)",
 				file.RelativePath, file.Size, info.Size()))
 			continue
 		}
 
-		// Calculate and verify checksum
 		actualChecksum, err := utils.CalculateFileChecksum(targetPath)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("%s: failed to calculate checksum: %v",

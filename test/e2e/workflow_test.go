@@ -32,7 +32,7 @@ func TestWorkflow_MultipleArchives(t *testing.T) {
 
 	// Modify env files
 	envPath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(envPath, []byte("VERSION=2\nUPDATED=true"), 0644); err != nil {
+	if err := os.WriteFile(envPath, []byte("VERSION=2\nUPDATED=true"), 0o644); err != nil {
 		t.Fatalf("Failed to modify .env: %v", err)
 	}
 
@@ -89,10 +89,10 @@ func TestWorkflow_CrossDirectoryPack(t *testing.T) {
 
 	// Create a subdirectory with more env files
 	subDir := filepath.Join(projectDir, "subproject")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		t.Fatalf("Failed to create subdirectory: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(subDir, ".env"), []byte("SUBPROJECT=value"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(subDir, ".env"), []byte("SUBPROJECT=value"), 0o644); err != nil {
 		t.Fatalf("Failed to create subproject .env: %v", err)
 	}
 
@@ -127,7 +127,10 @@ func TestWorkflow_DryRunComparison(t *testing.T) {
 
 	// Verify no archive was created
 	goingenvDir := filepath.Join(tmpDir, ".goingenv")
-	entries, _ := os.ReadDir(goingenvDir)
+	entries, err := os.ReadDir(goingenvDir)
+	if err != nil {
+		t.Fatalf("Failed to read goingenv dir: %v", err)
+	}
 	for _, entry := range entries {
 		if strings.HasSuffix(entry.Name(), ".enc") {
 			t.Error("Dry run should not create archive")
@@ -139,7 +142,10 @@ func TestWorkflow_DryRunComparison(t *testing.T) {
 	testutils.AssertSuccess(t, realResult)
 
 	// Verify archive was created
-	entries, _ = os.ReadDir(goingenvDir)
+	entries, err = os.ReadDir(goingenvDir)
+	if err != nil {
+		t.Fatalf("Failed to read goingenv dir: %v", err)
+	}
 	foundArchive := false
 	for _, entry := range entries {
 		if strings.HasSuffix(entry.Name(), ".enc") {
@@ -169,7 +175,7 @@ func TestWorkflow_SelectiveExtract(t *testing.T) {
 
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -232,7 +238,7 @@ func TestWorkflow_BackupRestore(t *testing.T) {
 	envPath := filepath.Join(tmpDir, ".env")
 	originalContent := testutils.GetFileContent(t, envPath)
 	modifiedContent := "MODIFIED=true\nNEW_VAR=new_value"
-	if err := os.WriteFile(envPath, []byte(modifiedContent), 0644); err != nil {
+	if err := os.WriteFile(envPath, []byte(modifiedContent), 0o644); err != nil {
 		t.Fatalf("Failed to modify .env: %v", err)
 	}
 
@@ -259,21 +265,21 @@ func TestWorkflow_NestedDirectories(t *testing.T) {
 
 	// Create nested structure
 	structure := map[string]string{
-		".env":                  "ROOT=value",
-		"config/.env":           "CONFIG=value",
-		"services/api/.env":     "API=value",
-		"services/web/.env":     "WEB=value",
-		"deploy/staging/.env":   "STAGING=value",
+		".env":                   "ROOT=value",
+		"config/.env":            "CONFIG=value",
+		"services/api/.env":      "API=value",
+		"services/web/.env":      "WEB=value",
+		"deploy/staging/.env":    "STAGING=value",
 		"deploy/production/.env": "PRODUCTION=value",
 	}
 
 	for path, content := range structure {
 		fullPath := filepath.Join(tmpDir, path)
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("Failed to create directory: %v", err)
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -332,7 +338,10 @@ func TestWorkflow_LargeFiles(t *testing.T) {
 
 	// Find and list archive
 	goingenvDir := filepath.Join(tmpDir, ".goingenv")
-	entries, _ := os.ReadDir(goingenvDir)
+	entries, err := os.ReadDir(goingenvDir)
+	if err != nil {
+		t.Fatalf("Failed to read goingenv dir: %v", err)
+	}
 	var archivePath string
 	for _, entry := range entries {
 		if strings.HasSuffix(entry.Name(), ".enc") {
@@ -456,7 +465,10 @@ func TestWorkflow_EnvironmentVariablePassword(t *testing.T) {
 
 	// Find archive
 	goingenvDir := filepath.Join(tmpDir, ".goingenv")
-	entries, _ := os.ReadDir(goingenvDir)
+	entries, err := os.ReadDir(goingenvDir)
+	if err != nil {
+		t.Fatalf("Failed to read goingenv dir: %v", err)
+	}
 	var archivePath string
 	for _, entry := range entries {
 		if strings.HasSuffix(entry.Name(), ".enc") {
@@ -513,11 +525,11 @@ func TestWorkflow_StatusThroughoutLifecycle(t *testing.T) {
 	fixtures := testutils.GetTestFixtures()
 
 	// Status before init
-	result := testutils.RunBinary(t, binary, tmpDir, "status")
+	_ = testutils.RunBinary(t, binary, tmpDir, "status")
 	// May fail or show "not initialized"
 
 	// Initialize
-	result = testutils.RunBinary(t, binary, tmpDir, "init")
+	result := testutils.RunBinary(t, binary, tmpDir, "init")
 	testutils.AssertSuccess(t, result)
 
 	// Status after init

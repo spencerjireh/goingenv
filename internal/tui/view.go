@@ -191,23 +191,24 @@ func (m *Model) renderStatus() string {
 	view := TitleStyle.Render("Status") + "\n\n"
 
 	// Current directory
-	cwd, _ := os.Getwd()
+	cwd, _ := os.Getwd() //nolint:errcheck // best effort
 	view += HeaderStyle.Render("Current Directory:") + "\n"
 	view += fmt.Sprintf("  %s\n\n", cwd)
 
 	// Available archives
 	archives, err := m.app.Archiver.GetAvailableArchives("")
-	if err != nil {
+	switch {
+	case err != nil:
 		view += HeaderStyle.Render("Available Archives:") + "\n"
 		view += ErrorStyle.Render("Error reading archives: "+err.Error()) + "\n\n"
-	} else if len(archives) == 0 {
+	case len(archives) == 0:
 		view += HeaderStyle.Render("Available Archives:") + "\n"
 		view += "  No archives found in .goingenv folder\n\n"
-	} else {
+	default:
 		view += HeaderStyle.Render(fmt.Sprintf("Available Archives (%d):", len(archives))) + "\n"
 		for _, archive := range archives {
-			info, err := os.Stat(archive)
-			if err == nil {
+			info, statErr := os.Stat(archive)
+			if statErr == nil {
 				view += fmt.Sprintf("  • %s (%s) - %s\n",
 					filepath.Base(archive),
 					utils.FormatSize(info.Size()),
@@ -222,7 +223,7 @@ func (m *Model) renderStatus() string {
 		RootPath: ".",
 		MaxDepth: m.app.Config.DefaultDepth,
 	}
-	files, err := m.app.Scanner.ScanFiles(scanOpts)
+	files, err := m.app.Scanner.ScanFiles(&scanOpts)
 	if err == nil && len(files) > 0 {
 		view += HeaderStyle.Render(fmt.Sprintf("Detected Environment Files (%d):", len(files))) + "\n"
 		for i, file := range files {

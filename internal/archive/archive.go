@@ -61,57 +61,57 @@ func (s *Service) Pack(opts types.PackOptions) error {
 		}
 	}
 	// Secure temp file permissions immediately
-	if err := tmpFile.Chmod(0600); err != nil {
-		os.Remove(tmpFile.Name())
-		tmpFile.Close()
+	if chmodErr := tmpFile.Chmod(0o600); chmodErr != nil {
+		_ = os.Remove(tmpFile.Name())
+		_ = tmpFile.Close()
 		return &types.ArchiveError{
 			Operation: "pack",
 			Path:      opts.OutputPath,
-			Err:       fmt.Errorf("failed to secure temporary file: %w", err),
+			Err:       fmt.Errorf("failed to secure temporary file: %w", chmodErr),
 		}
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	defer func() { _ = tmpFile.Close() }()
 
 	// Create tar writer
 	tarWriter := tar.NewWriter(tmpFile)
-	defer tarWriter.Close()
+	defer func() { _ = tarWriter.Close() }()
 
 	// Write metadata first
-	if err := s.writeMetadata(tarWriter, archive); err != nil {
+	if metaErr := s.writeMetadata(tarWriter, &archive); metaErr != nil {
 		return &types.ArchiveError{
 			Operation: "pack",
 			Path:      opts.OutputPath,
-			Err:       fmt.Errorf("failed to write metadata: %w", err),
+			Err:       fmt.Errorf("failed to write metadata: %w", metaErr),
 		}
 	}
 
 	// Write files to tar
-	for _, file := range opts.Files {
-		if err := s.writeFileToTar(tarWriter, file); err != nil {
+	for i := range opts.Files {
+		if writeErr := s.writeFileToTar(tarWriter, &opts.Files[i]); writeErr != nil {
 			return &types.ArchiveError{
 				Operation: "pack",
-				Path:      file.Path,
-				Err:       fmt.Errorf("failed to write file to archive: %w", err),
+				Path:      opts.Files[i].Path,
+				Err:       fmt.Errorf("failed to write file to archive: %w", writeErr),
 			}
 		}
 	}
 
 	// Close tar writer to flush data
-	if err := tarWriter.Close(); err != nil {
+	if closeErr := tarWriter.Close(); closeErr != nil {
 		return &types.ArchiveError{
 			Operation: "pack",
 			Path:      opts.OutputPath,
-			Err:       fmt.Errorf("failed to close tar writer: %w", err),
+			Err:       fmt.Errorf("failed to close tar writer: %w", closeErr),
 		}
 	}
 
 	// Read tar data
-	if _, err := tmpFile.Seek(0, 0); err != nil {
+	if _, seekErr := tmpFile.Seek(0, 0); seekErr != nil {
 		return &types.ArchiveError{
 			Operation: "pack",
 			Path:      opts.OutputPath,
-			Err:       fmt.Errorf("failed to seek to beginning: %w", err),
+			Err:       fmt.Errorf("failed to seek to beginning: %w", seekErr),
 		}
 	}
 
@@ -135,7 +135,7 @@ func (s *Service) Pack(opts types.PackOptions) error {
 	}
 
 	// Write encrypted data to output file with restrictive permissions
-	if err := os.WriteFile(opts.OutputPath, encryptedData, 0600); err != nil {
+	if err := os.WriteFile(opts.OutputPath, encryptedData, 0o600); err != nil {
 		return &types.ArchiveError{
 			Operation: "pack",
 			Path:      opts.OutputPath,
@@ -146,47 +146,114 @@ func (s *Service) Pack(opts types.PackOptions) error {
 	return nil
 }
 
-// isPathSafe validates that targetPath is safely within basePath
-// Returns false if path traversal is detected
-func isPathSafe(basePath, targetPath string) bool {
-	absBase, err := filepath.Abs(basePath)
-	if err != nil {
-		return false
+// safePath validates and returns target path, or error if unsafe (pure function)
+func safePath(name, baseDir string) (string, error) {
+	if filepath.IsAbs(name) || strings.Contains(name, "..") {
+		return "", fmt.Errorf("unsafe path detected: %s", name)
 	}
-	absTarget, err := filepath.Abs(targetPath)
+
+	target := filepath.Join(baseDir, name) //nolint:gosec // G305: path is validated below
+
+	absBase, err := filepath.Abs(baseDir)
 	if err != nil {
-		return false
+		return "", fmt.Errorf("failed to resolve base path: %w", err)
 	}
-	// Ensure the base path ends with separator for accurate prefix matching
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve target path: %w", err)
+	}
+
 	if !strings.HasSuffix(absBase, string(filepath.Separator)) {
 		absBase += string(filepath.Separator)
 	}
-	return strings.HasPrefix(absTarget, absBase)
+	if !strings.HasPrefix(absTarget, absBase) {
+		return "", fmt.Errorf("path traversal detected: %s", name)
+	}
+
+	return target, nil
+}
+
+// ensureDir creates directory with restrictive permissions
+func ensureDir(path string) error {
+	return os.MkdirAll(filepath.Dir(path), 0o700)
+}
+
+// backupFile creates a backup of existing file
+func backupFile(path string) error {
+	return os.Rename(path, path+".backup")
+}
+
+// handleExisting handles existing file (skip, backup, or overwrite)
+func handleExisting(path string, overwrite, backup bool) (skip bool, err error) {
+	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
+		return false, nil // file doesn't exist, proceed
+	}
+
+	if !overwrite {
+		fmt.Printf("Skipping existing file: %s\n", path)
+		return true, nil
+	}
+
+	if backup {
+		if backupErr := backupFile(path); backupErr != nil {
+			return false, fmt.Errorf("failed to create backup: %w", backupErr)
+		}
+	}
+	return false, nil
+}
+
+// decryptArchive reads and decrypts archive data
+func (s *Service) decryptArchive(archivePath, password string) ([]byte, error) {
+	encryptedData, err := os.ReadFile(archivePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read archive: %w", err)
+	}
+
+	tarData, err := s.crypto.Decrypt(encryptedData, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt archive: %w", err)
+	}
+
+	return tarData, nil
+}
+
+// extractEntry extracts a single tar entry
+func (s *Service) extractEntry(tarReader *tar.Reader, header *tar.Header, opts types.UnpackOptions) error {
+	if header.Name == "metadata.json" {
+		return nil // skip metadata
+	}
+
+	targetPath, pathErr := safePath(header.Name, opts.TargetDir)
+	if pathErr != nil {
+		return pathErr
+	}
+
+	if dirErr := ensureDir(targetPath); dirErr != nil {
+		return fmt.Errorf("failed to create directory: %w", dirErr)
+	}
+
+	skip, existErr := handleExisting(targetPath, opts.Overwrite, opts.Backup)
+	if existErr != nil {
+		return existErr
+	}
+	if skip {
+		return nil
+	}
+
+	return s.extractFile(tarReader, targetPath, header)
 }
 
 // Unpack decrypts and extracts files from an archive
 func (s *Service) Unpack(opts types.UnpackOptions) error {
-	// Read encrypted file
-	encryptedData, err := os.ReadFile(opts.ArchivePath)
+	tarData, err := s.decryptArchive(opts.ArchivePath, opts.Password)
 	if err != nil {
 		return &types.ArchiveError{
 			Operation: "unpack",
 			Path:      opts.ArchivePath,
-			Err:       fmt.Errorf("failed to read archive: %w", err),
+			Err:       err,
 		}
 	}
 
-	// Decrypt the data
-	tarData, err := s.crypto.Decrypt(encryptedData, opts.Password)
-	if err != nil {
-		return &types.ArchiveError{
-			Operation: "unpack",
-			Path:      opts.ArchivePath,
-			Err:       fmt.Errorf("failed to decrypt archive: %w", err),
-		}
-	}
-
-	// Create tar reader
 	tarReader := tar.NewReader(strings.NewReader(string(tarData)))
 
 	for {
@@ -202,64 +269,11 @@ func (s *Service) Unpack(opts types.UnpackOptions) error {
 			}
 		}
 
-		// Skip metadata file
-		if header.Name == "metadata.json" {
-			continue
-		}
-
-		// Validate path safety before extraction
-		if filepath.IsAbs(header.Name) || strings.Contains(header.Name, "..") {
+		if extractErr := s.extractEntry(tarReader, header, opts); extractErr != nil {
 			return &types.ArchiveError{
 				Operation: "unpack",
 				Path:      header.Name,
-				Err:       fmt.Errorf("unsafe path detected: %s", header.Name),
-			}
-		}
-
-		targetPath := filepath.Join(opts.TargetDir, header.Name)
-
-		// Double-check resolved path is within target directory
-		if !isPathSafe(opts.TargetDir, targetPath) {
-			return &types.ArchiveError{
-				Operation: "unpack",
-				Path:      header.Name,
-				Err:       fmt.Errorf("path traversal detected: %s", header.Name),
-			}
-		}
-
-		// Create directory if needed with restrictive permissions
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0700); err != nil {
-			return &types.ArchiveError{
-				Operation: "unpack",
-				Path:      targetPath,
-				Err:       fmt.Errorf("failed to create directory: %w", err),
-			}
-		}
-
-		// Handle existing files
-		if _, err := os.Stat(targetPath); err == nil {
-			if !opts.Overwrite {
-				fmt.Printf("Skipping existing file: %s\n", targetPath)
-				continue
-			}
-			if opts.Backup {
-				backupPath := targetPath + ".backup"
-				if err := os.Rename(targetPath, backupPath); err != nil {
-					return &types.ArchiveError{
-						Operation: "unpack",
-						Path:      targetPath,
-						Err:       fmt.Errorf("failed to create backup: %w", err),
-					}
-				}
-			}
-		}
-
-		// Extract file
-		if err := s.extractFile(tarReader, targetPath, header); err != nil {
-			return &types.ArchiveError{
-				Operation: "unpack",
-				Path:      targetPath,
-				Err:       fmt.Errorf("failed to extract file: %w", err),
+				Err:       extractErr,
 			}
 		}
 	}
@@ -358,7 +372,7 @@ func (s *Service) GetAvailableArchives(dir string) ([]string, error) {
 }
 
 // writeMetadata writes archive metadata to tar
-func (s *Service) writeMetadata(tarWriter *tar.Writer, archive types.Archive) error {
+func (s *Service) writeMetadata(tarWriter *tar.Writer, archive *types.Archive) error {
 	metadataJSON, err := json.Marshal(archive)
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
@@ -366,23 +380,23 @@ func (s *Service) writeMetadata(tarWriter *tar.Writer, archive types.Archive) er
 
 	header := &tar.Header{
 		Name: "metadata.json",
-		Mode: 0600,
+		Mode: 0o600,
 		Size: int64(len(metadataJSON)),
 	}
 
-	if err := tarWriter.WriteHeader(header); err != nil {
-		return fmt.Errorf("failed to write metadata header: %w", err)
+	if headerErr := tarWriter.WriteHeader(header); headerErr != nil {
+		return fmt.Errorf("failed to write metadata header: %w", headerErr)
 	}
 
-	if _, err := tarWriter.Write(metadataJSON); err != nil {
-		return fmt.Errorf("failed to write metadata: %w", err)
+	if _, writeErr := tarWriter.Write(metadataJSON); writeErr != nil {
+		return fmt.Errorf("failed to write metadata: %w", writeErr)
 	}
 
 	return nil
 }
 
 // writeFileToTar writes a file to the tar archive
-func (s *Service) writeFileToTar(tarWriter *tar.Writer, file types.EnvFile) error {
+func (s *Service) writeFileToTar(tarWriter *tar.Writer, file *types.EnvFile) error {
 	fileInfo, err := os.Stat(file.Path)
 	if err != nil {
 		return fmt.Errorf("failed to stat file %s: %w", file.Path, err)
@@ -395,8 +409,8 @@ func (s *Service) writeFileToTar(tarWriter *tar.Writer, file types.EnvFile) erro
 		ModTime: fileInfo.ModTime(),
 	}
 
-	if err := tarWriter.WriteHeader(header); err != nil {
-		return fmt.Errorf("failed to write header for %s: %w", file.Path, err)
+	if headerErr := tarWriter.WriteHeader(header); headerErr != nil {
+		return fmt.Errorf("failed to write header for %s: %w", file.Path, headerErr)
 	}
 
 	fileContent, err := os.Open(file.Path)
@@ -405,8 +419,8 @@ func (s *Service) writeFileToTar(tarWriter *tar.Writer, file types.EnvFile) erro
 	}
 	defer fileContent.Close()
 
-	if _, err := io.Copy(tarWriter, fileContent); err != nil {
-		return fmt.Errorf("failed to write file %s: %w", file.Path, err)
+	if _, copyErr := io.Copy(tarWriter, fileContent); copyErr != nil {
+		return fmt.Errorf("failed to write file %s: %w", file.Path, copyErr)
 	}
 
 	return nil
@@ -426,9 +440,9 @@ func (s *Service) extractFile(tarReader *tar.Reader, targetPath string, header *
 
 	// Set file permissions (use restrictive permissions, masking to safe defaults)
 	// Only preserve read/write bits for owner, strip group/world permissions
-	safeMode := os.FileMode(header.Mode) & 0600
+	safeMode := os.FileMode(header.Mode&0o777) & 0o600 //nolint:gosec // G115: mode is masked to safe range
 	if safeMode == 0 {
-		safeMode = 0600 // Default to owner read/write if no permissions
+		safeMode = 0o600 // Default to owner read/write if no permissions
 	}
 	if err := os.Chmod(targetPath, safeMode); err != nil {
 		return fmt.Errorf("failed to set permissions: %w", err)

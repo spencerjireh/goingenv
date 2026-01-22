@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -17,6 +16,14 @@ import (
 	"goingenv/pkg/types"
 	"goingenv/pkg/utils"
 )
+
+// tableOpts holds table display options
+type tableOpts struct {
+	Sizes     bool
+	Dates     bool
+	Checksums bool
+	Verbose   bool
+}
 
 // newListCommand creates the list command
 func newListCommand() *cobra.Command {
@@ -38,7 +45,6 @@ Examples:
 		RunE: runListCommand,
 	}
 
-	// Add flags
 	cmd.Flags().String("password-env", "", "Read password from environment variable")
 	cmd.Flags().StringP("file", "f", "", "Archive file to list (required unless --all is used)")
 	cmd.Flags().Bool("all", false, "List contents of all available archives")
@@ -55,141 +61,157 @@ Examples:
 	return cmd
 }
 
+// maxWidth calculates max name width for table (pure function)
+func maxWidth(files []types.EnvFile, minWidth, maxWidth int) int {
+	width := minWidth
+	for _, file := range files {
+		if len(file.RelativePath) > width {
+			width = len(file.RelativePath)
+		}
+	}
+	if width > maxWidth {
+		width = maxWidth
+	}
+	return width
+}
+
+// fmtRow formats a single file row (pure function)
+func fmtRow(f *types.EnvFile, width int, o tableOpts) string {
+	name := f.RelativePath
+	if len(name) > width {
+		name = name[:width-3] + "..."
+	}
+
+	if !o.Verbose && !o.Sizes && !o.Dates && !o.Checksums {
+		return fmt.Sprintf("  - %s (%s)", name, utils.FormatSize(f.Size))
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "%-*s", width, name)
+	if o.Sizes || o.Verbose {
+		fmt.Fprintf(&b, " %10s", utils.FormatSize(f.Size))
+	}
+	if o.Dates || o.Verbose {
+		fmt.Fprintf(&b, " %19s", f.ModTime.Format(constants.DateTimeFormat))
+	}
+	if o.Checksums || o.Verbose {
+		fmt.Fprintf(&b, " %16s", f.Checksum[:16]+"...")
+	}
+	return b.String()
+}
+
+// printTableHeader prints table header
+func printTableHeader(width int, o tableOpts) {
+	if !o.Verbose && !o.Sizes && !o.Dates && !o.Checksums {
+		return
+	}
+
+	fmt.Printf("%-*s", width, "Name")
+	if o.Sizes || o.Verbose {
+		fmt.Printf(" %10s", "Size")
+	}
+	if o.Dates || o.Verbose {
+		fmt.Printf(" %19s", "Modified")
+	}
+	if o.Checksums || o.Verbose {
+		fmt.Printf(" %16s", "Checksum")
+	}
+	fmt.Println()
+	fmt.Println(strings.Repeat("-", 80))
+}
+
+// printTable prints files in table format
+func printTable(files []types.EnvFile, o tableOpts) {
+	if len(files) == 0 {
+		fmt.Println("No files to display.")
+		return
+	}
+
+	fmt.Println("Files:")
+	fmt.Println(strings.Repeat("-", 80))
+
+	width := maxWidth(files, 20, 50)
+	printTableHeader(width, o)
+
+	for i := range files {
+		fmt.Println(fmtRow(&files[i], width, o))
+	}
+	fmt.Println()
+}
+
 // runListCommand executes the list command
 func runListCommand(cmd *cobra.Command, args []string) error {
-	// Check if GoingEnv is initialized
-	if !config.IsInitialized() {
-		return fmt.Errorf("goingenv is not initialized in this directory. Run 'goingenv init' first")
+	app, err := initApp()
+	if err != nil {
+		return err
 	}
 
-	// Initialize application
-	app, err := NewApp()
+	opts, err := parseListOpts(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to initialize application: %w", err)
+		return err
 	}
 
-	// Parse flags with error handling
-	archiveFile, err := cmd.Flags().GetString("file")
-	if err != nil {
-		return fmt.Errorf("failed to get file flag: %w", err)
-	}
-	passwordEnv, err := cmd.Flags().GetString("password-env")
-	if err != nil {
-		return fmt.Errorf("failed to get password-env flag: %w", err)
-	}
-	listAll, err := cmd.Flags().GetBool("all")
-	if err != nil {
-		return fmt.Errorf("failed to get all flag: %w", err)
-	}
-	verbose, err := cmd.Flags().GetBool("verbose")
-	if err != nil {
-		return fmt.Errorf("failed to get verbose flag: %w", err)
-	}
-	showSizes, err := cmd.Flags().GetBool("sizes")
-	if err != nil {
-		return fmt.Errorf("failed to get sizes flag: %w", err)
-	}
-	showDates, err := cmd.Flags().GetBool("dates")
-	if err != nil {
-		return fmt.Errorf("failed to get dates flag: %w", err)
-	}
-	showChecksums, err := cmd.Flags().GetBool("checksums")
-	if err != nil {
-		return fmt.Errorf("failed to get checksums flag: %w", err)
-	}
-	patterns, err := cmd.Flags().GetStringSlice("pattern")
-	if err != nil {
-		return fmt.Errorf("failed to get pattern flag: %w", err)
-	}
-	sortBy, err := cmd.Flags().GetString("sort")
-	if err != nil {
-		return fmt.Errorf("failed to get sort flag: %w", err)
-	}
-	reverse, err := cmd.Flags().GetBool("reverse")
-	if err != nil {
-		return fmt.Errorf("failed to get reverse flag: %w", err)
-	}
-	format, err := cmd.Flags().GetString("format")
-	if err != nil {
-		return fmt.Errorf("failed to get format flag: %w", err)
-	}
-	limit, err := cmd.Flags().GetInt("limit")
-	if err != nil {
-		return fmt.Errorf("failed to get limit flag: %w", err)
+	passwordOpts := password.Options{PasswordEnv: opts.PassEnv}
+
+	if opts.All {
+		return listAllArchives(app, passwordOpts, opts.Verbose)
 	}
 
-	// Prepare password options
-	passwordOpts := password.Options{
-		PasswordEnv: passwordEnv,
-	}
-
-	// Handle --all flag
-	if listAll {
-		return listAllArchives(app, passwordOpts, verbose)
-	}
-
-	// Require archive file if not listing all
-	if archiveFile == "" {
+	if opts.Archive == "" {
 		return fmt.Errorf("archive file is required. Use -f flag or --all to list all archives")
 	}
 
-	// Verify archive exists
-	if _, err := os.Stat(archiveFile); os.IsNotExist(err) {
-		return fmt.Errorf("archive file not found: %s", archiveFile)
+	if _, statErr := os.Stat(opts.Archive); os.IsNotExist(statErr) {
+		return fmt.Errorf("archive file not found: %s", opts.Archive)
 	}
 
-	// Validate password options
-	if err := password.ValidatePasswordOptions(passwordOpts); err != nil {
-		return fmt.Errorf("invalid password options: %w", err)
+	if validateErr := password.ValidatePasswordOptions(passwordOpts); validateErr != nil {
+		return fmt.Errorf("invalid password options: %w", validateErr)
 	}
 
-	// Get password using new secure methods
 	key, err := password.GetPassword(passwordOpts)
 	if err != nil {
 		return fmt.Errorf("failed to get password: %w", err)
 	}
-
-	// Ensure password is cleared from memory when done
 	defer password.ClearPassword(&key)
 
-	// List archive contents
-	fmt.Printf("Reading archive: %s\n", filepath.Base(archiveFile))
-	archive, err := app.Archiver.List(archiveFile, key)
+	fmt.Printf("Reading archive: %s\n", filepath.Base(opts.Archive))
+	archive, err := app.Archiver.List(opts.Archive, key)
 	if err != nil {
 		return fmt.Errorf("failed to read archive (check password): %w", err)
 	}
 
-	// Display archive information
-	displayListArchiveInfo(archive, archiveFile)
+	displayListArchiveInfo(archive, opts.Archive)
 
-	// Filter files by patterns if specified
 	filesToShow := archive.Files
-	if len(patterns) > 0 {
-		filesToShow = filterFilesByPatterns(archive.Files, patterns)
+	if len(opts.Patterns) > 0 {
+		filesToShow = filterFilesByPatterns(archive.Files, opts.Patterns)
 		fmt.Printf("Showing %d files matching patterns (out of %d total)\n",
 			len(filesToShow), len(archive.Files))
 	}
 
-	// Sort files
-	sortFiles(filesToShow, sortBy, reverse)
+	sortFiles(filesToShow, opts.SortBy, opts.Reverse)
 
-	// Apply limit if specified
-	if limit > 0 && len(filesToShow) > limit {
-		filesToShow = filesToShow[:limit]
-		fmt.Printf("Showing first %d files (use --limit 0 to show all)\n", limit)
+	if opts.Limit > 0 && len(filesToShow) > opts.Limit {
+		filesToShow = filesToShow[:opts.Limit]
+		fmt.Printf("Showing first %d files (use --limit 0 to show all)\n", opts.Limit)
 	}
 
-	// Display files based on format
-	switch format {
+	switch opts.Format {
 	case "json":
 		return displayFilesJSON(filesToShow)
 	case "csv":
-		return displayFilesCSV(filesToShow)
-	default: // table format
-		displayFilesTable(filesToShow, verbose, showSizes, showDates, showChecksums)
+		displayFilesCSV(filesToShow)
+		return nil
+	default:
+		printTable(filesToShow, tableOpts{
+			Sizes:     opts.Sizes,
+			Dates:     opts.Dates,
+			Checksums: opts.Checksums,
+			Verbose:   opts.Verbose,
+		})
 	}
 
-	// Display summary
 	displaySummary(archive, filesToShow)
 
 	return nil
@@ -212,17 +234,16 @@ func listAllArchives(app *types.App, passwordOpts password.Options, verbose bool
 	for i, archivePath := range archives {
 		fmt.Printf("[%d] %s\n", i+1, filepath.Base(archivePath))
 
-		// Show basic info without requiring password
 		if info, err := os.Stat(archivePath); err == nil {
 			fmt.Printf("    Size: %s\n", utils.FormatSize(info.Size()))
 			fmt.Printf("    Modified: %s\n", info.ModTime().Format(constants.DateTimeFormat))
 		}
 
 		if verbose && passwordOpts.PasswordEnv != "" {
-			// Try to read archive contents if password options are provided
-			if key, err := password.GetPassword(passwordOpts); err == nil {
-				defer password.ClearPassword(&key)
-				if archive, err := app.Archiver.List(archivePath, key); err == nil {
+			if key, keyErr := password.GetPassword(passwordOpts); keyErr == nil {
+				archive, listErr := app.Archiver.List(archivePath, key)
+				password.ClearPassword(&key)
+				if listErr == nil {
 					fmt.Printf("    Created: %s\n", archive.CreatedAt.Format(constants.DateTimeFormat))
 					fmt.Printf("    Files: %d\n", len(archive.Files))
 					fmt.Printf("    Total size: %s\n", utils.FormatSize(archive.TotalSize))
@@ -241,13 +262,13 @@ func listAllArchives(app *types.App, passwordOpts password.Options, verbose bool
 	}
 
 	if passwordOpts.PasswordEnv == "" && verbose {
-		fmt.Println("💡 Tip: Provide a password with --password-env to see detailed archive information")
+		fmt.Println("Tip: Provide a password with --password-env to see detailed archive information")
 	}
 
 	return nil
 }
 
-// displayListArchiveInfo displays general archive information (renamed to avoid conflict)
+// displayListArchiveInfo displays general archive information
 func displayListArchiveInfo(archive *types.Archive, archivePath string) {
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Printf("Archive Information\n")
@@ -260,69 +281,6 @@ func displayListArchiveInfo(archive *types.Archive, archivePath string) {
 	}
 	fmt.Printf("Total files: %d\n", len(archive.Files))
 	fmt.Printf("Total size: %s\n", utils.FormatSize(archive.TotalSize))
-	fmt.Println()
-}
-
-// displayFilesTable displays files in table format
-func displayFilesTable(files []types.EnvFile, verbose, showSizes, showDates, showChecksums bool) {
-	if len(files) == 0 {
-		fmt.Println("No files to display.")
-		return
-	}
-
-	fmt.Println("Files:")
-	fmt.Println(strings.Repeat("-", 80))
-
-	// Calculate column widths for better formatting
-	maxNameLen := 20
-	for _, file := range files {
-		if len(file.RelativePath) > maxNameLen {
-			maxNameLen = len(file.RelativePath)
-		}
-	}
-	if maxNameLen > 50 {
-		maxNameLen = 50
-	}
-
-	// Header
-	if verbose || showSizes || showDates || showChecksums {
-		fmt.Printf("%-*s", maxNameLen, "Name")
-		if showSizes || verbose {
-			fmt.Printf(" %10s", "Size")
-		}
-		if showDates || verbose {
-			fmt.Printf(" %19s", "Modified")
-		}
-		if showChecksums || verbose {
-			fmt.Printf(" %16s", "Checksum")
-		}
-		fmt.Println()
-		fmt.Println(strings.Repeat("-", 80))
-	}
-
-	// Files
-	for _, file := range files {
-		name := file.RelativePath
-		if len(name) > maxNameLen {
-			name = name[:maxNameLen-3] + "..."
-		}
-
-		if verbose || showSizes || showDates || showChecksums {
-			fmt.Printf("%-*s", maxNameLen, name)
-			if showSizes || verbose {
-				fmt.Printf(" %10s", utils.FormatSize(file.Size))
-			}
-			if showDates || verbose {
-				fmt.Printf(" %19s", file.ModTime.Format(constants.DateTimeFormat))
-			}
-			if showChecksums || verbose {
-				fmt.Printf(" %16s", file.Checksum[:16]+"...")
-			}
-			fmt.Println()
-		} else {
-			fmt.Printf("  • %s (%s)\n", name, utils.FormatSize(file.Size))
-		}
-	}
 	fmt.Println()
 }
 
@@ -343,7 +301,7 @@ func displayFilesJSON(files []types.EnvFile) error {
 }
 
 // displayFilesCSV displays files in CSV format
-func displayFilesCSV(files []types.EnvFile) error {
+func displayFilesCSV(files []types.EnvFile) {
 	fmt.Println("name,path,size,modified,checksum")
 	for _, file := range files {
 		fmt.Printf("%s,%s,%d,%s,%s\n",
@@ -353,7 +311,6 @@ func displayFilesCSV(files []types.EnvFile) error {
 			file.ModTime.Format(constants.DateTimeFormat),
 			file.Checksum)
 	}
-	return nil
 }
 
 // displaySummary displays summary statistics
@@ -365,43 +322,34 @@ func displaySummary(archive *types.Archive, displayedFiles []types.EnvFile) {
 	fmt.Println("Summary:")
 	fmt.Println(strings.Repeat("-", 40))
 
-	// File type statistics
 	typeStats := make(map[string]int)
 	var totalDisplayedSize int64
 
 	for _, file := range displayedFiles {
 		totalDisplayedSize += file.Size
-
-		// Categorize by file extension/type
 		name := filepath.Base(file.RelativePath)
 		fileType := utils.CategorizeEnvFile(name)
 		typeStats[fileType]++
 	}
 
-	// Display file type breakdown
 	fmt.Printf("Files by type:\n")
 	for fileType, count := range typeStats {
-		fmt.Printf("  • %s: %d\n", fileType, count)
+		fmt.Printf("  - %s: %d\n", fileType, count)
 	}
 
 	fmt.Printf("\nSize information:\n")
-	fmt.Printf("  • Displayed files: %s\n", utils.FormatSize(totalDisplayedSize))
+	fmt.Printf("  - Displayed files: %s\n", utils.FormatSize(totalDisplayedSize))
 	if len(displayedFiles) < len(archive.Files) {
-		fmt.Printf("  • Total archive: %s\n", utils.FormatSize(archive.TotalSize))
+		fmt.Printf("  - Total archive: %s\n", utils.FormatSize(archive.TotalSize))
 	}
 
-	// Calculate average file size
 	if len(displayedFiles) > 0 {
 		avgSize := totalDisplayedSize / int64(len(displayedFiles))
-		fmt.Printf("  • Average file size: %s\n", utils.FormatSize(avgSize))
+		fmt.Printf("  - Average file size: %s\n", utils.FormatSize(avgSize))
 	}
 
-	// Time span information
 	if len(displayedFiles) > 1 {
-		var oldest, newest time.Time
-		oldest = displayedFiles[0].ModTime
-		newest = displayedFiles[0].ModTime
-
+		oldest, newest := displayedFiles[0].ModTime, displayedFiles[0].ModTime
 		for _, file := range displayedFiles {
 			if file.ModTime.Before(oldest) {
 				oldest = file.ModTime
@@ -412,14 +360,12 @@ func displaySummary(archive *types.Archive, displayedFiles []types.EnvFile) {
 		}
 
 		fmt.Printf("\nTime span:\n")
-		fmt.Printf("  • Oldest file: %s\n", oldest.Format(constants.DateTimeFormat))
-		fmt.Printf("  • Newest file: %s\n", newest.Format(constants.DateTimeFormat))
+		fmt.Printf("  - Oldest file: %s\n", oldest.Format(constants.DateTimeFormat))
+		fmt.Printf("  - Newest file: %s\n", newest.Format(constants.DateTimeFormat))
 	}
 
 	fmt.Println()
 }
-
-// Helper functions
 
 // filterFilesByPatterns filters files based on glob patterns
 func filterFilesByPatterns(files []types.EnvFile, patterns []string) []types.EnvFile {
@@ -427,7 +373,8 @@ func filterFilesByPatterns(files []types.EnvFile, patterns []string) []types.Env
 
 	for _, file := range files {
 		for _, pattern := range patterns {
-			if matched, _ := filepath.Match(pattern, file.RelativePath); matched {
+			matched, matchErr := filepath.Match(pattern, file.RelativePath)
+			if matchErr == nil && matched {
 				filtered = append(filtered, file)
 				break
 			}

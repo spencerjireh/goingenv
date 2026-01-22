@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"goingenv/pkg/types"
@@ -65,8 +66,8 @@ func TestManager_Load_ValidConfig(t *testing.T) {
 		t.Fatalf("Failed to marshal config: %v", err)
 	}
 
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
-		t.Fatalf("Failed to write config file: %v", err)
+	if writeErr := os.WriteFile(configPath, data, 0o600); writeErr != nil {
+		t.Fatalf("Failed to write config file: %v", writeErr)
 	}
 
 	manager := &Manager{configPath: configPath}
@@ -94,8 +95,8 @@ func TestManager_Load_InvalidJSON(t *testing.T) {
 	configPath := filepath.Join(tmpDir, ".goingenv.json")
 
 	// Create invalid JSON file
-	if err := os.WriteFile(configPath, []byte("{invalid json}"), 0600); err != nil {
-		t.Fatalf("Failed to write config file: %v", err)
+	if writeErr := os.WriteFile(configPath, []byte("{invalid json}"), 0o600); writeErr != nil {
+		t.Fatalf("Failed to write config file: %v", writeErr)
 	}
 
 	manager := &Manager{configPath: configPath}
@@ -127,8 +128,8 @@ func TestManager_Load_InvalidConfig(t *testing.T) {
 		t.Fatalf("Failed to marshal config: %v", err)
 	}
 
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
-		t.Fatalf("Failed to write config file: %v", err)
+	if writeErr := os.WriteFile(configPath, data, 0o600); writeErr != nil {
+		t.Fatalf("Failed to write config file: %v", writeErr)
 	}
 
 	manager := &Manager{configPath: configPath}
@@ -163,17 +164,17 @@ func TestManager_Save(t *testing.T) {
 	}
 
 	// Verify file exists
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(configPath); os.IsNotExist(statErr) {
 		t.Error("Config file was not created")
 	}
 
-	// Verify permissions are restrictive (0600)
+	// Verify permissions are restrictive (0o600)
 	info, err := os.Stat(configPath)
 	if err != nil {
 		t.Errorf("Failed to stat config file: %v", err)
 	}
-	if info.Mode().Perm() != 0600 {
-		t.Errorf("Config file permissions = %v, want 0600", info.Mode().Perm())
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("Config file permissions = %v, want 0o600", info.Mode().Perm())
 	}
 
 	// Verify content
@@ -343,12 +344,12 @@ func TestEnsureGoingEnvDir(t *testing.T) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer func() {
-		os.Chdir(originalDir)
-		os.RemoveAll(tmpDir)
+		_ = os.Chdir(originalDir) //nolint:errcheck // cleanup in defer
+		_ = os.RemoveAll(tmpDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change directory: %v", err)
+	if chdirErr := os.Chdir(tmpDir); chdirErr != nil {
+		t.Fatalf("Failed to change directory: %v", chdirErr)
 	}
 
 	err = EnsureGoingEnvDir()
@@ -364,8 +365,8 @@ func TestEnsureGoingEnvDir(t *testing.T) {
 	}
 
 	// Verify directory permissions are restrictive
-	if info.Mode().Perm() != 0700 {
-		t.Errorf("Directory permissions = %v, want 0700", info.Mode().Perm())
+	if info.Mode().Perm() != 0o700 {
+		t.Errorf("Directory permissions = %v, want 0o700", info.Mode().Perm())
 	}
 
 	// Verify .gitignore was created
@@ -376,8 +377,8 @@ func TestEnsureGoingEnvDir(t *testing.T) {
 	}
 
 	// Verify .gitignore permissions are restrictive
-	if info.Mode().Perm() != 0600 {
-		t.Errorf(".gitignore permissions = %v, want 0600", info.Mode().Perm())
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf(".gitignore permissions = %v, want 0o600", info.Mode().Perm())
 	}
 }
 
@@ -394,8 +395,8 @@ func TestIsInitialized(t *testing.T) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer func() {
-		os.Chdir(originalDir)
-		os.RemoveAll(tmpDir)
+		_ = os.Chdir(originalDir) //nolint:errcheck // cleanup in defer
+		_ = os.RemoveAll(tmpDir)
 	}()
 
 	if err := os.Chdir(tmpDir); err != nil {
@@ -431,12 +432,12 @@ func TestInitializeProject(t *testing.T) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer func() {
-		os.Chdir(originalDir)
-		os.RemoveAll(tmpDir)
+		_ = os.Chdir(originalDir) //nolint:errcheck // cleanup in defer
+		_ = os.RemoveAll(tmpDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change directory: %v", err)
+	if chdirErr := os.Chdir(tmpDir); chdirErr != nil {
+		t.Fatalf("Failed to change directory: %v", chdirErr)
 	}
 
 	err = InitializeProject()
@@ -450,8 +451,8 @@ func TestInitializeProject(t *testing.T) {
 	if os.IsNotExist(err) {
 		t.Error(".goingenv directory was not created")
 	}
-	if info.Mode().Perm() != 0700 {
-		t.Errorf("Directory permissions = %v, want 0700", info.Mode().Perm())
+	if info.Mode().Perm() != 0o700 {
+		t.Errorf("Directory permissions = %v, want 0o700", info.Mode().Perm())
 	}
 
 	// Verify .gitignore exists with correct permissions
@@ -460,8 +461,8 @@ func TestInitializeProject(t *testing.T) {
 	if os.IsNotExist(err) {
 		t.Error(".gitignore was not created")
 	}
-	if info.Mode().Perm() != 0600 {
-		t.Errorf(".gitignore permissions = %v, want 0600", info.Mode().Perm())
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf(".gitignore permissions = %v, want 0o600", info.Mode().Perm())
 	}
 
 	// Verify .gitignore content
@@ -488,8 +489,8 @@ func TestInitializeProject_Idempotent(t *testing.T) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer func() {
-		os.Chdir(originalDir)
-		os.RemoveAll(tmpDir)
+		_ = os.Chdir(originalDir) //nolint:errcheck // cleanup in defer
+		_ = os.RemoveAll(tmpDir)
 	}()
 
 	if err := os.Chdir(tmpDir); err != nil {
@@ -518,7 +519,7 @@ func TestGetDefaultArchivePath(t *testing.T) {
 		t.Error("GetDefaultArchivePath() returned empty string")
 	}
 
-	if !filepath.HasPrefix(path, GetGoingEnvDir()) {
+	if !strings.HasPrefix(path, GetGoingEnvDir()) {
 		t.Error("Archive path should be in .goingenv directory")
 	}
 

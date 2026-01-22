@@ -79,7 +79,7 @@ func TestService_ScanFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			files, err := service.ScanFiles(tt.opts)
+			files, err := service.ScanFiles(&tt.opts)
 
 			if (err != nil) != tt.expectError {
 				t.Errorf("ScanFiles() error = %v, expectError %v", err, tt.expectError)
@@ -186,7 +186,7 @@ func TestService_ScanPatternMatching(t *testing.T) {
 
 	service := NewService(config)
 
-	files, err := service.ScanFiles(types.ScanOptions{
+	files, err := service.ScanFiles(&types.ScanOptions{
 		RootPath: tmpDir,
 		MaxDepth: 3,
 	})
@@ -234,7 +234,7 @@ func TestService_ExcludePatterns(t *testing.T) {
 
 	service := NewService(config)
 
-	files, err := service.ScanFiles(types.ScanOptions{
+	files, err := service.ScanFiles(&types.ScanOptions{
 		RootPath: tmpDir,
 		MaxDepth: 3,
 	})
@@ -325,7 +325,7 @@ func TestService_ScanFilesPerformance(t *testing.T) {
 	service := NewService(config)
 
 	start := time.Now()
-	files, err := service.ScanFiles(types.ScanOptions{
+	files, err := service.ScanFiles(&types.ScanOptions{
 		RootPath: tmpDir,
 		MaxDepth: 5,
 	})
@@ -382,7 +382,7 @@ func TestService_ErrorHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := service.ScanFiles(tt.opts)
+			_, err := service.ScanFiles(&tt.opts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ScanFiles() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -410,11 +410,11 @@ func createTestDir(t *testing.T) string {
 		path := filepath.Join(tmpDir, filename)
 		dir := filepath.Dir(path)
 
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("Failed to create dir %s: %v", dir, err)
 		}
 
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file %s: %v", path, err)
 		}
 	}
@@ -423,12 +423,12 @@ func createTestDir(t *testing.T) string {
 	excludedDirs := []string{"node_modules", "excluded"}
 	for _, dir := range excludedDirs {
 		excludedDir := filepath.Join(tmpDir, dir)
-		if err := os.MkdirAll(excludedDir, 0755); err != nil {
+		if err := os.MkdirAll(excludedDir, 0o755); err != nil {
 			t.Fatalf("Failed to create excluded dir %s: %v", excludedDir, err)
 		}
 
 		excludedFile := filepath.Join(excludedDir, ".env")
-		if err := os.WriteFile(excludedFile, []byte("SHOULD_BE_EXCLUDED=true"), 0644); err != nil {
+		if err := os.WriteFile(excludedFile, []byte("SHOULD_BE_EXCLUDED=true"), 0o644); err != nil {
 			t.Fatalf("Failed to create excluded file: %v", err)
 		}
 	}
@@ -446,14 +446,14 @@ func createLargeTestDir(t *testing.T, fileCount int) string {
 	// Create multiple subdirectories with .env files
 	for i := 0; i < fileCount; i++ {
 		subdir := filepath.Join(tmpDir, "dir", "subdir", "level3")
-		if err := os.MkdirAll(subdir, 0755); err != nil {
+		if err := os.MkdirAll(subdir, 0o755); err != nil {
 			t.Fatalf("Failed to create subdir: %v", err)
 		}
 
 		filename := filepath.Join(subdir, ".env")
 		content := "TEST_VAR_" + string(rune(i)) + "=value" + string(rune(i))
 
-		if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filename, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file %s: %v", filename, err)
 		}
 	}
@@ -463,7 +463,7 @@ func createLargeTestDir(t *testing.T, fileCount int) string {
 	for _, filename := range rootFiles {
 		path := filepath.Join(tmpDir, filename)
 		content := "ROOT_VAR=root_value"
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create root file %s: %v", path, err)
 		}
 	}
@@ -492,7 +492,7 @@ func BenchmarkScanFiles(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := service.ScanFiles(opts)
+		_, err := service.ScanFiles(&opts)
 		if err != nil {
 			b.Fatalf("ScanFiles failed: %v", err)
 		}

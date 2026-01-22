@@ -3,15 +3,10 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
-	"goingenv/internal/config"
-	"goingenv/pkg/password"
 	"goingenv/pkg/types"
 	"goingenv/pkg/utils"
 )
@@ -22,7 +17,7 @@ func newPackCommand() *cobra.Command {
 		Use:   "pack",
 		Short: "Pack and encrypt environment files",
 		Long: `Scan for environment files in the specified directory and create an encrypted archive.
-		
+
 The pack command will:
 - Scan for common environment file patterns (.env, .env.local, etc.)
 - Calculate checksums for integrity verification
@@ -37,7 +32,6 @@ Examples:
 		RunE: runPackCommand,
 	}
 
-	// Add flags
 	cmd.Flags().String("password-env", "", "Read password from environment variable")
 	cmd.Flags().StringP("directory", "d", "", "Directory to scan (default: current directory)")
 	cmd.Flags().StringP("output", "o", "", "Output archive name (default: auto-generated with timestamp)")
@@ -50,190 +44,52 @@ Examples:
 	return cmd
 }
 
-// runPackCommand executes the pack command
-func runPackCommand(cmd *cobra.Command, args []string) error {
-	// Check if GoingEnv is initialized
-	if !config.IsInitialized() {
-		return fmt.Errorf("goingenv is not initialized in this directory. Run 'goingenv init' first")
+// showScanOpts displays scan options in verbose mode
+func showScanOpts(opts *types.ScanOptions, verbose bool) {
+	if !verbose {
+		return
 	}
+	fmt.Printf("Scanning directory: %s\n", opts.RootPath)
+	fmt.Printf("Maximum depth: %d\n", opts.MaxDepth)
+	fmt.Printf("Include patterns: %v\n", opts.Patterns)
+	fmt.Printf("Exclude patterns: %v\n", opts.ExcludePatterns)
+	fmt.Println()
+}
 
-	// Initialize application
-	app, err := NewApp()
-	if err != nil {
-		return fmt.Errorf("failed to initialize application: %w", err)
-	}
-
-	// Parse flags with error handling
-	directory, err := cmd.Flags().GetString("directory")
-	if err != nil {
-		return fmt.Errorf("failed to get directory flag: %w", err)
-	}
-	if directory == "" {
-		directory = "."
-	}
-
-	output, err := cmd.Flags().GetString("output")
-	if err != nil {
-		return fmt.Errorf("failed to get output flag: %w", err)
-	}
-	if output == "" {
-		output = config.GetDefaultArchivePath()
-	} else {
-		// Ensure output is in .goingenv directory
-		if !filepath.IsAbs(output) {
-			output = filepath.Join(config.GetGoingEnvDir(), output)
-		}
-	}
-
-	passwordEnv, err := cmd.Flags().GetString("password-env")
-	if err != nil {
-		return fmt.Errorf("failed to get password-env flag: %w", err)
-	}
-	depth, err := cmd.Flags().GetInt("depth")
-	if err != nil {
-		return fmt.Errorf("failed to get depth flag: %w", err)
-	}
-	includePatterns, err := cmd.Flags().GetStringSlice("include")
-	if err != nil {
-		return fmt.Errorf("failed to get include flag: %w", err)
-	}
-	excludePatterns, err := cmd.Flags().GetStringSlice("exclude")
-	if err != nil {
-		return fmt.Errorf("failed to get exclude flag: %w", err)
-	}
-	dryRun, err := cmd.Flags().GetBool("dry-run")
-	if err != nil {
-		return fmt.Errorf("failed to get dry-run flag: %w", err)
-	}
-	verbose, err := cmd.Flags().GetBool("verbose")
-	if err != nil {
-		return fmt.Errorf("failed to get verbose flag: %w", err)
-	}
-
-	// Get password using secure methods
-	passwordOpts := password.Options{
-		PasswordEnv: passwordEnv,
-	}
-
-	// Validate password options
-	if err := password.ValidatePasswordOptions(passwordOpts); err != nil {
-		return fmt.Errorf("invalid password options: %w", err)
-	}
-
-	key, err := password.GetPassword(passwordOpts)
-	if err != nil {
-		return fmt.Errorf("failed to get password: %w", err)
-	}
-
-	// Ensure password is cleared from memory when done
-	defer password.ClearPassword(&key)
-
-	// Prepare scan options
-	scanOpts := types.ScanOptions{
-		RootPath:        directory,
-		MaxDepth:        depth,
-		Patterns:        includePatterns,
-		ExcludePatterns: excludePatterns,
-	}
-
-	// Use config defaults if not specified
-	if scanOpts.MaxDepth == 0 {
-		scanOpts.MaxDepth = app.Config.DefaultDepth
-	}
-	if len(scanOpts.Patterns) == 0 {
-		scanOpts.Patterns = app.Config.EnvPatterns
-	}
-	if len(scanOpts.ExcludePatterns) == 0 {
-		scanOpts.ExcludePatterns = app.Config.ExcludePatterns
-	} else {
-		// Merge with config excludes
-		scanOpts.ExcludePatterns = append(scanOpts.ExcludePatterns, app.Config.ExcludePatterns...)
-	}
-
-	if verbose {
-		fmt.Printf("Scanning directory: %s\n", directory)
-		fmt.Printf("Maximum depth: %d\n", scanOpts.MaxDepth)
-		fmt.Printf("Include patterns: %v\n", scanOpts.Patterns)
-		fmt.Printf("Exclude patterns: %v\n", scanOpts.ExcludePatterns)
-		fmt.Println()
-	}
-
-	// Scan for files
-	files, err := app.Scanner.ScanFiles(scanOpts)
-	if err != nil {
-		return fmt.Errorf("error scanning files: %w", err)
-	}
-
-	if len(files) == 0 {
-		fmt.Println("No environment files found matching the specified criteria.")
-		if verbose {
-			fmt.Println("\nTip: Use 'goingenv status' to see what files are detected with current settings.")
-		}
-		return nil
-	}
-
-	// Display found files
+// showFiles displays found files and returns total size
+func showFiles(files []types.EnvFile, verbose bool) int64 {
 	fmt.Printf("Found %d environment files:\n", len(files))
 	var totalSize int64
 	for _, file := range files {
 		totalSize += file.Size
 		if verbose {
-			fmt.Printf("  • %s (%s) - %s - %s\n",
+			fmt.Printf("  - %s (%s) - %s - %s\n",
 				file.RelativePath,
 				utils.FormatSize(file.Size),
 				file.ModTime.Format("2006-01-02 15:04:05"),
 				file.Checksum[:8]+"...")
 		} else {
-			fmt.Printf("  • %s (%s)\n", file.RelativePath, utils.FormatSize(file.Size))
+			fmt.Printf("  - %s (%s)\n", file.RelativePath, utils.FormatSize(file.Size))
 		}
 	}
 	fmt.Printf("\nTotal size: %s\n", utils.FormatSize(totalSize))
+	return totalSize
+}
 
-	// Dry run - exit here if requested
-	if dryRun {
-		fmt.Printf("\nDry run completed. Archive would be created at: %s\n", output)
-		return nil
-	}
+// doPack performs the actual packing
+func doPack(app *types.App, opts types.PackOptions) (time.Duration, error) {
+	start := time.Now()
+	err := app.Archiver.Pack(opts)
+	return time.Since(start), err
+}
 
-	// Confirm before proceeding (unless in non-interactive mode)
-	if term.IsTerminal(int(syscall.Stdin)) {
-		fmt.Printf("\nProceed with packing to %s? [y/N]: ", output)
-		var response string
-		fmt.Scanln(&response)
-		if response != "y" && response != "Y" && response != "yes" {
-			fmt.Println("Operation cancelled.")
-			return nil
-		}
-	}
-
-	// Prepare pack options
-	packOpts := types.PackOptions{
-		Files:      files,
-		OutputPath: output,
-		Password:   key,
-		Description: fmt.Sprintf("Environment files archive created on %s from %s",
-			time.Now().Format("2006-01-02 15:04:05"), directory),
-	}
-
-	if verbose {
-		fmt.Printf("\nPacking files to %s...\n", output)
-	}
-
-	// Pack files
-	startTime := time.Now()
-	err = app.Archiver.Pack(packOpts)
-	if err != nil {
-		return fmt.Errorf("error packing files: %w", err)
-	}
-	duration := time.Since(startTime)
-
-	// Success message
-	fmt.Printf("✅ Successfully packed %d files to %s\n", len(files), output)
+// showPackResult displays pack result
+func showPackResult(output string, count int, totalSize int64, duration time.Duration, verbose bool) {
+	fmt.Printf("Successfully packed %d files to %s\n", count, output)
 
 	if verbose {
 		fmt.Printf("Operation completed in %v\n", duration)
 
-		// Show archive info
 		if info, err := os.Stat(output); err == nil {
 			compressionRatio := float64(info.Size()) / float64(totalSize) * 100
 			fmt.Printf("Archive size: %s (%.1f%% of original)\n",
@@ -246,11 +102,76 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Security reminder
-	fmt.Println("\n🔒 Security reminder:")
-	fmt.Println("   • Store your password securely")
-	fmt.Println("   • Consider backing up the archive to a secure location")
-	fmt.Println("   • Use 'goingenv list' to verify archive contents")
+	fmt.Println("\nSecurity reminder:")
+	fmt.Println("   - Store your password securely")
+	fmt.Println("   - Consider backing up the archive to a secure location")
+	fmt.Println("   - Use 'goingenv list' to verify archive contents")
+}
+
+// runPackCommand executes the pack command
+func runPackCommand(cmd *cobra.Command, args []string) error {
+	app, err := initApp()
+	if err != nil {
+		return err
+	}
+
+	opts, err := parsePackOpts(cmd)
+	if err != nil {
+		return err
+	}
+
+	key, cleanup, err := getPass(opts.PassEnv)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	scanOpts := buildScanOpts(opts, app.Config)
+	showScanOpts(scanOpts, opts.Verbose)
+
+	files, err := app.Scanner.ScanFiles(scanOpts)
+	if err != nil {
+		return fmt.Errorf("error scanning files: %w", err)
+	}
+
+	if len(files) == 0 {
+		fmt.Println("No environment files found matching the specified criteria.")
+		if opts.Verbose {
+			fmt.Println("\nTip: Use 'goingenv status' to see what files are detected with current settings.")
+		}
+		return nil
+	}
+
+	totalSize := showFiles(files, opts.Verbose)
+
+	if opts.DryRun {
+		fmt.Printf("\nDry run completed. Archive would be created at: %s\n", opts.Output)
+		return nil
+	}
+
+	if !confirm(fmt.Sprintf("Proceed with packing to %s?", opts.Output)) {
+		fmt.Println("Operation cancelled.")
+		return nil
+	}
+
+	packOpts := types.PackOptions{
+		Files:      files,
+		OutputPath: opts.Output,
+		Password:   key,
+		Description: fmt.Sprintf("Environment files archive created on %s from %s",
+			time.Now().Format("2006-01-02 15:04:05"), opts.Dir),
+	}
+
+	if opts.Verbose {
+		fmt.Printf("\nPacking files to %s...\n", opts.Output)
+	}
+
+	duration, err := doPack(app, packOpts)
+	if err != nil {
+		return fmt.Errorf("error packing files: %w", err)
+	}
+
+	showPackResult(opts.Output, len(files), totalSize, duration, opts.Verbose)
 
 	return nil
 }
