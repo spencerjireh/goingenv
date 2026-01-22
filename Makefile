@@ -96,6 +96,8 @@ ci-test:
 	go test -race -timeout=5m ./pkg/... ./internal/...
 	@echo -e "$(BLUE)Running integration tests...$(NC)"
 	go test -v -timeout=2m ./test/integration/...
+	@echo -e "$(BLUE)Running e2e tests...$(NC)"
+	go test -v -timeout=5m ./test/e2e/...
 	@echo -e "$(GREEN)All tests passed$(NC)"
 
 ci-lint:
@@ -306,7 +308,8 @@ test-complete: clean
 	@echo ""
 	@echo -e "$(GREEN)🎉 Complete test suite passed!$(NC)"
 	@echo "✓ Unit tests with race detection"
-	@echo "✓ Integration tests" 
+	@echo "✓ Integration tests"
+	@echo "✓ E2E tests"
 	@echo "✓ Functional workflow tests"
 
 # Quick release commands for common scenarios
@@ -443,6 +446,11 @@ test-integration:
 	@echo -e "$(BLUE)Running integration tests...$(NC)"
 	go test -v -run TestFull ./test/integration/...
 	@echo "Integration tests completed$(NC)\""
+
+test-e2e:
+	@echo -e "$(BLUE)Running e2e tests...$(NC)"
+	go test -v -timeout=5m ./test/e2e/...
+	@echo -e "$(GREEN)E2E tests completed$(NC)"
 
 test-coverage:
 	@echo -e "$(BLUE)Running tests with coverage...$(NC)"
@@ -747,8 +755,9 @@ help:
 	@echo " test           - Run all tests"
 	@echo " test-unit      - Run unit tests only"
 	@echo " test-integration - Run integration tests only"
+	@echo " test-e2e       - Run e2e tests only"
 	@echo " test-functional - Run automated functional workflow tests"
-	@echo " test-complete  - Run complete test suite (unit + integration + functional)"
+	@echo " test-complete  - Run complete test suite (unit + integration + e2e + functional)"
 	@echo " test-coverage  - Run tests with coverage report"
 	@echo " test-coverage-ci - Run tests with coverage for CI"
 	@echo " test-watch     - Run tests in watch mode (requires air)"
@@ -804,7 +813,7 @@ help:
 	@echo "Use commit message flags: [major], [minor], [skip-release]"
 
 # Phony targets
-.PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration \
+.PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration test-e2e \
         test-functional test-complete test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
         generate-mocks bench check check-full build-all build-linux build-darwin \
         build-windows install uninstall release release-all release-checksums checksums run run-pack run-unpack \
