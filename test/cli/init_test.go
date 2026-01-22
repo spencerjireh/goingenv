@@ -55,7 +55,7 @@ func TestInit_WithForceFlag(t *testing.T) {
 
 	// Create a marker file to verify reinitialization
 	markerPath := filepath.Join(tmpDir, ".goingenv", "marker.txt")
-	if err := os.WriteFile(markerPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(markerPath, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create marker file: %v", err)
 	}
 
@@ -81,7 +81,7 @@ func TestInit_CreatesGitignore(t *testing.T) {
 	// Verify .gitignore exists and has some content
 	// The gitignore should NOT have a line that ignores *.enc files for safe transfer
 	// (*.enc may appear in comments explaining this)
-	if len(content) == 0 {
+	if content == "" {
 		t.Error("Expected .gitignore to have content")
 	}
 
@@ -127,8 +127,8 @@ func TestInit_DirectoryPermissions(t *testing.T) {
 
 	// Check permissions (should be readable/writable by owner)
 	mode := info.Mode()
-	if mode.Perm()&0700 != 0700 {
-		t.Errorf("Expected .goingenv to have at least 0700 permissions, got %o", mode.Perm())
+	if mode.Perm()&0o700 != 0o700 {
+		t.Errorf("Expected .goingenv to have at least 0o700 permissions, got %o", mode.Perm())
 	}
 }
 
@@ -138,7 +138,7 @@ func TestInit_InSubdirectory(t *testing.T) {
 
 	// Create a subdirectory
 	subDir := filepath.Join(tmpDir, "project")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		t.Fatalf("Failed to create subdirectory: %v", err)
 	}
 

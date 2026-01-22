@@ -128,10 +128,10 @@ func TestPack_WithDepthLimit(t *testing.T) {
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("Failed to create directory: %v", err)
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -161,10 +161,10 @@ func TestPack_ExcludedDirectories(t *testing.T) {
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("Failed to create directory: %v", err)
 		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -183,7 +183,7 @@ func TestPack_StandardPatterns(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tmpDir, cleanup := testutils.SetupPatternTestCaseWithInit(t, tc)
+			tmpDir, cleanup := testutils.SetupPatternTestCaseWithInit(t, &tc)
 			defer cleanup()
 
 			fixtures := testutils.GetTestFixtures()
@@ -216,7 +216,7 @@ func TestPack_FalsePositivePatterns(t *testing.T) {
 
 			// Add a valid .env file so pack has something to do
 			validEnvPath := filepath.Join(tmpDir, ".env")
-			if err := os.WriteFile(validEnvPath, []byte("VALID=value"), 0644); err != nil {
+			if err := os.WriteFile(validEnvPath, []byte("VALID=value"), 0o644); err != nil {
 				t.Fatalf("Failed to create valid .env file: %v", err)
 			}
 
@@ -272,7 +272,7 @@ func TestPack_SpecialCharactersInFilename(t *testing.T) {
 
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -298,7 +298,7 @@ func TestPack_UnicodeInSuffix(t *testing.T) {
 
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -317,13 +317,13 @@ func TestPack_LongSuffix(t *testing.T) {
 
 	// Create .env file with very long suffix
 	files := map[string]string{
-		".env": "BASE=value",
+		".env":                              "BASE=value",
 		".env.development.local.backup.old": "LONG_SUFFIX=value",
 	}
 
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -342,7 +342,7 @@ func TestPack_SymlinksSkipped(t *testing.T) {
 
 	// Create a real .env file
 	realEnvPath := filepath.Join(tmpDir, ".env.real")
-	if err := os.WriteFile(realEnvPath, []byte("REAL=value"), 0644); err != nil {
+	if err := os.WriteFile(realEnvPath, []byte("REAL=value"), 0o644); err != nil {
 		t.Fatalf("Failed to create real .env file: %v", err)
 	}
 
@@ -392,7 +392,7 @@ func TestPack_WithIncludePattern(t *testing.T) {
 
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -420,7 +420,7 @@ func TestPack_WithExcludePattern(t *testing.T) {
 
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -498,7 +498,7 @@ func TestPack_WhitespaceOnlyEnvFile(t *testing.T) {
 
 	// Create .env file with only whitespace
 	envPath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(envPath, []byte("   \n\t\n  "), 0644); err != nil {
+	if err := os.WriteFile(envPath, []byte("   \n\t\n  "), 0o644); err != nil {
 		t.Fatalf("Failed to create .env file: %v", err)
 	}
 
@@ -528,7 +528,7 @@ func TestPack_MixedValidAndInvalidPatterns(t *testing.T) {
 		ShouldNotMatch: []string{"not.env", "env", ".environment", "config/env.txt"},
 	}
 
-	tmpDir, cleanup := testutils.SetupPatternTestCaseWithInit(t, tc)
+	tmpDir, cleanup := testutils.SetupPatternTestCaseWithInit(t, &tc)
 	defer cleanup()
 
 	fixtures := testutils.GetTestFixtures()

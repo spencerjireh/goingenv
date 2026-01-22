@@ -49,7 +49,7 @@ func readPasswordFromEnv(envVar string) (string, error) {
 // readPasswordInteractively prompts user for password with hidden input
 func readPasswordInteractively() (string, error) {
 	fmt.Print("Enter encryption password: ")
-	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
+	passwordBytes, err := term.ReadPassword(syscall.Stdin)
 	fmt.Println() // Add newline after hidden input
 
 	if err != nil {

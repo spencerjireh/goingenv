@@ -53,8 +53,8 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 	fmt.Println("Initializing goingenv in current directory...")
 
 	// Create .goingenv directory with proper gitignore
-	if err := config.InitializeProject(); err != nil {
-		return fmt.Errorf("failed to initialize project: %w", err)
+	if initErr := config.InitializeProject(); initErr != nil {
+		return fmt.Errorf("failed to initialize project: %w", initErr)
 	}
 
 	// Ensure configuration exists in home directory
@@ -108,7 +108,7 @@ func ensureProjectGitignore() error {
 	// Check if .goingenv/ is already in gitignore
 	if filepath.Base(content) != "" {
 		// Simple check - if .goingenv appears anywhere in the file, assume it's handled
-		if len(content) > 0 && (contains(content, ".goingenv/") || contains(content, ".goingenv")) {
+		if content != "" && (contains(content, ".goingenv/") || contains(content, ".goingenv")) {
 			return nil
 		}
 	}
@@ -120,7 +120,7 @@ func ensureProjectGitignore() error {
 	content += "\n# goingenv directory\n.goingenv/\n"
 
 	// Write back to .gitignore
-	if err := os.WriteFile(gitignorePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(gitignorePath, []byte(content), 0o644); err != nil { //nolint:gosec // G306: gitignore should be readable
 		return fmt.Errorf("failed to write .gitignore: %w", err)
 	}
 

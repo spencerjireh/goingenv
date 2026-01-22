@@ -9,7 +9,11 @@
       "Bash(go build:*)",
       "Bash(tree:*)",
       "Bash(go run:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:golangci-lint.run)",
+      "Bash(~/go/bin/golangci-lint run:*)"
     ]
   }
 }

@@ -152,7 +152,7 @@ func TestE2E_PatternMatching(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tmpDir, cleanup := testutils.SetupPatternTestCase(t, tc)
+			tmpDir, cleanup := testutils.SetupPatternTestCase(t, &tc)
 			defer cleanup()
 
 			fixtures := testutils.GetTestFixtures()
@@ -180,7 +180,7 @@ func TestE2E_ExcludedDirectories(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tmpDir, cleanup := testutils.SetupPatternTestCase(t, tc)
+			tmpDir, cleanup := testutils.SetupPatternTestCase(t, &tc)
 			defer cleanup()
 
 			fixtures := testutils.GetTestFixtures()
@@ -208,7 +208,7 @@ func TestE2E_DepthLimits(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tmpDir, cleanup := testutils.SetupPatternTestCase(t, tc)
+			tmpDir, cleanup := testutils.SetupPatternTestCase(t, &tc)
 			defer cleanup()
 
 			fixtures := testutils.GetTestFixtures()
@@ -291,7 +291,7 @@ func TestE2E_SymlinkSkipping(t *testing.T) {
 
 	// Create real .env file
 	realEnvPath := filepath.Join(tmpDir, ".env.real")
-	if err := os.WriteFile(realEnvPath, []byte("REAL=value"), 0644); err != nil {
+	if err := os.WriteFile(realEnvPath, []byte("REAL=value"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
@@ -409,7 +409,7 @@ func TestE2E_EdgeCases(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tmpDir, cleanup := testutils.SetupPatternTestCase(t, tc)
+			tmpDir, cleanup := testutils.SetupPatternTestCase(t, &tc)
 			defer cleanup()
 
 			fixtures := testutils.GetTestFixtures()
@@ -442,7 +442,7 @@ func TestE2E_FalsePositives(t *testing.T) {
 
 			// Add a valid .env file so pack has something to do
 			validEnvPath := filepath.Join(tmpDir, ".env")
-			if err := os.WriteFile(validEnvPath, []byte("VALID=value"), 0644); err != nil {
+			if err := os.WriteFile(validEnvPath, []byte("VALID=value"), 0o644); err != nil {
 				t.Fatalf("Failed to create valid .env: %v", err)
 			}
 
@@ -475,7 +475,7 @@ func TestE2E_BinaryPerformance(t *testing.T) {
 			path = filepath.Join(tmpDir, ".env."+string(rune('a'+i%26))+string(rune('0'+i/26)))
 		}
 		content := "VAR_" + string(rune('A'+i%26)) + "=value_" + string(rune('0'+i))
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}

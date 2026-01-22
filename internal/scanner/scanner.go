@@ -24,118 +24,149 @@ func NewService(config *types.Config) *Service {
 	}
 }
 
-// ScanFiles scans for environment files based on the provided options
-func (s *Service) ScanFiles(opts types.ScanOptions) ([]types.EnvFile, error) {
-	var files []types.EnvFile
+// scanContext holds compiled patterns for scanning
+type scanContext struct {
+	root        string
+	maxDepth    int
+	maxFileSize int64
+	include     []*regexp.Regexp
+	exclude     []*regexp.Regexp
+	envExclude  []*regexp.Regexp
+}
 
-	// Use default values if not provided
-	if opts.RootPath == "" {
-		opts.RootPath = "."
-	}
-	if opts.MaxDepth == 0 {
-		opts.MaxDepth = s.config.DefaultDepth
-	}
-	if len(opts.Patterns) == 0 {
-		opts.Patterns = s.config.EnvPatterns
-	}
-	if len(opts.EnvExcludePatterns) == 0 {
-		opts.EnvExcludePatterns = s.config.EnvExcludePatterns
-	}
-	if len(opts.ExcludePatterns) == 0 {
-		opts.ExcludePatterns = s.config.ExcludePatterns
-	}
-
-	// Compile regex patterns for efficiency
-	envRegexes, err := compilePatterns(opts.Patterns)
+// newScanContext creates a scan context with compiled patterns
+func newScanContext(opts *types.ScanOptions, cfg *types.Config) (*scanContext, error) {
+	include, err := compilePatterns(opts.Patterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile env patterns: %w", err)
 	}
 
-	envExcludeRegexes, err := compilePatterns(opts.EnvExcludePatterns)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compile env exclude patterns: %w", err)
-	}
-
-	excludeRegexes, err := compilePatterns(opts.ExcludePatterns)
+	exclude, err := compilePatterns(opts.ExcludePatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile exclude patterns: %w", err)
 	}
 
-	err = filepath.Walk(opts.RootPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return &types.ScanError{Path: path, Err: err}
+	envExclude, err := compilePatterns(opts.EnvExcludePatterns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile env exclude patterns: %w", err)
+	}
+
+	return &scanContext{
+		root:        opts.RootPath,
+		maxDepth:    opts.MaxDepth,
+		maxFileSize: cfg.MaxFileSize,
+		include:     include,
+		exclude:     exclude,
+		envExclude:  envExclude,
+	}, nil
+}
+
+// matchesAny returns true if name matches any pattern (pure function)
+func matchesAny(name string, patterns []*regexp.Regexp) bool {
+	for _, p := range patterns {
+		if p.MatchString(name) {
+			return true
+		}
+	}
+	return false
+}
+
+// exceedsDepth returns true if path exceeds max depth (pure function)
+func exceedsDepth(relPath string, maxDepth int) bool {
+	return strings.Count(relPath, string(filepath.Separator)) > maxDepth
+}
+
+// shouldSkipDir returns true if directory should be skipped
+func (sc *scanContext) shouldSkipDir(path string) bool {
+	return matchesAny(path+"/", sc.exclude)
+}
+
+// shouldInclude returns true if file should be included
+func (sc *scanContext) shouldInclude(name string, size int64) bool {
+	if size > sc.maxFileSize {
+		return false
+	}
+	if !matchesAny(name, sc.include) {
+		return false
+	}
+	if matchesAny(name, sc.envExclude) {
+		return false
+	}
+	return true
+}
+
+// applyDefaults fills in missing options from config
+func applyDefaults(opts *types.ScanOptions, cfg *types.Config) {
+	if opts.RootPath == "" {
+		opts.RootPath = "."
+	}
+	if opts.MaxDepth == 0 {
+		opts.MaxDepth = cfg.DefaultDepth
+	}
+	if len(opts.Patterns) == 0 {
+		opts.Patterns = cfg.EnvPatterns
+	}
+	if len(opts.EnvExcludePatterns) == 0 {
+		opts.EnvExcludePatterns = cfg.EnvExcludePatterns
+	}
+	if len(opts.ExcludePatterns) == 0 {
+		opts.ExcludePatterns = cfg.ExcludePatterns
+	}
+}
+
+// ScanFiles scans for environment files based on the provided options
+func (s *Service) ScanFiles(opts *types.ScanOptions) ([]types.EnvFile, error) {
+	applyDefaults(opts, s.config)
+
+	sc, err := newScanContext(opts, s.config)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []types.EnvFile
+	err = filepath.Walk(opts.RootPath, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return &types.ScanError{Path: path, Err: walkErr}
 		}
 
-		// Calculate relative path and depth
-		relPath, err := filepath.Rel(opts.RootPath, path)
-		if err != nil {
-			return &types.ScanError{Path: path, Err: err}
+		relPath, relErr := filepath.Rel(sc.root, path)
+		if relErr != nil {
+			return &types.ScanError{Path: path, Err: relErr}
 		}
 
-		depth := strings.Count(relPath, string(filepath.Separator))
-		if depth > opts.MaxDepth {
+		if exceedsDepth(relPath, sc.maxDepth) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		// Skip directories, but check for exclusion patterns
 		if info.IsDir() {
-			// Check if this directory should be excluded
-			for _, regex := range excludeRegexes {
-				if regex.MatchString(path + "/") {
-					return filepath.SkipDir
-				}
+			if sc.shouldSkipDir(path) {
+				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		// Check file size limit
-		if info.Size() > s.config.MaxFileSize {
-			// Log or handle oversized files if needed
+		if !sc.shouldInclude(info.Name(), info.Size()) {
 			return nil
 		}
 
-		// Check if file matches environment patterns
-		matched := false
-		for _, regex := range envRegexes {
-			if regex.MatchString(info.Name()) {
-				matched = true
-				break
-			}
-		}
-
-		if !matched {
-			return nil
-		}
-
-		// Check if file matches env exclusion patterns
-		for _, regex := range envExcludeRegexes {
-			if regex.MatchString(info.Name()) {
-				return nil // Skip this file as it matches exclusion pattern
-			}
-		}
-
-		// Calculate checksum
-		checksum, err := s.calculateChecksum(path)
-		if err != nil {
+		checksum, checksumErr := s.calculateChecksum(path)
+		if checksumErr != nil {
 			return &types.ScanError{
 				Path: path,
-				Err:  fmt.Errorf("failed to calculate checksum: %w", err),
+				Err:  fmt.Errorf("failed to calculate checksum: %w", checksumErr),
 			}
 		}
 
-		// Create EnvFile record
-		envFile := types.EnvFile{
+		files = append(files, types.EnvFile{
 			Path:         path,
 			RelativePath: relPath,
 			Size:         info.Size(),
 			ModTime:      info.ModTime(),
 			Checksum:     checksum,
-		}
-
-		files = append(files, envFile)
+		})
 		return nil
 	})
 

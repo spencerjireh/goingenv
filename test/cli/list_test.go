@@ -102,7 +102,7 @@ func TestList_AllArchives(t *testing.T) {
 
 	// Modify a file and create second archive
 	envPath := filepath.Join(tmpDir, ".env")
-	if err := os.WriteFile(envPath, []byte("MODIFIED=true"), 0644); err != nil {
+	if err := os.WriteFile(envPath, []byte("MODIFIED=true"), 0o644); err != nil {
 		t.Fatalf("Failed to modify .env: %v", err)
 	}
 
@@ -144,7 +144,7 @@ func TestList_ShowsFileMetadata(t *testing.T) {
 
 	for path, content := range files {
 		fullPath := filepath.Join(tmpDir, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -214,7 +214,7 @@ func TestList_ArchiveWithManyFiles(t *testing.T) {
 			path = filepath.Join(tmpDir, ".env."+string(rune('a'+i-1)))
 		}
 		content := "VAR_" + string(rune('A'+i)) + "=value"
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
 	}
@@ -305,7 +305,7 @@ func TestList_ArchiveIntegrity(t *testing.T) {
 	}
 
 	corruptedPath := filepath.Join(tmpDir, ".goingenv", "corrupted.enc")
-	if err := os.WriteFile(corruptedPath, content, 0644); err != nil {
+	if err := os.WriteFile(corruptedPath, content, 0o644); err != nil {
 		t.Fatalf("Failed to write corrupted archive: %v", err)
 	}
 

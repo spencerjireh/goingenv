@@ -214,13 +214,13 @@ func GetExcludedDirCases() []PatternTestCase {
 			Name:        "MultipleExcludedDirs",
 			Description: "Multiple excluded directories in one test",
 			Files: map[string]string{
-				".env":                         "ROOT=value",
-				"config/.env":                  "CONFIG=value",
-				"node_modules/.env":            "NM_EXCLUDED=value",
-				"node_modules/package/.env":    "NM_PKG_EXCLUDED=value",
-				".git/.env":                    "GIT_EXCLUDED=value",
-				"vendor/.env":                  "VENDOR_EXCLUDED=value",
-				"vendor/github.com/pkg/.env":   "VENDOR_DEEP_EXCLUDED=value",
+				".env":                       "ROOT=value",
+				"config/.env":                "CONFIG=value",
+				"node_modules/.env":          "NM_EXCLUDED=value",
+				"node_modules/package/.env":  "NM_PKG_EXCLUDED=value",
+				".git/.env":                  "GIT_EXCLUDED=value",
+				"vendor/.env":                "VENDOR_EXCLUDED=value",
+				"vendor/github.com/pkg/.env": "VENDOR_DEEP_EXCLUDED=value",
 			},
 			ShouldMatch:    []string{".env", "config/.env"},
 			ShouldNotMatch: []string{"node_modules/.env", ".git/.env", "vendor/.env"},
@@ -305,10 +305,10 @@ func GetEdgeCaseCases() []PatternTestCase {
 			Name:        "SpecialCharsInName",
 			Description: ".env files with special characters in suffix",
 			Files: map[string]string{
-				".env-backup":    "BACKUP=value",
-				".env_old":       "OLD=value",
-				".env.backup":    "BACKUP2=value",
-				".env.2024-01":   "DATED=value",
+				".env-backup":  "BACKUP=value",
+				".env_old":     "OLD=value",
+				".env.backup":  "BACKUP2=value",
+				".env.2024-01": "DATED=value",
 			},
 			ShouldMatch:    []string{".env-backup", ".env_old", ".env.backup", ".env.2024-01"},
 			ShouldNotMatch: []string{},
@@ -317,9 +317,9 @@ func GetEdgeCaseCases() []PatternTestCase {
 			Name:        "UnicodeInSuffix",
 			Description: ".env files with unicode in suffix",
 			Files: map[string]string{
-				".env.produccion":   "ES_PROD=value", // Spanish
-				".env.entwicklung":  "DE_DEV=value",  // German
-				".env.production":   "EN_PROD=value",
+				".env.produccion":  "ES_PROD=value", // Spanish
+				".env.entwicklung": "DE_DEV=value",  // German
+				".env.production":  "EN_PROD=value",
 			},
 			ShouldMatch:    []string{".env.produccion", ".env.entwicklung", ".env.production"},
 			ShouldNotMatch: []string{},
@@ -347,13 +347,13 @@ func GetEdgeCaseCases() []PatternTestCase {
 			Name:        "MixedValidAndInvalid",
 			Description: "Mix of valid and invalid files",
 			Files: map[string]string{
-				".env":             "VALID=value",
-				".env.local":       "VALID_LOCAL=value",
-				"not.env":          "INVALID=value",
-				"env":              "INVALID2=value",
-				".environment":     "INVALID3=value",
-				"config/.env":      "VALID_CONFIG=value",
-				"config/env.json":  `{"invalid": true}`,
+				".env":            "VALID=value",
+				".env.local":      "VALID_LOCAL=value",
+				"not.env":         "INVALID=value",
+				"env":             "INVALID2=value",
+				".environment":    "INVALID3=value",
+				"config/.env":     "VALID_CONFIG=value",
+				"config/env.json": `{"invalid": true}`,
 			},
 			ShouldMatch:    []string{".env", ".env.local", "config/.env"},
 			ShouldNotMatch: []string{"not.env", "env", ".environment", "config/env.json"},
@@ -416,11 +416,11 @@ func CreatePatternTestDir(t *testing.T, files map[string]string) string {
 		fullPath := filepath.Join(tmpDir, path)
 		dir := filepath.Dir(fullPath)
 
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("Failed to create directory %s: %v", dir, err)
 		}
 
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o600); err != nil {
 			t.Fatalf("Failed to create file %s: %v", fullPath, err)
 		}
 	}
@@ -434,7 +434,7 @@ func CreateSymlink(t *testing.T, target, linkPath string) {
 
 	// Ensure parent directory exists
 	dir := filepath.Dir(linkPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		t.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 
@@ -448,7 +448,7 @@ func CreateEmptyFile(t *testing.T, path string) {
 	t.Helper()
 
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		t.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 
@@ -456,7 +456,7 @@ func CreateEmptyFile(t *testing.T, path string) {
 	if err != nil {
 		t.Fatalf("Failed to create empty file %s: %v", path, err)
 	}
-	file.Close()
+	_ = file.Close()
 }
 
 // CreateBinaryFile creates a file with binary content for testing
@@ -464,11 +464,11 @@ func CreateBinaryFile(t *testing.T, path string, content []byte) {
 	t.Helper()
 
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		t.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 
-	if err := os.WriteFile(path, content, 0644); err != nil {
+	if err := os.WriteFile(path, content, 0o600); err != nil {
 		t.Fatalf("Failed to create binary file %s: %v", path, err)
 	}
 }
@@ -485,27 +485,27 @@ func GetAllPatternCases() []PatternTestCase {
 
 // SetupPatternTestCase creates a temp directory with the test case files
 // Returns the directory path and a cleanup function
-func SetupPatternTestCase(t *testing.T, tc PatternTestCase) (string, func()) {
+func SetupPatternTestCase(t *testing.T, tc *PatternTestCase) (dir string, cleanup func()) {
 	t.Helper()
 
 	tmpDir := CreatePatternTestDir(t, tc.Files)
 
-	cleanup := func() {
-		os.RemoveAll(tmpDir)
+	cleanup = func() {
+		_ = os.RemoveAll(tmpDir)
 	}
 
 	return tmpDir, cleanup
 }
 
 // SetupPatternTestCaseWithInit creates a temp directory with test files and initializes goingenv
-func SetupPatternTestCaseWithInit(t *testing.T, tc PatternTestCase) (string, func()) {
+func SetupPatternTestCaseWithInit(t *testing.T, tc *PatternTestCase) (dir string, cleanup func()) {
 	t.Helper()
 
 	tmpDir := CreatePatternTestDir(t, tc.Files)
 	CreateTempGoingEnvDir(t, tmpDir)
 
-	cleanup := func() {
-		os.RemoveAll(tmpDir)
+	cleanup = func() {
+		_ = os.RemoveAll(tmpDir)
 	}
 
 	return tmpDir, cleanup
@@ -513,10 +513,10 @@ func SetupPatternTestCaseWithInit(t *testing.T, tc PatternTestCase) (string, fun
 
 // TestFixtures holds common test data
 type TestFixtures struct {
-	Password        string
-	WrongPassword   string
-	SampleEnvFiles  map[string]string
-	SampleConfig    string
+	Password       string
+	WrongPassword  string
+	SampleEnvFiles map[string]string
+	SampleConfig   string
 }
 
 // GetTestFixtures returns common test fixtures
@@ -540,7 +540,7 @@ func GetTestFixtures() TestFixtures {
 }
 
 // CreateSampleProject creates a sample project structure for testing
-func CreateSampleProject(t *testing.T) (string, func()) {
+func CreateSampleProject(t *testing.T) (dir string, cleanup func()) {
 	t.Helper()
 
 	fixtures := GetTestFixtures()
@@ -549,14 +549,14 @@ func CreateSampleProject(t *testing.T) (string, func()) {
 	// Add some non-env files
 	WriteTestFile(t, filepath.Join(tmpDir, "package.json"), `{"name": "test", "version": "1.0.0"}`)
 	WriteTestFile(t, filepath.Join(tmpDir, "README.md"), "# Test Project")
-	WriteTestFile(t, filepath.Join(tmpDir, "src/index.js"), "console.log('hello');")
+	WriteTestFile(t, filepath.Join(tmpDir, "src", "index.js"), "console.log('hello');")
 
 	// Add excluded directories with env files
-	WriteTestFile(t, filepath.Join(tmpDir, "node_modules/.env"), "NM_EXCLUDED=true")
-	WriteTestFile(t, filepath.Join(tmpDir, "vendor/.env"), "VENDOR_EXCLUDED=true")
+	WriteTestFile(t, filepath.Join(tmpDir, "node_modules", ".env"), "NM_EXCLUDED=true")
+	WriteTestFile(t, filepath.Join(tmpDir, "vendor", ".env"), "VENDOR_EXCLUDED=true")
 
-	cleanup := func() {
-		os.RemoveAll(tmpDir)
+	cleanup = func() {
+		_ = os.RemoveAll(tmpDir)
 	}
 
 	return tmpDir, cleanup

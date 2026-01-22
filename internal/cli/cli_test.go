@@ -189,7 +189,7 @@ func TestCheckFileConflicts(t *testing.T) {
 	// Create some existing files
 	existingFiles := []string{".env", ".env.local"}
 	for _, f := range existingFiles {
-		if err := os.WriteFile(filepath.Join(tmpDir, f), []byte("test"), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, f), []byte("test"), 0o600); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 	}
@@ -389,12 +389,12 @@ func TestNewApp(t *testing.T) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer func() {
-		os.Chdir(originalDir)
-		os.RemoveAll(tmpDir)
+		_ = os.Chdir(originalDir) //nolint:errcheck // cleanup in defer
+		_ = os.RemoveAll(tmpDir)
 	}()
 
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Failed to change directory: %v", err)
+	if chdirErr := os.Chdir(tmpDir); chdirErr != nil {
+		t.Fatalf("Failed to change directory: %v", chdirErr)
 	}
 
 	app, err := NewApp()
@@ -455,8 +455,5 @@ func TestDisplayFilesCSV(t *testing.T) {
 	}
 
 	// Ensure no panic
-	err := displayFilesCSV(files)
-	if err != nil {
-		t.Errorf("displayFilesCSV() error = %v", err)
-	}
+	displayFilesCSV(files)
 }

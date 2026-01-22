@@ -328,7 +328,7 @@ func AssertStderrEmpty(t *testing.T, result CLIResult) {
 
 // CLITestSetup sets up a temporary directory for CLI testing
 // Returns the temp dir path and a cleanup function
-func CLITestSetup(t *testing.T) (string, func()) {
+func CLITestSetup(t *testing.T) (dir string, cleanup func()) {
 	t.Helper()
 
 	tmpDir, err := os.MkdirTemp("", "goingenv-cli-test-*")
@@ -336,21 +336,21 @@ func CLITestSetup(t *testing.T) (string, func()) {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
 
-	cleanup := func() {
-		os.RemoveAll(tmpDir)
+	cleanup = func() {
+		_ = os.RemoveAll(tmpDir)
 	}
 
 	return tmpDir, cleanup
 }
 
 // CLITestSetupWithEnvFiles sets up a temp directory with sample .env files
-func CLITestSetupWithEnvFiles(t *testing.T) (string, func()) {
+func CLITestSetupWithEnvFiles(t *testing.T) (dir string, cleanup func()) {
 	t.Helper()
 
 	tmpDir := CreateTempEnvFiles(t)
 
-	cleanup := func() {
-		os.RemoveAll(tmpDir)
+	cleanup = func() {
+		_ = os.RemoveAll(tmpDir)
 	}
 
 	return tmpDir, cleanup
@@ -379,7 +379,7 @@ func InitializeTestDirWithBinary(t *testing.T, binaryPath, dir string) {
 // CleanupBinary removes the cached binary (call in TestMain cleanup)
 func CleanupBinary() {
 	if binaryPath != "" {
-		os.RemoveAll(filepath.Dir(binaryPath))
+		_ = os.RemoveAll(filepath.Dir(binaryPath))
 	}
 }
 

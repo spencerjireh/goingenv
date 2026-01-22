@@ -62,10 +62,10 @@ func TestCalculateFileChecksum(t *testing.T) {
 
 	// Write test content
 	testContent := "Hello, World!"
-	if _, err := tmpFile.WriteString(testContent); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
+	if _, writeErr := tmpFile.WriteString(testContent); writeErr != nil {
+		t.Fatalf("Failed to write to temp file: %v", writeErr)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	// Calculate checksum
 	checksum, err := CalculateFileChecksum(tmpFile.Name())
