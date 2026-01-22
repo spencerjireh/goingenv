@@ -13,7 +13,8 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:golangci-lint.run)",
-      "Bash(~/go/bin/golangci-lint run:*)"
+      "Bash(~/go/bin/golangci-lint run:*)",
+      "Bash(make test-complete:*)"
     ]
   }
 }
