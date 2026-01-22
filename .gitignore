@@ -73,3 +73,5 @@ temp/
 
 # Air hot-reload artifacts
 .air.toml.bak
+
+.claude/

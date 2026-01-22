@@ -6,7 +6,10 @@
       "Bash(go test:*)",
       "Bash(wc:*)",
       "Bash(go tool cover:*)",
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+      "Bash(tree:*)",
+      "Bash(go run:*)",
+      "Bash(ls:*)"
     ]
   }
 }
