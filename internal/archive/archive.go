@@ -60,6 +60,16 @@ func (s *Service) Pack(opts types.PackOptions) error {
 			Err:       fmt.Errorf("failed to create temporary file: %w", err),
 		}
 	}
+	// Secure temp file permissions immediately
+	if err := tmpFile.Chmod(0600); err != nil {
+		os.Remove(tmpFile.Name())
+		tmpFile.Close()
+		return &types.ArchiveError{
+			Operation: "pack",
+			Path:      opts.OutputPath,
+			Err:       fmt.Errorf("failed to secure temporary file: %w", err),
+		}
+	}
 	defer os.Remove(tmpFile.Name())
 	defer tmpFile.Close()
 
@@ -124,8 +134,8 @@ func (s *Service) Pack(opts types.PackOptions) error {
 		}
 	}
 
-	// Write encrypted data to output file
-	if err := os.WriteFile(opts.OutputPath, encryptedData, 0644); err != nil {
+	// Write encrypted data to output file with restrictive permissions
+	if err := os.WriteFile(opts.OutputPath, encryptedData, 0600); err != nil {
 		return &types.ArchiveError{
 			Operation: "pack",
 			Path:      opts.OutputPath,
@@ -134,6 +144,24 @@ func (s *Service) Pack(opts types.PackOptions) error {
 	}
 
 	return nil
+}
+
+// isPathSafe validates that targetPath is safely within basePath
+// Returns false if path traversal is detected
+func isPathSafe(basePath, targetPath string) bool {
+	absBase, err := filepath.Abs(basePath)
+	if err != nil {
+		return false
+	}
+	absTarget, err := filepath.Abs(targetPath)
+	if err != nil {
+		return false
+	}
+	// Ensure the base path ends with separator for accurate prefix matching
+	if !strings.HasSuffix(absBase, string(filepath.Separator)) {
+		absBase += string(filepath.Separator)
+	}
+	return strings.HasPrefix(absTarget, absBase)
 }
 
 // Unpack decrypts and extracts files from an archive
@@ -179,10 +207,28 @@ func (s *Service) Unpack(opts types.UnpackOptions) error {
 			continue
 		}
 
+		// Validate path safety before extraction
+		if filepath.IsAbs(header.Name) || strings.Contains(header.Name, "..") {
+			return &types.ArchiveError{
+				Operation: "unpack",
+				Path:      header.Name,
+				Err:       fmt.Errorf("unsafe path detected: %s", header.Name),
+			}
+		}
+
 		targetPath := filepath.Join(opts.TargetDir, header.Name)
 
-		// Create directory if needed
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		// Double-check resolved path is within target directory
+		if !isPathSafe(opts.TargetDir, targetPath) {
+			return &types.ArchiveError{
+				Operation: "unpack",
+				Path:      header.Name,
+				Err:       fmt.Errorf("path traversal detected: %s", header.Name),
+			}
+		}
+
+		// Create directory if needed with restrictive permissions
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0700); err != nil {
 			return &types.ArchiveError{
 				Operation: "unpack",
 				Path:      targetPath,
@@ -320,7 +366,7 @@ func (s *Service) writeMetadata(tarWriter *tar.Writer, archive types.Archive) er
 
 	header := &tar.Header{
 		Name: "metadata.json",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(metadataJSON)),
 	}
 
@@ -378,8 +424,13 @@ func (s *Service) extractFile(tarReader *tar.Reader, targetPath string, header *
 		return fmt.Errorf("failed to extract file %s: %w", targetPath, err)
 	}
 
-	// Set file permissions and modification time
-	if err := os.Chmod(targetPath, os.FileMode(header.Mode)); err != nil {
+	// Set file permissions (use restrictive permissions, masking to safe defaults)
+	// Only preserve read/write bits for owner, strip group/world permissions
+	safeMode := os.FileMode(header.Mode) & 0600
+	if safeMode == 0 {
+		safeMode = 0600 // Default to owner read/write if no permissions
+	}
+	if err := os.Chmod(targetPath, safeMode); err != nil {
 		return fmt.Errorf("failed to set permissions: %w", err)
 	}
 

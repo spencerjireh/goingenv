@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"goingenv/internal/config"
+	"goingenv/internal/constants"
 	"goingenv/pkg/password"
 	"goingenv/pkg/types"
 	"goingenv/pkg/utils"
@@ -67,19 +68,55 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize application: %w", err)
 	}
 
-	// Parse flags
-	archiveFile, _ := cmd.Flags().GetString("file")
-	passwordEnv, _ := cmd.Flags().GetString("password-env")
-	listAll, _ := cmd.Flags().GetBool("all")
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	showSizes, _ := cmd.Flags().GetBool("sizes")
-	showDates, _ := cmd.Flags().GetBool("dates")
-	showChecksums, _ := cmd.Flags().GetBool("checksums")
-	patterns, _ := cmd.Flags().GetStringSlice("pattern")
-	sortBy, _ := cmd.Flags().GetString("sort")
-	reverse, _ := cmd.Flags().GetBool("reverse")
-	format, _ := cmd.Flags().GetString("format")
-	limit, _ := cmd.Flags().GetInt("limit")
+	// Parse flags with error handling
+	archiveFile, err := cmd.Flags().GetString("file")
+	if err != nil {
+		return fmt.Errorf("failed to get file flag: %w", err)
+	}
+	passwordEnv, err := cmd.Flags().GetString("password-env")
+	if err != nil {
+		return fmt.Errorf("failed to get password-env flag: %w", err)
+	}
+	listAll, err := cmd.Flags().GetBool("all")
+	if err != nil {
+		return fmt.Errorf("failed to get all flag: %w", err)
+	}
+	verbose, err := cmd.Flags().GetBool("verbose")
+	if err != nil {
+		return fmt.Errorf("failed to get verbose flag: %w", err)
+	}
+	showSizes, err := cmd.Flags().GetBool("sizes")
+	if err != nil {
+		return fmt.Errorf("failed to get sizes flag: %w", err)
+	}
+	showDates, err := cmd.Flags().GetBool("dates")
+	if err != nil {
+		return fmt.Errorf("failed to get dates flag: %w", err)
+	}
+	showChecksums, err := cmd.Flags().GetBool("checksums")
+	if err != nil {
+		return fmt.Errorf("failed to get checksums flag: %w", err)
+	}
+	patterns, err := cmd.Flags().GetStringSlice("pattern")
+	if err != nil {
+		return fmt.Errorf("failed to get pattern flag: %w", err)
+	}
+	sortBy, err := cmd.Flags().GetString("sort")
+	if err != nil {
+		return fmt.Errorf("failed to get sort flag: %w", err)
+	}
+	reverse, err := cmd.Flags().GetBool("reverse")
+	if err != nil {
+		return fmt.Errorf("failed to get reverse flag: %w", err)
+	}
+	format, err := cmd.Flags().GetString("format")
+	if err != nil {
+		return fmt.Errorf("failed to get format flag: %w", err)
+	}
+	limit, err := cmd.Flags().GetInt("limit")
+	if err != nil {
+		return fmt.Errorf("failed to get limit flag: %w", err)
+	}
 
 	// Prepare password options
 	passwordOpts := password.Options{
@@ -178,7 +215,7 @@ func listAllArchives(app *types.App, passwordOpts password.Options, verbose bool
 		// Show basic info without requiring password
 		if info, err := os.Stat(archivePath); err == nil {
 			fmt.Printf("    Size: %s\n", utils.FormatSize(info.Size()))
-			fmt.Printf("    Modified: %s\n", info.ModTime().Format("2006-01-02 15:04:05"))
+			fmt.Printf("    Modified: %s\n", info.ModTime().Format(constants.DateTimeFormat))
 		}
 
 		if verbose && passwordOpts.PasswordEnv != "" {
@@ -186,7 +223,7 @@ func listAllArchives(app *types.App, passwordOpts password.Options, verbose bool
 			if key, err := password.GetPassword(passwordOpts); err == nil {
 				defer password.ClearPassword(&key)
 				if archive, err := app.Archiver.List(archivePath, key); err == nil {
-					fmt.Printf("    Created: %s\n", archive.CreatedAt.Format("2006-01-02 15:04:05"))
+					fmt.Printf("    Created: %s\n", archive.CreatedAt.Format(constants.DateTimeFormat))
 					fmt.Printf("    Files: %d\n", len(archive.Files))
 					fmt.Printf("    Total size: %s\n", utils.FormatSize(archive.TotalSize))
 					if archive.Description != "" {
@@ -216,7 +253,7 @@ func displayListArchiveInfo(archive *types.Archive, archivePath string) {
 	fmt.Printf("Archive Information\n")
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("File: %s\n", filepath.Base(archivePath))
-	fmt.Printf("Created: %s\n", archive.CreatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Created: %s\n", archive.CreatedAt.Format(constants.DateTimeFormat))
 	fmt.Printf("Version: %s\n", archive.Version)
 	if archive.Description != "" {
 		fmt.Printf("Description: %s\n", archive.Description)
@@ -276,7 +313,7 @@ func displayFilesTable(files []types.EnvFile, verbose, showSizes, showDates, sho
 				fmt.Printf(" %10s", utils.FormatSize(file.Size))
 			}
 			if showDates || verbose {
-				fmt.Printf(" %19s", file.ModTime.Format("2006-01-02 15:04:05"))
+				fmt.Printf(" %19s", file.ModTime.Format(constants.DateTimeFormat))
 			}
 			if showChecksums || verbose {
 				fmt.Printf(" %16s", file.Checksum[:16]+"...")
@@ -313,7 +350,7 @@ func displayFilesCSV(files []types.EnvFile) error {
 			filepath.Base(file.RelativePath),
 			file.RelativePath,
 			file.Size,
-			file.ModTime.Format("2006-01-02 15:04:05"),
+			file.ModTime.Format(constants.DateTimeFormat),
 			file.Checksum)
 	}
 	return nil
@@ -375,8 +412,8 @@ func displaySummary(archive *types.Archive, displayedFiles []types.EnvFile) {
 		}
 
 		fmt.Printf("\nTime span:\n")
-		fmt.Printf("  • Oldest file: %s\n", oldest.Format("2006-01-02 15:04:05"))
-		fmt.Printf("  • Newest file: %s\n", newest.Format("2006-01-02 15:04:05"))
+		fmt.Printf("  • Oldest file: %s\n", oldest.Format(constants.DateTimeFormat))
+		fmt.Printf("  • Newest file: %s\n", newest.Format(constants.DateTimeFormat))
 	}
 
 	fmt.Println()

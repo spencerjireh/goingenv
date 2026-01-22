@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"goingenv/internal/config"
+	"goingenv/internal/constants"
 	"goingenv/internal/scanner"
 	"goingenv/pkg/types"
 	"goingenv/pkg/utils"
@@ -62,18 +63,39 @@ func runStatusCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize application: %w", err)
 	}
 
-	// Parse flags
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	directory, _ := cmd.Flags().GetString("directory")
+	// Parse flags with error handling
+	verbose, err := cmd.Flags().GetBool("verbose")
+	if err != nil {
+		return fmt.Errorf("failed to get verbose flag: %w", err)
+	}
+	directory, err := cmd.Flags().GetString("directory")
+	if err != nil {
+		return fmt.Errorf("failed to get directory flag: %w", err)
+	}
 	if directory == "" {
 		directory = "."
 	}
 
-	showArchives, _ := cmd.Flags().GetBool("archives")
-	showFiles, _ := cmd.Flags().GetBool("files")
-	showConfig, _ := cmd.Flags().GetBool("config")
-	showStats, _ := cmd.Flags().GetBool("stats")
-	showRecommendations, _ := cmd.Flags().GetBool("recommendations")
+	showArchives, err := cmd.Flags().GetBool("archives")
+	if err != nil {
+		return fmt.Errorf("failed to get archives flag: %w", err)
+	}
+	showFiles, err := cmd.Flags().GetBool("files")
+	if err != nil {
+		return fmt.Errorf("failed to get files flag: %w", err)
+	}
+	showConfig, err := cmd.Flags().GetBool("config")
+	if err != nil {
+		return fmt.Errorf("failed to get config flag: %w", err)
+	}
+	showStats, err := cmd.Flags().GetBool("stats")
+	if err != nil {
+		return fmt.Errorf("failed to get stats flag: %w", err)
+	}
+	showRecommendations, err := cmd.Flags().GetBool("recommendations")
+	if err != nil {
+		return fmt.Errorf("failed to get recommendations flag: %w", err)
+	}
 
 	// Show all sections if none specifically requested
 	if !showArchives && !showFiles && !showConfig && !showStats && !showRecommendations {
@@ -87,7 +109,7 @@ func runStatusCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("goingenv Status Report\n")
-	fmt.Printf("Generated: %s\n", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Printf("Generated: %s\n", time.Now().Format(constants.DateTimeFormat))
 	fmt.Println(strings.Repeat("=", 60))
 
 	// System Information
@@ -211,9 +233,9 @@ func displayArchiveInfo(app *types.App, verbose bool) error {
 		fmt.Printf("  • %s\n", filepath.Base(archivePath))
 		if verbose {
 			fmt.Printf("    Size: %s\n", utils.FormatSize(info.Size()))
-			fmt.Printf("    Modified: %s\n", info.ModTime().Format("2006-01-02 15:04:05"))
+			fmt.Printf("    Modified: %s\n", info.ModTime().Format(constants.DateTimeFormat))
 		} else {
-			fmt.Printf("    %s - %s\n", utils.FormatSize(info.Size()), info.ModTime().Format("2006-01-02 15:04:05"))
+			fmt.Printf("    %s - %s\n", utils.FormatSize(info.Size()), info.ModTime().Format(constants.DateTimeFormat))
 		}
 	}
 
@@ -222,8 +244,8 @@ func displayArchiveInfo(app *types.App, verbose bool) error {
 	fmt.Printf("  Total size: %s\n", utils.FormatSize(totalSize))
 	if len(archives) > 1 {
 		fmt.Printf("  Date range: %s to %s\n",
-			oldestDate.Format("2006-01-02"),
-			newestDate.Format("2006-01-02"))
+			oldestDate.Format(constants.DateFormat),
+			newestDate.Format(constants.DateFormat))
 	}
 	fmt.Printf("  Average size: %s\n", utils.FormatSize(totalSize/int64(len(archives))))
 
@@ -276,7 +298,7 @@ func displayDetectedFiles(app *types.App, directory string, verbose bool) error 
 					fmt.Printf("    • %s (%s) - %s - %s\n",
 						file.RelativePath,
 						utils.FormatSize(file.Size),
-						file.ModTime.Format("2006-01-02 15:04:05"),
+						file.ModTime.Format(constants.DateTimeFormat),
 						file.Checksum[:8]+"...")
 				} else {
 					fmt.Printf("    • %s (%s)\n", file.RelativePath, utils.FormatSize(file.Size))
@@ -289,11 +311,11 @@ func displayDetectedFiles(app *types.App, directory string, verbose bool) error 
 	stats := scanner.GetFileStats(files)
 	fmt.Printf("\nFile statistics:\n")
 	fmt.Printf("  Total size: %s\n", utils.FormatSize(totalSize))
-	fmt.Printf("  Average size: %s\n", utils.FormatSize(stats["average_size"].(int64)))
+	fmt.Printf("  Average size: %s\n", utils.FormatSize(stats.AverageSize))
 
-	if verbose {
+	if verbose && len(stats.FilesByPattern) > 0 {
 		fmt.Printf("  Files by pattern:\n")
-		for pattern, count := range stats["files_by_pattern"].(map[string]int) {
+		for pattern, count := range stats.FilesByPattern {
 			fmt.Printf("    • %s: %d\n", pattern, count)
 		}
 	}
@@ -356,9 +378,9 @@ func displayStatsAndAnalysis(app *types.App, directory string, verbose bool) err
 		// Size distribution
 		var small, medium, large int
 		for _, file := range files {
-			if file.Size < 1024 {
+			if file.Size < constants.SmallFileThreshold {
 				small++
-			} else if file.Size < 10*1024 {
+			} else if file.Size < constants.MediumFileThreshold {
 				medium++
 			} else {
 				large++
@@ -373,7 +395,7 @@ func displayStatsAndAnalysis(app *types.App, directory string, verbose bool) err
 		var recent, old int
 		for _, file := range files {
 			age := now.Sub(file.ModTime)
-			if age < 30*24*time.Hour { // 30 days
+			if age < constants.RecentFileAge {
 				recent++
 			} else {
 				old++

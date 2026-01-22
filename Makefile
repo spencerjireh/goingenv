@@ -458,11 +458,12 @@ test-coverage-ci:
 	@go tool cover -func=coverage.out
 
 test-watch:
-	@echo -e "$(BLUE)Running tests in watch mode (requires entr)...$(NC)"
-	@if command -v entr >/dev/null 2>&1; then \
-		find . -name '*.go' | entr -c go test ./...; \
+	@echo -e "$(BLUE)Running tests in watch mode (requires air)...$(NC)"
+	@if command -v air >/dev/null 2>&1 || [ -f $(shell go env GOPATH)/bin/air ]; then \
+		AIR_BIN=$$(command -v air || echo "$(shell go env GOPATH)/bin/air"); \
+		$$AIR_BIN -c .air.toml -- test ./...; \
 	else \
-		echo "$(YELLOW)WARNING:$(NC)  entr not installed. Install with your package manager."; \
+		echo "$(YELLOW)WARNING:$(NC)  air not installed. Install with: go install github.com/air-verse/air@latest"; \
 	fi
 
 test-verbose:
@@ -628,11 +629,41 @@ demo-scenario: demo build
 	cd demo/project1 && DEMO_PASSWORD="demo123" ../../$(BINARY_NAME) list -f .goingenv/demo-backup.enc --password-env DEMO_PASSWORD
 	@echo "Demo scenario completed$(NC)\""
 
-# Development server (for TUI testing)
-dev-server: dev
-	@echo "Starting development server with file watching...$(NC)"
+# Development server with hot-reload (for TUI testing)
+dev-watch:
+	@echo -e "$(BLUE)Starting development with hot-reload...$(NC)"
 	@echo "Press Ctrl+C to stop"
-	./$(BINARY_NAME)-dev
+	@if command -v air >/dev/null 2>&1 || [ -f $(shell go env GOPATH)/bin/air ]; then \
+		AIR_BIN=$$(command -v air || echo "$(shell go env GOPATH)/bin/air"); \
+		$$AIR_BIN; \
+	else \
+		echo "$(YELLOW)WARNING:$(NC)  air not installed. Install with: go install github.com/air-verse/air@latest"; \
+		echo "Falling back to regular dev build..."; \
+		make dev; \
+	fi
+
+# Development server (for TUI testing) - deprecated, use dev-watch
+dev-server: dev-watch
+
+# Watch and auto-rebuild (no execution)
+watch:
+	@echo -e "$(BLUE)Watching for changes and rebuilding...$(NC)"
+	@if command -v air >/dev/null 2>&1 || [ -f $(shell go env GOPATH)/bin/air ]; then \
+		AIR_BIN=$$(command -v air || echo "$(shell go env GOPATH)/bin/air"); \
+		$$AIR_BIN; \
+	else \
+		echo "$(YELLOW)WARNING:$(NC)  air not installed. Install with: go install github.com/air-verse/air@latest"; \
+	fi
+
+# Watch and run with custom arguments
+watch-run:
+	@echo -e "$(BLUE)Watching and running with args: $(ARGS)...$(NC)"
+	@if command -v air >/dev/null 2>&1 || [ -f $(shell go env GOPATH)/bin/air ]; then \
+		AIR_BIN=$$(command -v air || echo "$(shell go env GOPATH)/bin/air"); \
+		$$AIR_BIN -- $(ARGS); \
+	else \
+		echo "$(YELLOW)WARNING:$(NC)  air not installed. Install with: go install github.com/air-verse/air@latest"; \
+	fi
 
 # Profile the application
 profile:
@@ -708,6 +739,9 @@ help:
 	@echo " lint           - Run linter (requires golangci-lint)"
 	@echo " check          - Run all checks (fmt, vet, lint, test)"
 	@echo " check-full     - Run comprehensive checks including integration tests"
+	@echo " watch          - Watch for changes and auto-rebuild (requires air)"
+	@echo " dev-watch      - Watch and run TUI on changes (requires air)"
+	@echo " watch-run      - Watch and run with ARGS (requires air)"
 	@echo ""
 	@echo "Test Commands:"
 	@echo " test           - Run all tests"
@@ -717,7 +751,7 @@ help:
 	@echo " test-complete  - Run complete test suite (unit + integration + functional)"
 	@echo " test-coverage  - Run tests with coverage report"
 	@echo " test-coverage-ci - Run tests with coverage for CI"
-	@echo " test-watch     - Run tests in watch mode (requires entr)"
+	@echo " test-watch     - Run tests in watch mode (requires air)"
 	@echo " test-verbose   - Run tests with verbose output"
 	@echo " test-bench     - Run benchmarks"
 	@echo " test-clean     - Clean test artifacts"
@@ -755,6 +789,8 @@ help:
 	@echo ""
 	@echo "Examples:"
 	@echo " make build                    # Build for current platform"
+	@echo " make watch                    # Hot-reload development"
+	@echo " make watch-run ARGS='status demo/'  # Hot-reload with specific command"
 	@echo " make ci-full                  # Run all CI checks locally"
 	@echo " make tag-release              # Create and tag new release"
 	@echo " make push-release-tag         # Push tag to trigger GitHub release"
@@ -772,7 +808,7 @@ help:
         test-functional test-complete test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
         generate-mocks bench check check-full build-all build-linux build-darwin \
         build-windows install uninstall release release-all release-checksums checksums run run-pack run-unpack \
-        run-list run-status demo clean-demo demo-scenario dev-server profile \
+        run-list run-status demo clean-demo demo-scenario dev-server dev-watch watch watch-run profile \
         profile-mem security-scan vuln-check docs stats help \
         ci-test ci-lint ci-build ci-security ci-cross-compile ci-full \
         pre-release-check tag-release push-release-tag release-local check-release-status \

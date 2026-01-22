@@ -179,7 +179,7 @@ func (s *Service) ValidateFile(path string) error {
 			Err:  fmt.Errorf("file not readable: %w", err),
 		}
 	}
-	file.Close()
+	defer file.Close()
 
 	return nil
 }
@@ -216,8 +216,7 @@ func compilePatterns(patterns []string) ([]*regexp.Regexp, error) {
 }
 
 // GetFileStats returns statistics about scanned files
-func GetFileStats(files []types.EnvFile) map[string]interface{} {
-	stats := make(map[string]interface{})
+func GetFileStats(files []types.EnvFile) types.FileStats {
 	var totalSize int64
 	filesByPattern := make(map[string]int)
 
@@ -236,16 +235,17 @@ func GetFileStats(files []types.EnvFile) map[string]interface{} {
 		}
 	}
 
-	stats["total_files"] = len(files)
-	stats["total_size"] = totalSize
-	stats["files_by_pattern"] = filesByPattern
-	stats["average_size"] = int64(0)
-
+	var averageSize int64
 	if len(files) > 0 {
-		stats["average_size"] = totalSize / int64(len(files))
+		averageSize = totalSize / int64(len(files))
 	}
 
-	return stats
+	return types.FileStats{
+		TotalFiles:     len(files),
+		TotalSize:      totalSize,
+		AverageSize:    averageSize,
+		FilesByPattern: filesByPattern,
+	}
 }
 
 // FilterFilesBySize filters files by size constraints

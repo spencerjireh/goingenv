@@ -63,8 +63,11 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize application: %w", err)
 	}
 
-	// Parse flags
-	archiveFile, _ := cmd.Flags().GetString("file")
+	// Parse flags with error handling
+	archiveFile, err := cmd.Flags().GetString("file")
+	if err != nil {
+		return fmt.Errorf("failed to get file flag: %w", err)
+	}
 	if archiveFile == "" {
 		// Find the most recent archive
 		archives, err := app.Archiver.GetAvailableArchives("")
@@ -83,19 +86,46 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("archive file not found: %s", archiveFile)
 	}
 
-	passwordEnv, _ := cmd.Flags().GetString("password-env")
-	targetDir, _ := cmd.Flags().GetString("target")
+	passwordEnv, err := cmd.Flags().GetString("password-env")
+	if err != nil {
+		return fmt.Errorf("failed to get password-env flag: %w", err)
+	}
+	targetDir, err := cmd.Flags().GetString("target")
+	if err != nil {
+		return fmt.Errorf("failed to get target flag: %w", err)
+	}
 	if targetDir == "" {
 		targetDir = "."
 	}
 
-	overwrite, _ := cmd.Flags().GetBool("overwrite")
-	backup, _ := cmd.Flags().GetBool("backup")
-	verify, _ := cmd.Flags().GetBool("verify")
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	dryRun, _ := cmd.Flags().GetBool("dry-run")
-	includePatterns, _ := cmd.Flags().GetStringSlice("include")
-	excludePatterns, _ := cmd.Flags().GetStringSlice("exclude")
+	overwrite, err := cmd.Flags().GetBool("overwrite")
+	if err != nil {
+		return fmt.Errorf("failed to get overwrite flag: %w", err)
+	}
+	backup, err := cmd.Flags().GetBool("backup")
+	if err != nil {
+		return fmt.Errorf("failed to get backup flag: %w", err)
+	}
+	verify, err := cmd.Flags().GetBool("verify")
+	if err != nil {
+		return fmt.Errorf("failed to get verify flag: %w", err)
+	}
+	verbose, err := cmd.Flags().GetBool("verbose")
+	if err != nil {
+		return fmt.Errorf("failed to get verbose flag: %w", err)
+	}
+	dryRun, err := cmd.Flags().GetBool("dry-run")
+	if err != nil {
+		return fmt.Errorf("failed to get dry-run flag: %w", err)
+	}
+	includePatterns, err := cmd.Flags().GetStringSlice("include")
+	if err != nil {
+		return fmt.Errorf("failed to get include flag: %w", err)
+	}
+	excludePatterns, err := cmd.Flags().GetStringSlice("exclude")
+	if err != nil {
+		return fmt.Errorf("failed to get exclude flag: %w", err)
+	}
 
 	// Get password using secure methods
 	passwordOpts := password.Options{

@@ -238,8 +238,8 @@ func (m *Model) renderStatus() string {
 		// Show file statistics
 		stats := scanner.GetFileStats(files)
 		view += HeaderStyle.Render("Statistics:") + "\n"
-		view += fmt.Sprintf("  • Total Size: %s\n", utils.FormatSize(stats["total_size"].(int64)))
-		view += fmt.Sprintf("  • Average Size: %s\n", utils.FormatSize(stats["average_size"].(int64)))
+		view += fmt.Sprintf("  • Total Size: %s\n", utils.FormatSize(stats.TotalSize))
+		view += fmt.Sprintf("  • Average Size: %s\n", utils.FormatSize(stats.AverageSize))
 	}
 
 	view += "Press Esc to go back"

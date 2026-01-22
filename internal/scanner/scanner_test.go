@@ -280,34 +280,30 @@ func TestGetFileStats(t *testing.T) {
 	stats := GetFileStats(files)
 
 	// Check total files
-	if totalFiles, ok := stats["total_files"].(int); !ok || totalFiles != 3 {
-		t.Errorf("Expected total_files = 3, got %v", stats["total_files"])
+	if stats.TotalFiles != 3 {
+		t.Errorf("Expected TotalFiles = 3, got %d", stats.TotalFiles)
 	}
 
 	// Check total size
-	if totalSize, ok := stats["total_size"].(int64); !ok || totalSize != 450 {
-		t.Errorf("Expected total_size = 450, got %v", stats["total_size"])
+	if stats.TotalSize != 450 {
+		t.Errorf("Expected TotalSize = 450, got %d", stats.TotalSize)
 	}
 
 	// Check average size
-	if avgSize, ok := stats["average_size"].(int64); !ok || avgSize != 150 {
-		t.Errorf("Expected average_size = 150, got %v", stats["average_size"])
+	if stats.AverageSize != 150 {
+		t.Errorf("Expected AverageSize = 150, got %d", stats.AverageSize)
 	}
 
 	// Check files by pattern
-	if patternStats, ok := stats["files_by_pattern"].(map[string]int); !ok {
-		t.Error("files_by_pattern not found or wrong type")
-	} else {
-		expectedPatterns := map[string]int{
-			".env":             1, // .env
-			".env.local":       1, // .env.local
-			".env.development": 1, // .env.development
-		}
+	expectedPatterns := map[string]int{
+		".env":             1, // .env
+		".env.local":       1, // .env.local
+		".env.development": 1, // .env.development
+	}
 
-		for pattern, expectedCount := range expectedPatterns {
-			if patternStats[pattern] != expectedCount {
-				t.Errorf("Expected %d files for pattern %s, got %d", expectedCount, pattern, patternStats[pattern])
-			}
+	for pattern, expectedCount := range expectedPatterns {
+		if stats.FilesByPattern[pattern] != expectedCount {
+			t.Errorf("Expected %d files for pattern %s, got %d", expectedCount, pattern, stats.FilesByPattern[pattern])
 		}
 	}
 }

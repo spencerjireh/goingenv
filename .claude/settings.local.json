@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(go list:*)",
+      "Bash(go test:*)",
+      "Bash(wc:*)",
+      "Bash(go tool cover:*)",
+      "Bash(go build:*)"
+    ]
+  }
+}

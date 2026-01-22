@@ -63,6 +63,7 @@ export GO111MODULE=on
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 go install golang.org/x/tools/cmd/goimports@latest
 go install github.com/vektra/mockery/v2@latest
+go install github.com/air-verse/air@latest  # Hot-reload tool
 ```
 
 ### Development Commands
@@ -71,9 +72,10 @@ go install github.com/vektra/mockery/v2@latest
 # Development build with race detection
 make dev
 
-# Run with live reload (install air first)
-go install github.com/cosmtrek/air@latest
-air
+# Hot-reload development with Air
+make watch            # Watch and auto-rebuild
+make dev-watch        # Watch and run (launches TUI)
+make watch-run ARGS="status demo/"  # Watch and run with args
 
 # Format code
 make fmt
@@ -90,6 +92,30 @@ make ci-test      # Run tests like CI
 make ci-lint      # Run linting like CI
 make ci-build     # Test build like CI
 ```
+
+### Hot-Reload Development with Air
+
+Air automatically rebuilds your project when Go files change. Configuration is in `.air.toml`.
+
+```bash
+# Install Air (one-time setup)
+go install github.com/air-verse/air@latest
+
+# Start hot-reload development
+make watch            # Rebuilds on change (doesn't run)
+make dev-watch        # Rebuilds and runs the TUI
+make watch-run ARGS="status ."  # Rebuilds and runs with specific command
+
+# Direct Air usage
+air                   # Uses .air.toml config
+air -- status demo/   # Pass arguments to binary
+```
+
+**Air Development Workflow:**
+1. Run `make watch` or `air` in one terminal
+2. Edit your Go files
+3. Air automatically rebuilds on save
+4. Test your changes in another terminal with `./tmp/goingenv`
 
 ## Project Structure
 
@@ -238,6 +264,9 @@ make test-verbose
 
 # Run benchmarks
 make test-bench
+
+# Watch mode - auto-run tests on changes
+make test-watch
 ```
 
 ### Test Structure
@@ -748,6 +777,72 @@ When enabled, the following rules apply:
 - Branches must be up-to-date
 - At least one review required
 - Admin enforcement enabled
+
+## Security
+
+### Security Architecture
+
+goingenv uses industry-standard cryptographic practices for protecting environment files:
+
+**Encryption:**
+- **Algorithm**: AES-256-GCM (Galois/Counter Mode)
+- **Key Derivation**: PBKDF2 with SHA-256, 100,000 iterations
+- **Salt**: 32 bytes, cryptographically random per encryption
+- **Nonce**: 12 bytes, cryptographically random per encryption
+
+**File Format:**
+```
+[32 bytes salt][12 bytes nonce][ciphertext with 16-byte auth tag]
+```
+
+### Security Best Practices
+
+**Password Handling:**
+- Use strong, unique passwords for each archive (minimum 12 characters recommended)
+- Use environment variables (`--password-env`) instead of command-line arguments in scripts
+- Passwords are cleared from memory after use via `password.ClearPassword()`
+- Never log or display passwords
+
+**File Permissions:**
+- Archives are created with restrictive permissions (0600 - owner read/write only)
+- Configuration files use 0600 permissions
+- .goingenv directories use 0700 permissions
+- Extracted files are masked to safe permissions (0600)
+
+**Path Traversal Protection:**
+- Archive extraction validates all paths stay within target directory
+- Absolute paths in archives are rejected
+- Path components containing `..` are rejected
+
+**Temp File Security:**
+- Temporary files are created with restrictive permissions
+- Explicit `Chmod(0600)` immediately after creation
+- Cleanup via `defer os.Remove()` on error paths
+
+### Security Limitations
+
+**Password Storage:**
+- goingenv does not store passwords - you must remember them
+- Lost passwords cannot be recovered
+- There is no password reset functionality
+
+**Memory Security:**
+- Passwords are in memory during encryption/decryption operations
+- Password clearing is best-effort (Go garbage collection may retain copies)
+- Consider system memory security for highly sensitive data
+
+**Archive Integrity:**
+- AES-GCM provides authenticated encryption (tamper detection)
+- Corrupted or tampered archives will fail to decrypt
+- Verify archive integrity with `goingenv list` command
+
+### Reporting Security Issues
+
+If you discover a security vulnerability:
+1. Do NOT create a public GitHub issue
+2. Email security concerns to the maintainer
+3. Include detailed reproduction steps
+4. Allow reasonable time for a fix before disclosure
 
 ## Getting Help
 
