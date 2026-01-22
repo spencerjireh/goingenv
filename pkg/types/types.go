@@ -159,3 +159,11 @@ type ValidationError struct {
 func (e *ValidationError) Error() string {
 	return "validation error for " + e.Field + ": " + e.Message
 }
+
+// FileStats represents statistics about scanned files
+type FileStats struct {
+	TotalFiles     int
+	TotalSize      int64
+	AverageSize    int64
+	FilesByPattern map[string]int
+}

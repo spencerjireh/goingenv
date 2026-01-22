@@ -38,7 +38,10 @@ Examples:
 
 // runInitCommand executes the init command
 func runInitCommand(cmd *cobra.Command, args []string) error {
-	force, _ := cmd.Flags().GetBool("force")
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		return fmt.Errorf("failed to get force flag: %w", err)
+	}
 
 	// Check if already initialized
 	if config.IsInitialized() && !force {

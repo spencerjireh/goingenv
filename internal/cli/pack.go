@@ -63,13 +63,19 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize application: %w", err)
 	}
 
-	// Parse flags
-	directory, _ := cmd.Flags().GetString("directory")
+	// Parse flags with error handling
+	directory, err := cmd.Flags().GetString("directory")
+	if err != nil {
+		return fmt.Errorf("failed to get directory flag: %w", err)
+	}
 	if directory == "" {
 		directory = "."
 	}
 
-	output, _ := cmd.Flags().GetString("output")
+	output, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return fmt.Errorf("failed to get output flag: %w", err)
+	}
 	if output == "" {
 		output = config.GetDefaultArchivePath()
 	} else {
@@ -79,12 +85,30 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	passwordEnv, _ := cmd.Flags().GetString("password-env")
-	depth, _ := cmd.Flags().GetInt("depth")
-	includePatterns, _ := cmd.Flags().GetStringSlice("include")
-	excludePatterns, _ := cmd.Flags().GetStringSlice("exclude")
-	dryRun, _ := cmd.Flags().GetBool("dry-run")
-	verbose, _ := cmd.Flags().GetBool("verbose")
+	passwordEnv, err := cmd.Flags().GetString("password-env")
+	if err != nil {
+		return fmt.Errorf("failed to get password-env flag: %w", err)
+	}
+	depth, err := cmd.Flags().GetInt("depth")
+	if err != nil {
+		return fmt.Errorf("failed to get depth flag: %w", err)
+	}
+	includePatterns, err := cmd.Flags().GetStringSlice("include")
+	if err != nil {
+		return fmt.Errorf("failed to get include flag: %w", err)
+	}
+	excludePatterns, err := cmd.Flags().GetStringSlice("exclude")
+	if err != nil {
+		return fmt.Errorf("failed to get exclude flag: %w", err)
+	}
+	dryRun, err := cmd.Flags().GetBool("dry-run")
+	if err != nil {
+		return fmt.Errorf("failed to get dry-run flag: %w", err)
+	}
+	verbose, err := cmd.Flags().GetBool("verbose")
+	if err != nil {
+		return fmt.Errorf("failed to get verbose flag: %w", err)
+	}
 
 	// Get password using secure methods
 	passwordOpts := password.Options{
