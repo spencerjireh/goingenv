@@ -109,14 +109,20 @@ jobs:
           - os: macos-latest
             go-version: '1.21'
     steps:
+    - name: Clean workspace
+      run: rm -rf ${{ github.workspace }}/*
+
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        clean: true
 
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
         check-latest: true
+        cache: false
 
     - name: Cache Go modules
       uses: actions/cache@v4
