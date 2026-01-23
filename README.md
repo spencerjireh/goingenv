@@ -38,14 +38,14 @@ curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/in
 **Install from release asset (reproducible, version-locked):**
 
 ```bash
-# Replace v1.0.0 with desired version - downloads installer with embedded version
-curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/install.sh | bash
+# Downloads installer with embedded version (check releases page for latest)
+curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.1.0/install.sh | bash
 ```
 
 **Install specific version:**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v1.0.0
+curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v1.1.0
 ```
 
 **Upgrade and cleanup old installations:**

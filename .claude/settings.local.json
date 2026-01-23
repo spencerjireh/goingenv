@@ -14,7 +14,11 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:golangci-lint.run)",
       "Bash(~/go/bin/golangci-lint run:*)",
-      "Bash(make test-complete:*)"
+      "Bash(make test-complete:*)",
+      "WebFetch(domain:productionresultssa9.blob.core.windows.net)",
+      "Bash(make test-functional:*)",
+      "WebFetch(domain:productionresultssa12.blob.core.windows.net)",
+      "WebFetch(domain:productionresultssa10.blob.core.windows.net)"
     ]
   }
 }

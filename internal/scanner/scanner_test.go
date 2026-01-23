@@ -15,7 +15,7 @@ func TestService_ScanFiles(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	config := &types.Config{
-		DefaultDepth: 3,
+		DefaultDepth: 10,
 		EnvPatterns: []string{
 			`\.env$`,
 			`\.env\.local$`,
@@ -173,7 +173,7 @@ func TestService_ScanPatternMatching(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	config := &types.Config{
-		DefaultDepth: 3,
+		DefaultDepth: 10,
 		EnvPatterns: []string{
 			`\.env$`,              // Only exact .env files
 			`\.env\.development$`, // Only .env.development files
@@ -223,7 +223,7 @@ func TestService_ExcludePatterns(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	config := &types.Config{
-		DefaultDepth: 3,
+		DefaultDepth: 10,
 		EnvPatterns:  []string{`\.env`},
 		ExcludePatterns: []string{
 			`node_modules/`,
@@ -349,7 +349,7 @@ func TestService_ScanFilesPerformance(t *testing.T) {
 
 func TestService_ErrorHandling(t *testing.T) {
 	config := &types.Config{
-		DefaultDepth:    3,
+		DefaultDepth:    10,
 		EnvPatterns:     []string{`\.env`},
 		ExcludePatterns: []string{},
 		MaxFileSize:     1024,

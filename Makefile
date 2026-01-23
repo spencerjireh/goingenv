@@ -253,7 +253,7 @@ test-functional:
 	fi
 	
 	@echo "Step 5: Testing exclusion patterns..."
-	@echo '{"default_depth": 3, "env_patterns": ["\\\\.env.*"], "env_exclude_patterns": ["\\\\.env\\\\.backup$$"], "exclude_patterns": ["node_modules/", "\\\\.git/"], "max_file_size": 10485760}' > ~/.goingenv.json
+	@echo '{"default_depth": 10, "env_patterns": ["\\\\.env.*"], "env_exclude_patterns": ["\\\\.env\\\\.backup$$"], "exclude_patterns": ["node_modules/", "\\\\.git/"], "max_file_size": 10485760}' > ~/.goingenv.json
 	@files_detected=$$(cd test_env_files_functional && ../goingenv status . | grep -c "\.env"); \
 	if [ "$$files_detected" -eq 5 ]; then \
 		echo -e "$(GREEN)[OK]$(NC) Exclusion patterns working ($$files_detected/5 files detected, .env.backup excluded)"; \
