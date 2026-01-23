@@ -242,6 +242,7 @@ test-functional:
 	
 	@echo "Step 4: Testing all-inclusive pattern (no config)..."
 	@rm -f ~/.goingenv.json
+	@cd test_env_files_functional && ../goingenv init > /dev/null 2>&1
 	@files_detected=$$(./goingenv status test_env_files_functional/ | grep -c "\.env"); \
 	if [ "$$files_detected" -eq 6 ]; then \
 		echo -e "$(GREEN)[OK]$(NC) All-inclusive pattern working ($$files_detected/6 files detected)"; \
