@@ -627,11 +627,11 @@ func TestConfigInitialization(t *testing.T) {
 		testutils.AssertFileExists(t, gitignorePath)
 
 		content := testutils.GetFileContent(t, gitignorePath)
-		testutils.AssertStringContains(t, content, "# This allows")
-		testutils.AssertStringContains(t, content, "safe env transfer")
+		// Check that the gitignore contains expected patterns
+		testutils.AssertStringContains(t, content, "*.tmp")
+		testutils.AssertStringContains(t, content, "*.temp")
 		// Check that *.enc is not an ignore pattern (not at start of line)
 		testutils.AssertStringNotContains(t, content, "\n*.enc")
-		testutils.AssertStringContains(t, content, "*.tmp")
 	})
 
 	t.Run("InitializeProject Function", func(t *testing.T) {

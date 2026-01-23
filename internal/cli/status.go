@@ -450,9 +450,9 @@ func displayRecommendations(app *types.App, directory string) {
 
 	if len(files) > 0 {
 		recommendations = append(recommendations,
-			"Ensure .goingenv/ is in your .gitignore to avoid committing encrypted archives.",
 			"Use strong, unique passwords for each archive.",
-			"Verify archive contents regularly with 'goingenv list'.")
+			"Verify archive contents regularly with 'goingenv list'.",
+			"Share encrypted archives via git - they are safe to commit.")
 	}
 
 	if app.Config.DefaultDepth > 5 {

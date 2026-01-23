@@ -111,10 +111,10 @@ goingenv status
 ```
 
 The `init` command creates:
-- `.goingenv/` directory in your project
-- `.goingenv/.gitignore` file (allows `*.enc` files for safe transfer)
-- Adds `.goingenv/` to your project's `.gitignore`
+- `.goingenv/` directory in your project for storing encrypted archives
 - Default configuration in your home directory
+
+Encrypted archives (`.enc` files) are safe to commit to git for sharing with team members.
 
 ### Password Security
 

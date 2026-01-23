@@ -395,9 +395,9 @@ func CreateTempGoingEnvDir(t *testing.T, parentDir string) string {
 		t.Fatalf("Failed to create .goingenv directory %s: %v", goingEnvDir, err)
 	}
 
-	// Create proper .gitignore file that doesn't ignore *.enc files
+	// Create .gitignore file for temporary files only
 	gitignorePath := filepath.Join(goingEnvDir, ".gitignore")
-	gitignoreContent := "# GoingEnv directory gitignore\n# This allows *.enc files to be committed for safe env transfer\n# Ignore temporary files\n*.tmp\n*.temp\n"
+	gitignoreContent := "# GoingEnv directory gitignore\n# Ignore temporary files\n*.tmp\n*.temp\n"
 
 	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0o600); err != nil {
 		t.Fatalf("Failed to create .gitignore in %s: %v", goingEnvDir, err)

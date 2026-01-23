@@ -152,7 +152,7 @@ func EnsureGoingEnvDir() error {
 	// Create .gitignore if it doesn't exist
 	gitignorePath := filepath.Join(dir, ".gitignore")
 	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
-		gitignoreContent := "# GoingEnv directory gitignore\n# This allows *.enc files to be committed for safe env transfer\n# Ignore temporary files\n*.tmp\n*.temp\n"
+		gitignoreContent := "# GoingEnv directory gitignore\n# Ignore temporary files\n*.tmp\n*.temp\n"
 		if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0o600); err != nil {
 			return fmt.Errorf("failed to create .gitignore: %w", err)
 		}
@@ -197,9 +197,9 @@ func InitializeProject() error {
 		return fmt.Errorf("failed to create .goingenv directory: %w", err)
 	}
 
-	// Create .gitignore with corrected content (NOT ignoring *.enc files)
+	// Create .gitignore for temporary files only
 	gitignorePath := filepath.Join(dir, ".gitignore")
-	gitignoreContent := "# GoingEnv directory gitignore\n# This allows *.enc files to be committed for safe env transfer\n# Ignore temporary files\n*.tmp\n*.temp\n"
+	gitignoreContent := "# GoingEnv directory gitignore\n# Ignore temporary files\n*.tmp\n*.temp\n"
 
 	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0o600); err != nil {
 		return fmt.Errorf("failed to create .gitignore: %w", err)
