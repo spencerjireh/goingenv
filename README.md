@@ -29,22 +29,29 @@ Strong encryption, zero config needed. Just encrypt, commit, share. Your envs ar
 
 ### Installation
 
-**One-line installation (recommended):**
+**One-line installation (always installs latest):**
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
 ```
 
-**Install latest development version:**
+**Install from release asset (reproducible, version-locked):**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh | bash
+# Replace v1.0.0 with desired version - downloads installer with embedded version
+curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/install.sh | bash
 ```
 
 **Install specific version:**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v0.1.0-beta.11
+curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v1.0.0
+```
+
+**Upgrade and cleanup old installations:**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --cleanup-all
 ```
 
 **Manual installation:**

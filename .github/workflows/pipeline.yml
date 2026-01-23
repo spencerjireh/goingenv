@@ -496,6 +496,32 @@ jobs:
         echo "Checksums:"
         cat checksums.txt
 
+    - name: Create versioned install script
+      run: |
+        VERSION="v${{ needs.check-release.outputs.next-version }}"
+        echo "Creating versioned install.sh with embedded version: $VERSION"
+
+        # Copy install.sh to release assets
+        cp install.sh release-assets/install.sh
+
+        # Embed the version in SCRIPT_VERSION variable
+        sed -i 's/^SCRIPT_VERSION=""$/SCRIPT_VERSION="'"$VERSION"'"/' release-assets/install.sh
+
+        # Verify the replacement worked
+        if grep -q "SCRIPT_VERSION=\"$VERSION\"" release-assets/install.sh; then
+          echo "Successfully embedded version $VERSION in install.sh"
+        else
+          echo "ERROR: Failed to embed version in install.sh"
+          grep "SCRIPT_VERSION=" release-assets/install.sh
+          exit 1
+        fi
+
+        # Make executable
+        chmod +x release-assets/install.sh
+
+        echo "Versioned install.sh created:"
+        grep "SCRIPT_VERSION=" release-assets/install.sh
+
     - name: Create release tag
       env:
         COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
@@ -558,33 +584,48 @@ jobs:
           RELEASE_NOTES="**Initial Release**"
         fi
         
-        # Create installation instructions
-        cat > release_notes.md << 'EOF'
-        ## Installation
+        # Create installation instructions (using heredoc without variable expansion, then sed)
+        cat > release_notes.md << 'RELEASE_EOF'
+## Installation
 
-        **Quick Install (Linux & macOS):**
-        ```bash
-        curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.get_branch.outputs.branch }}/install.sh | bash
-        ```
+**Quick Install (Always Latest):**
+```bash
+curl -sSL https://raw.githubusercontent.com/REPO_PLACEHOLDER/main/install.sh | bash
+```
 
-        **Install Specific Version:**
-        ```bash
-        curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.get_branch.outputs.branch }}/install.sh | bash -s -- --version ${{ needs.check-release.outputs.next-version }}
-        ```
+**Install This Exact Version (Reproducible):**
+```bash
+# Downloads install.sh from release assets with embedded version
+curl -sSL https://github.com/REPO_PLACEHOLDER/releases/download/VERSION_PLACEHOLDER/install.sh | bash
+```
 
-        **Manual Download:**
-        Download the appropriate binary for your platform from the assets below.
+**Install Any Specific Version:**
+```bash
+curl -sSL https://raw.githubusercontent.com/REPO_PLACEHOLDER/main/install.sh | bash -s -- --version VERSION_PLACEHOLDER
+```
 
-        ## Verification
+**Upgrade with Cleanup:**
+```bash
+curl -sSL https://raw.githubusercontent.com/REPO_PLACEHOLDER/main/install.sh | bash -s -- --cleanup-all
+```
 
-        Verify your download with SHA256 checksums:
-        ```bash
-        sha256sum -c checksums.txt
-        ```
+**Manual Download:**
+Download the appropriate binary for your platform from the assets below.
 
-        ---
+## Verification
 
-        EOF
+Verify your download with SHA256 checksums:
+```bash
+sha256sum -c checksums.txt
+```
+
+---
+
+RELEASE_EOF
+
+        # Replace placeholders with actual values
+        sed -i "s|REPO_PLACEHOLDER|${{ github.repository }}|g" release_notes.md
+        sed -i "s|VERSION_PLACEHOLDER|$VERSION|g" release_notes.md
         
         # Append the auto-generated notes
         echo "$RELEASE_NOTES" >> release_notes.md
