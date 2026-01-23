@@ -584,49 +584,45 @@ jobs:
           RELEASE_NOTES="**Initial Release**"
         fi
         
-        # Create installation instructions (using heredoc without variable expansion, then sed)
-        cat > release_notes.md << 'RELEASE_EOF'
-## Installation
+        # Create installation instructions
+        {
+          echo "## Installation"
+          echo ""
+          echo "**Quick Install (Always Latest):**"
+          echo '```bash'
+          echo "curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash"
+          echo '```'
+          echo ""
+          echo "**Install This Exact Version (Reproducible):**"
+          echo '```bash'
+          echo "# Downloads install.sh from release assets with embedded version"
+          echo "curl -sSL https://github.com/${{ github.repository }}/releases/download/$VERSION/install.sh | bash"
+          echo '```'
+          echo ""
+          echo "**Install Any Specific Version:**"
+          echo '```bash'
+          echo "curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --version $VERSION"
+          echo '```'
+          echo ""
+          echo "**Upgrade with Cleanup:**"
+          echo '```bash'
+          echo "curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --cleanup-all"
+          echo '```'
+          echo ""
+          echo "**Manual Download:**"
+          echo "Download the appropriate binary for your platform from the assets below."
+          echo ""
+          echo "## Verification"
+          echo ""
+          echo "Verify your download with SHA256 checksums:"
+          echo '```bash'
+          echo "sha256sum -c checksums.txt"
+          echo '```'
+          echo ""
+          echo "---"
+          echo ""
+        } > release_notes.md
 
-**Quick Install (Always Latest):**
-```bash
-curl -sSL https://raw.githubusercontent.com/REPO_PLACEHOLDER/main/install.sh | bash
-```
-
-**Install This Exact Version (Reproducible):**
-```bash
-# Downloads install.sh from release assets with embedded version
-curl -sSL https://github.com/REPO_PLACEHOLDER/releases/download/VERSION_PLACEHOLDER/install.sh | bash
-```
-
-**Install Any Specific Version:**
-```bash
-curl -sSL https://raw.githubusercontent.com/REPO_PLACEHOLDER/main/install.sh | bash -s -- --version VERSION_PLACEHOLDER
-```
-
-**Upgrade with Cleanup:**
-```bash
-curl -sSL https://raw.githubusercontent.com/REPO_PLACEHOLDER/main/install.sh | bash -s -- --cleanup-all
-```
-
-**Manual Download:**
-Download the appropriate binary for your platform from the assets below.
-
-## Verification
-
-Verify your download with SHA256 checksums:
-```bash
-sha256sum -c checksums.txt
-```
-
----
-
-RELEASE_EOF
-
-        # Replace placeholders with actual values
-        sed -i "s|REPO_PLACEHOLDER|${{ github.repository }}|g" release_notes.md
-        sed -i "s|VERSION_PLACEHOLDER|$VERSION|g" release_notes.md
-        
         # Append the auto-generated notes
         echo "$RELEASE_NOTES" >> release_notes.md
         
