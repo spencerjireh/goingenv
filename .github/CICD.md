@@ -153,7 +153,17 @@ git push origin main
 - `[release] [minor]` - Minor bump (1.0.0 → 1.1.0)
 - `[release] [major]` - Major bump (1.0.0 → 2.0.0)
 
-### Manual Release
+Without `[release]` in the commit message, CI runs validation only (no release created).
+
+### Merging via GitHub UI
+
+When merging a PR on GitHub:
+1. Click "Merge pull request"
+2. Select "Create a merge commit"
+3. Edit the commit message to include `[release]` (and optionally `[minor]` or `[major]`)
+4. Click "Confirm merge"
+
+### Manual Release (workflow_dispatch)
 
 Use GitHub Actions UI:
 

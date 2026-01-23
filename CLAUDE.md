@@ -70,10 +70,10 @@ golangci-lint is configured with:
 
 ## Release Workflow
 
-Auto-release triggers on main branch pushes with commit message flags:
-- `[major]` - Breaking changes
-- `[minor]` - New features
-- Default: Patch version bump
-- `[skip-release]` - Skip automatic release
+Releases require `[release]` flag in commit message when pushing to main:
+- `[release]` - Patch version bump (default)
+- `[release] [minor]` - Minor version bump
+- `[release] [major]` - Major version bump
+- No `[release]` flag - CI validation only, no release
 
-Manual releases: `make quick-alpha`, `make quick-beta`, `make quick-stable`
+Manual releases: `make quick-alpha`, `make quick-beta`, `make quick-stable`, or use GitHub Actions workflow_dispatch
