@@ -63,6 +63,7 @@ export GO111MODULE=on
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 go install golang.org/x/tools/cmd/goimports@latest
 go install github.com/vektra/mockery/v2@latest
+go install github.com/air-verse/air@latest  # Hot-reload tool
 ```
 
 ### Development Commands
@@ -71,9 +72,10 @@ go install github.com/vektra/mockery/v2@latest
 # Development build with race detection
 make dev
 
-# Run with live reload (install air first)
-go install github.com/cosmtrek/air@latest
-air
+# Hot-reload development with Air
+make watch            # Watch and auto-rebuild
+make dev-watch        # Watch and run (launches TUI)
+make watch-run ARGS="status demo/"  # Watch and run with args
 
 # Format code
 make fmt
@@ -90,6 +92,30 @@ make ci-test      # Run tests like CI
 make ci-lint      # Run linting like CI
 make ci-build     # Test build like CI
 ```
+
+### Hot-Reload Development with Air
+
+Air automatically rebuilds your project when Go files change. Configuration is in `.air.toml`.
+
+```bash
+# Install Air (one-time setup)
+go install github.com/air-verse/air@latest
+
+# Start hot-reload development
+make watch            # Rebuilds on change (doesn't run)
+make dev-watch        # Rebuilds and runs the TUI
+make watch-run ARGS="status ."  # Rebuilds and runs with specific command
+
+# Direct Air usage
+air                   # Uses .air.toml config
+air -- status demo/   # Pass arguments to binary
+```
+
+**Air Development Workflow:**
+1. Run `make watch` or `air` in one terminal
+2. Edit your Go files
+3. Air automatically rebuilds on save
+4. Test your changes in another terminal with `./tmp/goingenv`
 
 ## Project Structure
 
@@ -238,6 +264,9 @@ make test-verbose
 
 # Run benchmarks
 make test-bench
+
+# Watch mode - auto-run tests on changes
+make test-watch
 ```
 
 ### Test Structure
@@ -484,30 +513,42 @@ goingenv uses semantic versioning (SemVer):
 
 ### Automatic Releases (Recommended)
 
-**Main Branch Auto-Release:**
-When code is pushed or merged to the `main` branch, stable releases are automatically created:
+**Main Branch Release:**
+Releases are triggered when pushing to `main` with the `[release]` flag in the commit message:
 
 ```bash
-# Automatic patch release (1.0.0 → 1.0.1)
-git push origin main
+# Patch release (1.0.0 → 1.0.1)
+git commit -m "feat: add new feature [release]"
 
-# Control version bump with commit message flags:
-git commit -m "feat: add new feature [minor]"    # 1.0.0 → 1.1.0
-git commit -m "breaking: major refactor [major]" # 1.0.0 → 2.0.0
-git commit -m "docs: update readme [skip-release]" # No release
+# Minor release (1.0.0 → 1.1.0)
+git commit -m "feat: add new feature [release] [minor]"
+
+# Major release (1.0.0 → 2.0.0)
+git commit -m "feat!: breaking change [release] [major]"
+
+# No release (CI validation only)
+git commit -m "docs: update readme"
 ```
 
 **Auto-Release Process:**
-1. **CI Validation**: Waits for all CI jobs to complete successfully
-2. **Version Calculation**: Automatically determines next semantic version
-3. **Tag Creation**: Creates and pushes release tag
-4. **Release Build**: Triggers existing release workflow automatically
+1. **CI Validation**: All CI jobs must pass (lint, test, security, build)
+2. **Release Check**: Looks for `[release]` flag in commit message
+3. **Version Calculation**: Determines next semantic version based on flags
+4. **Build**: Creates binaries for all platforms
+5. **Release**: Creates GitHub release with assets
 
 **Version Control Flags:**
-- `[major]` - Breaking changes (1.0.0 → 2.0.0)
-- `[minor]` - New features (1.0.0 → 1.1.0)
-- `[skip-release]` - Skip automatic release
-- Default: Patch version bump (1.0.0 → 1.0.1)
+- `[release]` - Required to trigger a release
+- `[release] [major]` - Major version bump (1.0.0 → 2.0.0)
+- `[release] [minor]` - Minor version bump (1.0.0 → 1.1.0)
+- `[release]` alone - Patch version bump (1.0.0 → 1.0.1)
+
+**Merging via GitHub UI:**
+When merging a PR on GitHub, edit the merge commit message to include `[release]`:
+1. Click "Merge pull request"
+2. Select "Create a merge commit"
+3. Edit the commit message to include `[release]` (and optionally `[minor]` or `[major]`)
+4. Click "Confirm merge"
 
 ### Manual Pre-Release Workflow
 
@@ -748,6 +789,10 @@ When enabled, the following rules apply:
 - Branches must be up-to-date
 - At least one review required
 - Admin enforcement enabled
+
+## Security
+
+For comprehensive security documentation including encryption details, best practices, and vulnerability reporting, see **[SECURITY.md](SECURITY.md)**.
 
 ## Getting Help
 

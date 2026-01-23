@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(go list:*)",
+      "Bash(go test:*)",
+      "Bash(wc:*)",
+      "Bash(go tool cover:*)",
+      "Bash(go build:*)",
+      "Bash(tree:*)",
+      "Bash(go run:*)",
+      "Bash(ls:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:golangci-lint.run)",
+      "Bash(~/go/bin/golangci-lint run:*)",
+      "Bash(make test-complete:*)"
+    ]
+  }
+}

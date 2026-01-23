@@ -70,3 +70,8 @@ coverage.html
 *.temp
 tmp/
 temp/
+
+# Air hot-reload artifacts
+.air.toml.bak
+
+.claude/

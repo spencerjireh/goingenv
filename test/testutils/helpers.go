@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,11 +32,11 @@ func CreateTempEnvFiles(t *testing.T) string {
 		path := filepath.Join(tmpDir, filename)
 		dir := filepath.Dir(path)
 
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("Failed to create directory %s: %v", dir, err)
 		}
 
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			t.Fatalf("Failed to create file %s: %v", path, err)
 		}
 	}
@@ -51,11 +52,11 @@ func CreateTempEnvFiles(t *testing.T) string {
 		path := filepath.Join(tmpDir, filename)
 		dir := filepath.Dir(path)
 
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatalf("Failed to create directory %s: %v", dir, err)
 		}
 
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			t.Fatalf("Failed to create file %s: %v", path, err)
 		}
 	}
@@ -64,13 +65,13 @@ func CreateTempEnvFiles(t *testing.T) string {
 	excludedDirs := []string{"node_modules", ".git", "vendor"}
 	for _, dir := range excludedDirs {
 		excludedDir := filepath.Join(tmpDir, dir)
-		if err := os.MkdirAll(excludedDir, 0755); err != nil {
+		if err := os.MkdirAll(excludedDir, 0o750); err != nil {
 			t.Fatalf("Failed to create excluded directory %s: %v", excludedDir, err)
 		}
 
 		// Add .env file in excluded directory (should be ignored)
 		excludedEnv := filepath.Join(excludedDir, ".env")
-		if err := os.WriteFile(excludedEnv, []byte("EXCLUDED=true"), 0644); err != nil {
+		if err := os.WriteFile(excludedEnv, []byte("EXCLUDED=true"), 0o600); err != nil {
 			t.Fatalf("Failed to create excluded env file: %v", err)
 		}
 	}
@@ -117,7 +118,7 @@ func CreateTestEnvFiles(count int) []types.EnvFile {
 	files := make([]types.EnvFile, count)
 	for i := 0; i < count; i++ {
 		files[i] = CreateTestEnvFile(
-			filepath.Join("/test", "path", "file"+string(rune(i))+".env"),
+			"/test/path/file"+string(rune(i))+".env", //nolint:gocritic // test data path
 			"file"+string(rune(i))+".env",
 			int64((i+1)*100),
 		)
@@ -162,7 +163,7 @@ func CompareFiles(t *testing.T, path1, path2 string) bool {
 		return false
 	}
 
-	return string(content1) == string(content2)
+	return bytes.Equal(content1, content2)
 }
 
 // GetFileContent reads and returns the content of a file
@@ -177,11 +178,11 @@ func GetFileContent(t *testing.T, path string) string {
 // WriteTestFile creates a test file with specified content
 func WriteTestFile(t *testing.T, path, content string) {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		t.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("Failed to write file %s: %v", path, err)
 	}
 }
@@ -355,7 +356,7 @@ func AssertTimeBetween(t *testing.T, actual, start, end time.Time) {
 // CreateLargeTestFile creates a file with specified size for testing
 func CreateLargeTestFile(t *testing.T, path string, sizeBytes int64) {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		t.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 
@@ -390,15 +391,15 @@ func CreateLargeTestFile(t *testing.T, path string, sizeBytes int64) {
 func CreateTempGoingEnvDir(t *testing.T, parentDir string) string {
 	goingEnvDir := filepath.Join(parentDir, ".goingenv")
 
-	if err := os.MkdirAll(goingEnvDir, 0755); err != nil {
+	if err := os.MkdirAll(goingEnvDir, 0o750); err != nil {
 		t.Fatalf("Failed to create .goingenv directory %s: %v", goingEnvDir, err)
 	}
 
-	// Create proper .gitignore file that doesn't ignore *.enc files
+	// Create .gitignore file for temporary files only
 	gitignorePath := filepath.Join(goingEnvDir, ".gitignore")
-	gitignoreContent := "# GoingEnv directory gitignore\n# This allows *.enc files to be committed for safe env transfer\n# Ignore temporary files\n*.tmp\n*.temp\n"
+	gitignoreContent := "# GoingEnv directory gitignore\n# Ignore temporary files\n*.tmp\n*.temp\n"
 
-	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
+	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0o600); err != nil {
 		t.Fatalf("Failed to create .gitignore in %s: %v", goingEnvDir, err)
 	}
 

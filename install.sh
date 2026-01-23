@@ -14,15 +14,24 @@ BINARY_NAME="goingenv"
 GITHUB_REPO="https://github.com/${REPO_OWNER}/${REPO_NAME}"
 GITHUB_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 
+# Embedded version (set by CI/CD for release assets, empty for main branch)
+# When empty, defaults to "latest". When set, defaults to that version.
+SCRIPT_VERSION=""
+
 # Default settings (can be overridden by environment variables)
 DEFAULT_INSTALL_DIR="${HOME}/.local/bin"
 SYSTEM_INSTALL_DIR="/usr/local/bin"
-VERSION="${GOINGENV_VERSION:-latest}"
+VERSION="${GOINGENV_VERSION:-}"
 INSTALL_DIR="${INSTALL_DIR:-}"
 SKIP_SHELL_INTEGRATION="${SKIP_SHELL_INTEGRATION:-0}"
 NO_SUDO="${NO_SUDO:-0}"
 YES="${YES:-0}"
 FORCE="${FORCE:-0}"
+
+# Cleanup options (opt-in only)
+CLEANUP_BACKUPS="${CLEANUP_BACKUPS:-0}"
+CLEANUP_DUPLICATES="${CLEANUP_DUPLICATES:-0}"
+BACKUP_RETENTION=3  # Number of backups to keep
 
 # Colors for output
 RED='\033[0;31m'
@@ -94,9 +103,7 @@ detect_platform() {
     case "$(uname -m)" in
         x86_64|amd64)   arch="amd64" ;;
         arm64|aarch64)  arch="arm64" ;;
-        armv7l)         arch="arm" ;;
-        i386|i686)      arch="386" ;;
-        *)              error "Unsupported architecture: $(uname -m)"
+        *)              error "Unsupported architecture: $(uname -m). Supported: x86_64, arm64"
                         exit 1 ;;
     esac
 
@@ -165,6 +172,27 @@ get_latest_version() {
     fi
 
     echo "$version"
+}
+
+# Determine which version to install
+# Priority: 1. --version flag, 2. SCRIPT_VERSION (embedded), 3. "latest"
+determine_version() {
+    # If VERSION already set (via --version flag or GOINGENV_VERSION env), use it
+    if [[ -n "$VERSION" ]]; then
+        debug "Using version from command line or environment: $VERSION"
+        return 0
+    fi
+
+    # If SCRIPT_VERSION is embedded (release asset), use it
+    if [[ -n "$SCRIPT_VERSION" ]]; then
+        VERSION="$SCRIPT_VERSION"
+        log "Using embedded script version: $VERSION"
+        return 0
+    fi
+
+    # Default to latest
+    VERSION="latest"
+    debug "Defaulting to latest version"
 }
 
 # Verify checksum if available
@@ -333,7 +361,176 @@ check_existing_installation() {
         else
             warn "Failed to backup existing binary"
         fi
+
+        # Cleanup old backups if requested
+        if [[ "$CLEANUP_BACKUPS" == "1" ]]; then
+            cleanup_backups "$install_dir"
+        fi
     fi
+
+    # Detect and warn about duplicates in other locations
+    detect_duplicates "$install_dir"
+}
+
+# Find all goingenv installations on the system
+find_all_installations() {
+    local search_paths=(
+        "/usr/local/bin/$BINARY_NAME"
+        "/usr/bin/$BINARY_NAME"
+        "$HOME/.local/bin/$BINARY_NAME"
+        "$HOME/bin/$BINARY_NAME"
+        "/opt/bin/$BINARY_NAME"
+    )
+
+    # Check each path
+    for path in "${search_paths[@]}"; do
+        [[ -f "$path" ]] && echo "$path"
+    done
+
+    # Also check what's in PATH
+    local path_binary
+    path_binary=$(command -v "$BINARY_NAME" 2>/dev/null || true)
+    [[ -n "$path_binary" ]] && echo "$path_binary"
+}
+
+# Check if a directory is a standard installation path
+is_standard_install_path() {
+    local dir="$1"
+    local standard_paths=(
+        "/usr/local/bin"
+        "/usr/bin"
+        "$HOME/.local/bin"
+        "$HOME/bin"
+        "/opt/bin"
+    )
+    for std_path in "${standard_paths[@]}"; do
+        [[ "$dir" == "$std_path" ]] && return 0
+    done
+    return 1
+}
+
+# Detect duplicate installations in other locations
+detect_duplicates() {
+    local target_dir="$1"
+    local target_path="$target_dir/$BINARY_NAME"
+    local duplicates=()
+
+    # Safety check: only offer cleanup if installing to a standard path
+    # This prevents accidentally removing real installations when testing with temp dirs
+    local can_cleanup=0
+    if is_standard_install_path "$target_dir"; then
+        can_cleanup=1
+    fi
+
+    # Find all installations except the target
+    while IFS= read -r installation; do
+        if [[ "$installation" != "$target_path" && -f "$installation" ]]; then
+            # Avoid duplicates in the array
+            local already_added=0
+            for dup in "${duplicates[@]}"; do
+                [[ "$dup" == "$installation" ]] && already_added=1 && break
+            done
+            [[ $already_added -eq 0 ]] && duplicates+=("$installation")
+        fi
+    done < <(find_all_installations)
+
+    if [[ ${#duplicates[@]} -gt 0 ]]; then
+        echo ""
+        warn "Found GoingEnv installations in other locations:"
+        for dup in "${duplicates[@]}"; do
+            local dup_version
+            dup_version=$("$dup" --version 2>/dev/null | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?' | head -1)
+            echo "  - $dup (${dup_version:-unknown})"
+        done
+        echo ""
+
+        if [[ "$CLEANUP_DUPLICATES" == "1" ]]; then
+            if [[ $can_cleanup -eq 1 ]]; then
+                cleanup_duplicates "${duplicates[@]}"
+            else
+                warn "Cleanup disabled: target directory ($target_dir) is not a standard install path"
+                warn "Install to a standard path (e.g., ~/.local/bin) to enable duplicate cleanup"
+            fi
+        else
+            warn "Use --cleanup-duplicates to interactively remove these installations"
+        fi
+    fi
+}
+
+# Interactively cleanup duplicate installations
+cleanup_duplicates() {
+    local duplicates=("$@")
+
+    if [[ ${#duplicates[@]} -eq 0 ]]; then
+        debug "No duplicate installations to clean up"
+        return 0
+    fi
+
+    log "Cleaning up duplicate installations..."
+
+    for dup in "${duplicates[@]}"; do
+        local dup_version
+        dup_version=$("$dup" --version 2>/dev/null | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?' | head -1)
+
+        if [[ "$YES" == "1" ]]; then
+            if rm -f "$dup" 2>/dev/null; then
+                log "Removed: $dup (${dup_version:-unknown})"
+            else
+                warn "Failed to remove: $dup (may need sudo)"
+            fi
+        elif [[ -t 0 ]]; then
+            read -p "Remove $dup (${dup_version:-unknown})? [y/N]: " -r
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                if rm -f "$dup" 2>/dev/null; then
+                    log "Removed: $dup"
+                else
+                    warn "Failed to remove: $dup (may need sudo)"
+                fi
+            else
+                debug "Skipped: $dup"
+            fi
+        else
+            warn "Non-interactive mode: skipping $dup (use --yes to auto-remove)"
+        fi
+    done
+}
+
+# Cleanup old backup files, keeping the most recent N
+cleanup_backups() {
+    local install_dir="$1"
+    local backup_pattern="${install_dir}/${BINARY_NAME}.backup.*"
+    local backups=()
+
+    # Find all backup files and sort by modification time (newest first)
+    while IFS= read -r backup; do
+        [[ -f "$backup" ]] && backups+=("$backup")
+    done < <(ls -t $backup_pattern 2>/dev/null || true)
+
+    local backup_count=${#backups[@]}
+
+    if [[ $backup_count -eq 0 ]]; then
+        debug "No backup files found"
+        return 0
+    fi
+
+    debug "Found $backup_count backup file(s)"
+
+    if [[ $backup_count -le $BACKUP_RETENTION ]]; then
+        log "Keeping all $backup_count backup(s) (retention limit: $BACKUP_RETENTION)"
+        return 0
+    fi
+
+    # Remove old backups beyond retention limit
+    local to_remove=("${backups[@]:$BACKUP_RETENTION}")
+    log "Removing ${#to_remove[@]} old backup(s), keeping most recent $BACKUP_RETENTION..."
+
+    for backup in "${to_remove[@]}"; do
+        if rm -f "$backup" 2>/dev/null; then
+            log "  Removed: $(basename "$backup")"
+        else
+            warn "  Failed to remove: $backup"
+        fi
+    done
 }
 
 # Install the binary
@@ -490,7 +687,7 @@ show_usage_instructions() {
     local binary_path="$install_dir/$BINARY_NAME"
 
     echo ""
-    echo -e "${GREEN}🎉 GoingEnv installation completed successfully!${NC}"
+    echo -e "${GREEN}GoingEnv installation completed successfully!${NC}"
     echo ""
     echo -e "${CYAN}Usage:${NC}"
     
@@ -589,6 +786,7 @@ uninstall() {
 
 # Show help
 show_help() {
+    local default_version="${SCRIPT_VERSION:-latest}"
     cat << EOF
 GoingEnv Installation Script
 
@@ -598,12 +796,17 @@ USAGE:
 OPTIONS:
     --help              Show this help message
     --uninstall         Uninstall GoingEnv
-    --version VERSION   Install specific version (default: latest)
+    --version VERSION   Install specific version (default: $default_version)
     --dir PATH          Custom installation directory
     --yes               Skip interactive prompts
     --no-sudo           Don't attempt system-wide installation
     --skip-shell        Skip shell integration setup
     --force, -f         Force installation without confirmation
+
+CLEANUP OPTIONS (opt-in):
+    --cleanup-backups       Remove old backup files, keep last $BACKUP_RETENTION
+    --cleanup-duplicates    Interactively remove installations in other locations
+    --cleanup-all           Do both (cleanup backups and duplicates)
 
 ENVIRONMENT VARIABLES:
     GOINGENV_VERSION    Version to install (e.g., v1.0.0)
@@ -613,6 +816,11 @@ ENVIRONMENT VARIABLES:
     SKIP_SHELL_INTEGRATION  Skip PATH setup (1 to enable)
     FORCE               Force installation without confirmation (1 to enable)
     DEBUG               Enable debug output (1 to enable)
+
+VERSION BEHAVIOR:
+    When downloaded from a GitHub release asset, this script defaults to
+    that specific version ($default_version). When downloaded from the main
+    branch, it defaults to the latest release. Use --version to override.
 
 EXAMPLES:
     # Install latest version
@@ -627,11 +835,21 @@ EXAMPLES:
     # Non-interactive installation
     $0 --yes
 
+    # Upgrade and cleanup old backups
+    $0 --cleanup-backups
+
+    # Remove duplicate installations
+    $0 --cleanup-duplicates
+
+    # Full cleanup (backups + duplicates)
+    $0 --cleanup-all
+
     # Uninstall
     $0 --uninstall
 
 EOF
 }
+
 
 # Main installation function
 main() {
@@ -672,6 +890,19 @@ main() {
                 FORCE=1
                 shift
                 ;;
+            --cleanup-backups)
+                CLEANUP_BACKUPS=1
+                shift
+                ;;
+            --cleanup-duplicates)
+                CLEANUP_DUPLICATES=1
+                shift
+                ;;
+            --cleanup-all)
+                CLEANUP_BACKUPS=1
+                CLEANUP_DUPLICATES=1
+                shift
+                ;;
             *)
                 error "Unknown option: $1"
                 echo "Use --help for usage information"
@@ -692,7 +923,10 @@ main() {
     platform=$(detect_platform)
     log "Detected platform: $platform"
 
-    # Get version to install
+    # Determine which version to install
+    determine_version
+
+    # Resolve "latest" to actual version
     if [[ "$VERSION" == "latest" ]]; then
         VERSION=$(get_latest_version)
         log "Latest version: $VERSION"

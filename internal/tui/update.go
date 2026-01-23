@@ -3,8 +3,9 @@ package tui
 import (
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"goingenv/pkg/types"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Update implements tea.Model interface
@@ -226,8 +227,7 @@ func (m *Model) handleListPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleFileSelectKeys handles keyboard input during file selection
 func (m *Model) handleFileSelectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
+	if msg.String() == "esc" {
 		m.SetScreen(ScreenMenu)
 		return m, nil
 	}

@@ -32,7 +32,7 @@ goingenv status
 goingenv status --verbose
 ```
 
-> **⚠️ Important**: You must run `goingenv init` in each project directory before using any other commands. This creates the necessary `.goingenv` directory structure and configuration files.
+> **Important**: You must run `goingenv init` in each project directory before using any other commands. This creates the necessary `.goingenv` directory structure and configuration files.
 
 ### Launch Interactive Mode
 
@@ -111,10 +111,10 @@ goingenv status
 ```
 
 The `init` command creates:
-- `.goingenv/` directory in your project
-- `.goingenv/.gitignore` file (allows `*.enc` files for safe transfer)
-- Adds `.goingenv/` to your project's `.gitignore`
+- `.goingenv/` directory in your project for storing encrypted archives
 - Default configuration in your home directory
+
+Encrypted archives (`.enc` files) are safe to commit to git for sharing with team members.
 
 ### Password Security
 
@@ -387,9 +387,9 @@ for project in "$PROJECTS_DIR"/*; do
         cd "$project"
         
         if goingenv pack --password-env BACKUP_PASSWORD -o "$backup_file" --description "Automated backup"; then
-            echo "✅ $project_name backed up successfully"
+            echo "[OK] $project_name backed up successfully"
         else
-            echo "❌ Failed to backup $project_name"
+            echo "[FAIL] Failed to backup $project_name"
         fi
     fi
 done

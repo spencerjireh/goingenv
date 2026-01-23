@@ -28,7 +28,7 @@ func NewDebugLogger(enabled bool) *DebugLogger {
 	}
 
 	debugDir := filepath.Join(homeDir, ".goingenv", "debug")
-	if err := os.MkdirAll(debugDir, 0755); err != nil {
+	if mkdirErr := os.MkdirAll(debugDir, 0o750); mkdirErr != nil {
 		return &DebugLogger{enabled: false}
 	}
 
@@ -103,7 +103,7 @@ func (d *DebugLogger) LogFileOperation(operation, path string, size int64) {
 func (d *DebugLogger) Close() {
 	if d.enabled && d.file != nil {
 		d.Log("Debug session ended")
-		d.file.Close()
+		_ = d.file.Close()
 	}
 }
 

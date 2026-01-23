@@ -262,7 +262,7 @@ var LightTheme = Theme{
 }
 
 // ApplyTheme applies a theme to all styles
-func ApplyTheme(theme Theme) {
+func ApplyTheme(theme *Theme) {
 	TitleStyle = TitleStyle.Background(theme.Primary).Foreground(theme.Secondary)
 	HeaderStyle = HeaderStyle.Foreground(theme.Primary)
 	ErrorStyle = ErrorStyle.Foreground(theme.Error)

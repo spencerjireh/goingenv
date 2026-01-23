@@ -14,6 +14,7 @@ import (
 	"goingenv/test/testutils"
 )
 
+//nolint:gocyclo // integration test with multiple test phases
 func TestFullWorkflow(t *testing.T) {
 	// Setup
 	tmpDir := testutils.CreateTempEnvFiles(t)
@@ -35,7 +36,7 @@ func TestFullWorkflow(t *testing.T) {
 			MaxDepth: cfg.DefaultDepth,
 		}
 
-		files, err := scannerService.ScanFiles(scanOpts)
+		files, err := scannerService.ScanFiles(&scanOpts)
 		testutils.AssertNoError(t, err)
 
 		if len(files) == 0 {
@@ -68,7 +69,7 @@ func TestFullWorkflow(t *testing.T) {
 		RootPath: tmpDir,
 		MaxDepth: cfg.DefaultDepth,
 	}
-	files, err := scannerService.ScanFiles(scanOpts)
+	files, err := scannerService.ScanFiles(&scanOpts)
 	testutils.AssertNoError(t, err)
 
 	// Test packing
@@ -100,20 +101,20 @@ func TestFullWorkflow(t *testing.T) {
 
 	// Test listing
 	t.Run("List Archive Contents", func(t *testing.T) {
-		archive, err := archiverService.List(archivePath, password)
+		archiveInfo, err := archiverService.List(archivePath, password)
 		testutils.AssertNoError(t, err)
 
-		if len(archive.Files) != len(files) {
-			t.Errorf("Archive contains %d files, expected %d", len(archive.Files), len(files))
+		if len(archiveInfo.Files) != len(files) {
+			t.Errorf("Archive contains %d files, expected %d", len(archiveInfo.Files), len(files))
 		}
 
-		if archive.Description != "Integration test archive" {
-			t.Errorf("Archive description mismatch: got %s", archive.Description)
+		if archiveInfo.Description != "Integration test archive" {
+			t.Errorf("Archive description mismatch: got %s", archiveInfo.Description)
 		}
 
 		// Verify all original files are in archive
 		archiveFiles := make(map[string]bool)
-		for _, file := range archive.Files {
+		for _, file := range archiveInfo.Files {
 			archiveFiles[file.RelativePath] = true
 		}
 
@@ -123,13 +124,13 @@ func TestFullWorkflow(t *testing.T) {
 			}
 		}
 
-		t.Logf("Archive contains %d files with total size %d bytes", len(archive.Files), archive.TotalSize)
+		t.Logf("Archive contains %d files with total size %d bytes", len(archiveInfo.Files), archiveInfo.TotalSize)
 	})
 
 	// Test unpacking
 	t.Run("Unpack Archive", func(t *testing.T) {
 		unpackDir := filepath.Join(tmpDir, "unpacked")
-		err := os.MkdirAll(unpackDir, 0755)
+		err := os.MkdirAll(unpackDir, 0o750)
 		testutils.AssertNoError(t, err)
 
 		unpackOpts := types.UnpackOptions{
@@ -215,7 +216,7 @@ func TestErrorHandling(t *testing.T) {
 
 		// Create valid archive first
 		scannerService := scanner.NewService(cfg)
-		files, err := scannerService.ScanFiles(types.ScanOptions{
+		files, err := scannerService.ScanFiles(&types.ScanOptions{
 			RootPath: tmpDir,
 			MaxDepth: 2,
 		})
@@ -262,7 +263,7 @@ func TestErrorHandling(t *testing.T) {
 
 	t.Run("Scan Invalid Directory", func(t *testing.T) {
 		scannerService := scanner.NewService(cfg)
-		_, err := scannerService.ScanFiles(types.ScanOptions{
+		_, err := scannerService.ScanFiles(&types.ScanOptions{
 			RootPath: "/nonexistent/directory",
 			MaxDepth: 2,
 		})
@@ -397,7 +398,7 @@ func TestLargeFileHandling(t *testing.T) {
 		largeFile := filepath.Join(tmpDir, "large.env")
 		testutils.CreateLargeTestFile(t, largeFile, 2048) // 2KB, exceeds 1KB limit
 
-		files, err := scannerService.ScanFiles(types.ScanOptions{
+		files, err := scannerService.ScanFiles(&types.ScanOptions{
 			RootPath: tmpDir,
 			MaxDepth: 2,
 		})
@@ -444,7 +445,7 @@ func TestConcurrentAccess(t *testing.T) {
 	archiverService := archive.NewService(cryptoService)
 
 	// Get files for testing
-	files, err := scannerService.ScanFiles(types.ScanOptions{
+	files, err := scannerService.ScanFiles(&types.ScanOptions{
 		RootPath: tmpDir,
 		MaxDepth: 2,
 	})
@@ -472,10 +473,8 @@ func TestConcurrentAccess(t *testing.T) {
 
 		// Wait for all goroutines to complete
 		for i := 0; i < numGoroutines; i++ {
-			select {
-			case err := <-done:
-				testutils.AssertNoError(t, err)
-			}
+			err := <-done
+			testutils.AssertNoError(t, err)
 		}
 
 		// Verify all archives were created
@@ -506,7 +505,7 @@ func TestMemoryUsage(t *testing.T) {
 	scannerService := scanner.NewService(cfg)
 
 	t.Run("Memory Efficient Scanning", func(t *testing.T) {
-		files, err := scannerService.ScanFiles(types.ScanOptions{
+		files, err := scannerService.ScanFiles(&types.ScanOptions{
 			RootPath: tmpDir,
 			MaxDepth: 2,
 		})
@@ -543,7 +542,7 @@ func TestInitializationRequirement(t *testing.T) {
 	archiverService := archive.NewService(cryptoService)
 
 	// Get files for testing
-	files, err := scannerService.ScanFiles(types.ScanOptions{
+	files, err := scannerService.ScanFiles(&types.ScanOptions{
 		RootPath: tmpDir,
 		MaxDepth: 2,
 	})
@@ -602,8 +601,8 @@ func TestConfigInitialization(t *testing.T) {
 		err := os.Chdir(tmpDir)
 		testutils.AssertNoError(t, err)
 		defer func() {
-			err := os.Chdir(originalDir)
-			testutils.AssertNoError(t, err)
+			chdirErr := os.Chdir(originalDir)
+			testutils.AssertNoError(t, chdirErr)
 		}()
 
 		// Should not be initialized initially
@@ -628,11 +627,11 @@ func TestConfigInitialization(t *testing.T) {
 		testutils.AssertFileExists(t, gitignorePath)
 
 		content := testutils.GetFileContent(t, gitignorePath)
-		testutils.AssertStringContains(t, content, "# This allows")
-		testutils.AssertStringContains(t, content, "safe env transfer")
+		// Check that the gitignore contains expected patterns
+		testutils.AssertStringContains(t, content, "*.tmp")
+		testutils.AssertStringContains(t, content, "*.temp")
 		// Check that *.enc is not an ignore pattern (not at start of line)
 		testutils.AssertStringNotContains(t, content, "\n*.enc")
-		testutils.AssertStringContains(t, content, "*.tmp")
 	})
 
 	t.Run("InitializeProject Function", func(t *testing.T) {
@@ -643,8 +642,8 @@ func TestConfigInitialization(t *testing.T) {
 		err := os.Chdir(tmpDir)
 		testutils.AssertNoError(t, err)
 		defer func() {
-			err := os.Chdir(originalDir)
-			testutils.AssertNoError(t, err)
+			chdirErr := os.Chdir(originalDir)
+			testutils.AssertNoError(t, chdirErr)
 		}()
 
 		// Initialize

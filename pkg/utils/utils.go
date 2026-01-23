@@ -88,12 +88,13 @@ func CategorizeEnvFile(filename string) string {
 }
 
 // FilterFilesByPatterns filters files based on glob patterns
-func FilterFilesByPatterns(relativePaths []string, patterns []string) []string {
+func FilterFilesByPatterns(relativePaths, patterns []string) []string {
 	var filtered []string
 
 	for _, filePath := range relativePaths {
 		for _, pattern := range patterns {
-			if matched, _ := filepath.Match(pattern, filePath); matched {
+			matched, matchErr := filepath.Match(pattern, filePath)
+			if matchErr == nil && matched {
 				filtered = append(filtered, filePath)
 				break
 			}
