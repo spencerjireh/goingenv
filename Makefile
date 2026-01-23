@@ -809,8 +809,8 @@ help:
 	@echo " make run ARGS='pack'          # Run pack command (interactive password)"
 	@echo " make demo-scenario            # Full demo with sample files"
 	@echo ""
-	@echo "Note: Pushing to main branch automatically creates stable releases."
-	@echo "Use commit message flags: [major], [minor], [skip-release]"
+	@echo "Note: Releases require [release] flag in commit message when pushing to main."
+	@echo "Version flags: [release] (patch), [release] [minor], [release] [major]"
 
 # Phony targets
 .PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration test-e2e \

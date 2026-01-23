@@ -513,30 +513,42 @@ goingenv uses semantic versioning (SemVer):
 
 ### Automatic Releases (Recommended)
 
-**Main Branch Auto-Release:**
-When code is pushed or merged to the `main` branch, stable releases are automatically created:
+**Main Branch Release:**
+Releases are triggered when pushing to `main` with the `[release]` flag in the commit message:
 
 ```bash
-# Automatic patch release (1.0.0 → 1.0.1)
-git push origin main
+# Patch release (1.0.0 → 1.0.1)
+git commit -m "feat: add new feature [release]"
 
-# Control version bump with commit message flags:
-git commit -m "feat: add new feature [minor]"    # 1.0.0 → 1.1.0
-git commit -m "breaking: major refactor [major]" # 1.0.0 → 2.0.0
-git commit -m "docs: update readme [skip-release]" # No release
+# Minor release (1.0.0 → 1.1.0)
+git commit -m "feat: add new feature [release] [minor]"
+
+# Major release (1.0.0 → 2.0.0)
+git commit -m "feat!: breaking change [release] [major]"
+
+# No release (CI validation only)
+git commit -m "docs: update readme"
 ```
 
 **Auto-Release Process:**
-1. **CI Validation**: Waits for all CI jobs to complete successfully
-2. **Version Calculation**: Automatically determines next semantic version
-3. **Tag Creation**: Creates and pushes release tag
-4. **Release Build**: Triggers existing release workflow automatically
+1. **CI Validation**: All CI jobs must pass (lint, test, security, build)
+2. **Release Check**: Looks for `[release]` flag in commit message
+3. **Version Calculation**: Determines next semantic version based on flags
+4. **Build**: Creates binaries for all platforms
+5. **Release**: Creates GitHub release with assets
 
 **Version Control Flags:**
-- `[major]` - Breaking changes (1.0.0 → 2.0.0)
-- `[minor]` - New features (1.0.0 → 1.1.0)
-- `[skip-release]` - Skip automatic release
-- Default: Patch version bump (1.0.0 → 1.0.1)
+- `[release]` - Required to trigger a release
+- `[release] [major]` - Major version bump (1.0.0 → 2.0.0)
+- `[release] [minor]` - Minor version bump (1.0.0 → 1.1.0)
+- `[release]` alone - Patch version bump (1.0.0 → 1.0.1)
+
+**Merging via GitHub UI:**
+When merging a PR on GitHub, edit the merge commit message to include `[release]`:
+1. Click "Merge pull request"
+2. Select "Create a merge commit"
+3. Edit the commit message to include `[release]` (and optionally `[minor]` or `[major]`)
+4. Click "Confirm merge"
 
 ### Manual Pre-Release Workflow
 
