@@ -66,7 +66,7 @@ main() {
     
     # Check if coverage file exists
     if [[ ! -f "$COVERAGE_FILE" ]]; then
-        echo "❌ Coverage file '$COVERAGE_FILE' not found"
+        echo "[ERROR] Coverage file '$COVERAGE_FILE' not found"
         echo "Run tests with coverage first: go test -coverprofile=coverage.out ./..."
         exit 1
     fi
@@ -75,7 +75,7 @@ main() {
     COVERAGE_PERCENTAGE=$(go tool cover -func="$COVERAGE_FILE" | grep total | awk '{print $3}' | sed 's/%//')
     
     if [[ -z "$COVERAGE_PERCENTAGE" ]]; then
-        echo "❌ Could not extract coverage percentage from $COVERAGE_FILE"
+        echo "[ERROR] Could not extract coverage percentage from $COVERAGE_FILE"
         exit 1
     fi
     
@@ -88,7 +88,7 @@ main() {
     # Generate the badge
     generate_badge "$COVERAGE_PERCENTAGE" "$COLOR"
     
-    echo "✅ Coverage badge generated: $BADGE_FILE"
+    echo "[OK] Coverage badge generated: $BADGE_FILE"
     echo "Badge displays: $COVERAGE_PERCENTAGE% coverage"
     
     # Show file size
@@ -113,7 +113,7 @@ DESCRIPTION:
     - Red (< 50%): Poor coverage
     - Orange (50-69%): Fair coverage  
     - Yellow (70-79%): Good coverage
-    - Green (≥ 80%): Excellent coverage
+    - Green (>= 80%): Excellent coverage
 
 OPTIONS:
     -h, --help    Show this help message
@@ -140,7 +140,7 @@ fi
 
 # Check for bc
 if ! command -v bc >/dev/null 2>&1; then
-    echo "❌ 'bc' calculator not found. Please install it:"
+    echo "[ERROR] 'bc' calculator not found. Please install it:"
     echo "  macOS: brew install bc"
     echo "  Ubuntu: apt-get install bc"
     exit 1

@@ -2,6 +2,43 @@
 
 This document describes the unified CI/CD pipeline for goingenv.
 
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Run all CI checks | `make ci-full` |
+| Test release locally | `./scripts/test-release.sh VERSION` |
+| Create patch release | `git commit -m "fix: message [release]"` |
+| Create minor release | `git commit -m "feat: message [release] [minor]"` |
+| Create major release | `git commit -m "feat!: message [release] [major]"` |
+| One-command alpha | `make quick-alpha` |
+| Check release status | `make check-release-status` |
+
+### Before Pushing Code
+
+```bash
+make ci-full
+```
+
+This runs: dependency updates, unit tests with race detection, linting, build verification, security scanning, and cross-compilation tests.
+
+### Common Fixes
+
+```bash
+# Lint failure
+make fmt && go mod tidy
+
+# Test failure
+make test-complete
+
+# Security scan failure
+make vuln-check
+go get -u [vulnerable-package]
+go mod tidy
+```
+
+---
+
 ## Overview
 
 The pipeline is defined in a single workflow file (`.github/workflows/pipeline.yml`) with three distinct stages:
@@ -235,16 +272,6 @@ The `pages.yml` workflow is separate and deploys documentation to GitHub Pages:
 - Triggers on pushes to `index.html`
 - Independent of main pipeline
 - Simple static file deployment
-
-## Migration Notes
-
-If you're coming from the old workflow system:
-
-- Old workflow files removed: `ci.yml`, `auto-release.yml`
-- New unified file: `pipeline.yml`
-- All functionality preserved and improved
-- No changes needed to your workflow - just better
-- Release trigger mechanism unchanged (`[release]` flag)
 
 ## Future Enhancements
 

@@ -33,6 +33,7 @@ on:
 permissions:
   contents: write
   packages: read
+  security-events: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -636,12 +637,12 @@ jobs:
       run: |
         echo "Waiting for release to be available..."
         VERSION="v${{ needs.check-release.outputs.next-version }}"
-        for i in {1..30}; do
+        for i in {1..60}; do
           if curl -sSf "https://github.com/${{ github.repository }}/releases/download/$VERSION/checksums.txt" >/dev/null; then
             echo "Release is available"
             break
           fi
-          echo "Attempt $i/30: Release not yet available, waiting 10s..."
+          echo "Attempt $i/60: Release not yet available, waiting 10s..."
           sleep 10
         done
 
