@@ -223,31 +223,6 @@ func TestCheckFileConflicts(t *testing.T) {
 	}
 }
 
-func TestContains(t *testing.T) {
-	tests := []struct {
-		s      string
-		substr string
-		want   bool
-	}{
-		{"hello world", "world", true},
-		{"hello world", "hello", true},
-		{"hello world", "foo", false},
-		{"", "foo", false},
-		{"foo", "", true},
-		{".goingenv/", ".goingenv", true},
-		{".gitignore", ".goingenv", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.s+"_"+tt.substr, func(t *testing.T) {
-			got := contains(tt.s, tt.substr)
-			if got != tt.want {
-				t.Errorf("contains(%q, %q) = %v, want %v", tt.s, tt.substr, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestNewRootCommand(t *testing.T) {
 	cmd := NewRootCommand("test-version")
 

@@ -308,7 +308,7 @@ func (m *Model) renderHelp() string {
 	view += HeaderStyle.Render("Tips:") + "\n"
 	view += "  • Use strong, unique passwords for each archive\n"
 	view += "  • Archives are stored in .goingenv/ directory\n"
-	view += "  • .goingenv/ is automatically added to .gitignore\n"
+	view += "  • Encrypted archives (.enc) are safe to commit to git\n"
 	view += "  • Use 'status' command to see detected files\n\n"
 
 	view += "Press Esc to go back"

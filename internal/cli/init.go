@@ -2,8 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -19,10 +17,11 @@ func newInitCommand() *cobra.Command {
 and generating configuration files.
 
 This command will:
-- Create the .goingenv directory
-- Generate a .gitignore file inside .goingenv (allowing *.enc files for safe transfer)
+- Create the .goingenv directory for storing encrypted archives
 - Create a default configuration file in your home directory if it doesn't exist
-- Ensure the project root .gitignore includes .goingenv/
+
+Encrypted archives (.enc files) can be safely committed to git for sharing
+with team members.
 
 This must be run before using any other goingenv commands.
 
@@ -52,7 +51,7 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Initializing goingenv in current directory...")
 
-	// Create .goingenv directory with proper gitignore
+	// Create .goingenv directory for storing encrypted archives
 	if initErr := config.InitializeProject(); initErr != nil {
 		return fmt.Errorf("failed to initialize project: %w", initErr)
 	}
@@ -69,72 +68,18 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
-	// Update project root .gitignore to include .goingenv/
-	if err := ensureProjectGitignore(); err != nil {
-		fmt.Printf("Warning: Could not update project .gitignore: %v\n", err)
-		fmt.Println("Please manually add '.goingenv/' to your project's .gitignore file.")
-	}
-
-	fmt.Println("✅ goingenv successfully initialized!")
+	fmt.Println("goingenv successfully initialized!")
 	fmt.Println()
 	fmt.Println("What's been created:")
-	fmt.Printf("  • .goingenv/ directory\n")
-	fmt.Printf("  • .goingenv/.gitignore (allows *.enc files for safe transfer)\n")
-	fmt.Printf("  • Configuration file in your home directory\n")
+	fmt.Printf("  - .goingenv/ directory for storing encrypted archives\n")
+	fmt.Printf("  - Configuration file in your home directory\n")
 	fmt.Println()
 	fmt.Println("Next steps:")
-	fmt.Println("  • Run 'goingenv pack' to create your first encrypted archive")
-	fmt.Println("  • Run 'goingenv status' to see what environment files are detected")
-	fmt.Println("  • Use the TUI mode by running 'goingenv' without arguments")
+	fmt.Println("  - Run 'goingenv pack' to create your first encrypted archive")
+	fmt.Println("  - Run 'goingenv status' to see what environment files are detected")
+	fmt.Println("  - Use the TUI mode by running 'goingenv' without arguments")
+	fmt.Println()
+	fmt.Println("Encrypted archives (.enc files) are safe to commit to git for sharing.")
 
 	return nil
-}
-
-// ensureProjectGitignore ensures the project root .gitignore includes .goingenv/
-func ensureProjectGitignore() error {
-	gitignorePath := ".gitignore"
-
-	// Check if .gitignore exists
-	content := ""
-	if _, err := os.Stat(gitignorePath); err == nil {
-		// Read existing content
-		data, err := os.ReadFile(gitignorePath)
-		if err != nil {
-			return fmt.Errorf("failed to read .gitignore: %w", err)
-		}
-		content = string(data)
-	}
-
-	// Check if .goingenv/ is already in gitignore
-	if filepath.Base(content) != "" {
-		// Simple check - if .goingenv appears anywhere in the file, assume it's handled
-		if content != "" && (contains(content, ".goingenv/") || contains(content, ".goingenv")) {
-			return nil
-		}
-	}
-
-	// Add .goingenv/ to gitignore
-	if content != "" && content[len(content)-1] != '\n' {
-		content += "\n"
-	}
-	content += "\n# goingenv directory\n.goingenv/\n"
-
-	// Write back to .gitignore
-	if err := os.WriteFile(gitignorePath, []byte(content), 0o644); err != nil { //nolint:gosec // G306: gitignore should be readable
-		return fmt.Errorf("failed to write .gitignore: %w", err)
-	}
-
-	return nil
-}
-
-// contains checks if a string contains a substring
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && func() bool {
-		for i := 0; i <= len(s)-len(substr); i++ {
-			if s[i:i+len(substr)] == substr {
-				return true
-			}
-		}
-		return false
-	}()
 }
