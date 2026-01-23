@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, develop ]
     paths:
-      - 'index.html'
+      - 'public/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -26,15 +26,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
-          
+          path: './public'
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

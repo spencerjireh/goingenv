@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: All commands now require `goingenv init` to be run first in each project directory
 - TUI now shows initialization screen when project is not initialized
 - Archive operations no longer auto-create `.goingenv` directory
-- Updated `.goingenv/.gitignore` to allow `*.enc` files for safe environment transfer
+- Encrypted archives (`.enc` files) are now shareable via git by default - no auto-gitignore modification
 - Restructured README.md for better user experience
 - Enhanced Makefile with CI and release targets
 - Improved TUI with debug mode indicators

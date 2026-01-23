@@ -70,12 +70,12 @@ simulate_github_actions() {
         temp_dir=$(mktemp -d)
         tar -xzf "$archive" -C "$temp_dir"
         
-        binary=$(find "$temp_dir" -name "goingenv-*" -type f)
+        binary=$(find "$temp_dir" -name "goingenv" -type f)
         if [[ -n "$binary" ]]; then
-            echo "  ✅ Binary found: $(basename $binary)"
+            echo "  [OK] Binary found: $(basename $binary)"
             echo "  Size: $(du -h $binary | cut -f1)"
         else
-            error "  ❌ Binary not found in $archive"
+            error "  [FAIL] Binary not found in $archive"
             rm -rf "$temp_dir"
             return 1
         fi
@@ -85,7 +85,7 @@ simulate_github_actions() {
     
     cd ..
     
-    log "✅ All archives verified successfully"
+    log "[OK] All archives verified successfully"
 }
 
 # Function to test install script compatibility
@@ -100,7 +100,7 @@ test_install_script() {
         return 1
     fi
     
-    log "✅ Install script syntax is valid"
+    log "[OK] Install script syntax is valid"
     
     # Test help function
     if ! ./install.sh --help >/dev/null; then
@@ -108,13 +108,13 @@ test_install_script() {
         return 1
     fi
     
-    log "✅ Install script help works"
+    log "[OK] Install script help works"
     
     # Test dry run (this will fail because version doesn't exist yet)
     log "Testing install script dry run..."
     DEBUG=1 NO_SUDO=1 SKIP_SHELL_INTEGRATION=1 ./install.sh --version "v$version" 2>&1 | head -10
     
-    log "✅ Install script dry run completed (expected download failure)"
+    log "[OK] Install script dry run completed (expected download failure)"
 }
 
 # Function to check git state
@@ -132,7 +132,7 @@ check_git_state() {
             exit 1
         fi
     else
-        log "✅ Working directory is clean"
+        log "[OK] Working directory is clean"
     fi
     
     # Check current branch
@@ -160,7 +160,7 @@ check_git_state() {
             exit 1
         fi
     else
-        log "✅ All commits are pushed"
+        log "[OK] All commits are pushed"
     fi
 }
 
@@ -181,7 +181,7 @@ validate_version() {
         return 1
     fi
     
-    log "✅ Version format is valid: $version"
+    log "[OK] Version format is valid: $version"
 }
 
 # Main function
@@ -209,7 +209,7 @@ main() {
     test_install_script "$version"
     
     echo ""
-    log "🎉 Release test completed successfully!"
+    log "Release test completed successfully!"
     echo ""
     echo -e "${BLUE}Next steps:${NC}"
     echo "1. If everything looks good, create the real release:"

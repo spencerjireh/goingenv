@@ -50,7 +50,7 @@ It can scan, encrypt, and archive your .env files securely, making it easy to
 backup, transfer, and restore your environment configurations.`,
 		Version: version,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			verbose, _ := cmd.Flags().GetBool("verbose")
+			verbose, _ := cmd.Flags().GetBool("verbose") //nolint:errcheck // flag always exists
 			return runInteractiveMode(verbose)
 		},
 	}

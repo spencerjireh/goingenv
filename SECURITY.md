@@ -2,7 +2,7 @@
 
 This document outlines security considerations, best practices, and implementation details for goingenv.
 
-## ⚠️ Security Notice
+## Security Notice
 
 > **WARNING**: goingenv has not been security audited but has been tested in production environments. Use at your own risk and avoid use in public repositories. Always review the code and consult with security professionals before using in production systems.
 
@@ -326,8 +326,8 @@ go list -u -m all
 
 | Version | Supported |
 |---------|-----------|
-| 1.x.x   | ✅ Yes    |
-| 0.x.x   | ❌ No     |
+| 1.x.x   | Yes       |
+| 0.x.x   | No        |
 
 ### Security Updates
 

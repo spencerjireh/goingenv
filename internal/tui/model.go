@@ -73,13 +73,13 @@ func NewModel(app *types.App, verbose bool) *Model {
 			MenuItem{
 				title:       "Initialize goingenv",
 				description: "Set up goingenv in this directory",
-				icon:        "🚀",
+				icon:        ">",
 				action:      "init",
 			},
 			MenuItem{
 				title:       "Help",
 				description: "Command documentation and examples",
-				icon:        "❓",
+				icon:        "?",
 				action:      "help",
 			},
 		}
@@ -90,37 +90,37 @@ func NewModel(app *types.App, verbose bool) *Model {
 			MenuItem{
 				title:       "Pack Environment Files",
 				description: "Scan and encrypt environment files",
-				icon:        "📦",
+				icon:        "[P]",
 				action:      "pack",
 			},
 			MenuItem{
 				title:       "Unpack Archive",
 				description: "Decrypt and restore archived files",
-				icon:        "📂",
+				icon:        "[U]",
 				action:      "unpack",
 			},
 			MenuItem{
 				title:       "List Archive Contents",
 				description: "Browse archive contents without extracting",
-				icon:        "📋",
+				icon:        "[L]",
 				action:      "list",
 			},
 			MenuItem{
 				title:       "Status",
 				description: "View current directory and available archives",
-				icon:        "📊",
+				icon:        "[S]",
 				action:      "status",
 			},
 			MenuItem{
 				title:       "Settings",
 				description: "Configure default options",
-				icon:        "⚙️",
+				icon:        "[*]",
 				action:      "settings",
 			},
 			MenuItem{
 				title:       "Help",
 				description: "Command documentation and examples",
-				icon:        "❓",
+				icon:        "[?]",
 				action:      "help",
 			},
 		}
@@ -275,37 +275,37 @@ func (m *Model) refreshMenuAfterInit() *Model {
 		MenuItem{
 			title:       "Pack Environment Files",
 			description: "Scan and encrypt environment files",
-			icon:        "📦",
+			icon:        "[P]",
 			action:      "pack",
 		},
 		MenuItem{
 			title:       "Unpack Archive",
 			description: "Decrypt and restore archived files",
-			icon:        "📂",
+			icon:        "[U]",
 			action:      "unpack",
 		},
 		MenuItem{
 			title:       "List Archive Contents",
 			description: "Browse archive contents without extracting",
-			icon:        "📋",
+			icon:        "[L]",
 			action:      "list",
 		},
 		MenuItem{
 			title:       "Status",
 			description: "View current directory and available archives",
-			icon:        "📊",
+			icon:        "[S]",
 			action:      "status",
 		},
 		MenuItem{
 			title:       "Settings",
 			description: "Configure default options",
-			icon:        "⚙️",
+			icon:        "[*]",
 			action:      "settings",
 		},
 		MenuItem{
 			title:       "Help",
 			description: "Command documentation and examples",
-			icon:        "❓",
+			icon:        "[?]",
 			action:      "help",
 		},
 	}

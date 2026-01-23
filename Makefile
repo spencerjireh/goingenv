@@ -96,6 +96,8 @@ ci-test:
 	go test -race -timeout=5m ./pkg/... ./internal/...
 	@echo -e "$(BLUE)Running integration tests...$(NC)"
 	go test -v -timeout=2m ./test/integration/...
+	@echo -e "$(BLUE)Running e2e tests...$(NC)"
+	go test -v -timeout=5m ./test/e2e/...
 	@echo -e "$(GREEN)All tests passed$(NC)"
 
 ci-lint:
@@ -217,7 +219,7 @@ test-functional:
 	@echo -e "$(BLUE)Running functional test workflow...$(NC)"
 	@echo "Step 1: Building application..."
 	@make build > /dev/null
-	@echo -e "$(GREEN)✓$(NC) Build completed"
+	@echo -e "$(GREEN)[OK]$(NC) Build completed"
 	
 	@echo "Step 2: Creating test environment files..."
 	@mkdir -p test_env_files_functional
@@ -228,23 +230,23 @@ test-functional:
 	@echo "BACKUP=old" > test_env_files_functional/.env.backup
 	@echo "NEW=format" > test_env_files_functional/.env.new_format
 	@echo "IGNORED=value" > test_env_files_functional/regular.txt
-	@echo -e "$(GREEN)✓$(NC) Test files created (6 .env files + 1 regular file)"
+	@echo -e "$(GREEN)[OK]$(NC) Test files created (6 .env files + 1 regular file)"
 	
 	@echo "Step 3: Backing up existing config..."
 	@if [ -f ~/.goingenv.json ]; then \
 		cp ~/.goingenv.json ~/.goingenv.json.test-backup; \
 		echo -e "$(YELLOW)!$(NC) Existing config backed up"; \
 	else \
-		echo -e "$(GREEN)✓$(NC) No existing config to backup"; \
+		echo -e "$(GREEN)[OK]$(NC) No existing config to backup"; \
 	fi
 	
 	@echo "Step 4: Testing all-inclusive pattern (no config)..."
 	@rm -f ~/.goingenv.json
 	@files_detected=$$(./goingenv status test_env_files_functional/ | grep -c "\.env"); \
 	if [ "$$files_detected" -eq 6 ]; then \
-		echo -e "$(GREEN)✓$(NC) All-inclusive pattern working ($$files_detected/6 files detected)"; \
+		echo -e "$(GREEN)[OK]$(NC) All-inclusive pattern working ($$files_detected/6 files detected)"; \
 	else \
-		echo -e "$(RED)✗$(NC) All-inclusive pattern failed ($$files_detected/6 files detected)"; \
+		echo -e "$(RED)[FAIL]$(NC) All-inclusive pattern failed ($$files_detected/6 files detected)"; \
 		exit 1; \
 	fi
 	
@@ -252,30 +254,30 @@ test-functional:
 	@echo '{"default_depth": 3, "env_patterns": ["\\\\.env.*"], "env_exclude_patterns": ["\\\\.env\\\\.backup$$"], "exclude_patterns": ["node_modules/", "\\\\.git/"], "max_file_size": 10485760}' > ~/.goingenv.json
 	@files_detected=$$(./goingenv status test_env_files_functional/ | grep -c "\.env"); \
 	if [ "$$files_detected" -eq 5 ]; then \
-		echo -e "$(GREEN)✓$(NC) Exclusion patterns working ($$files_detected/5 files detected, .env.backup excluded)"; \
+		echo -e "$(GREEN)[OK]$(NC) Exclusion patterns working ($$files_detected/5 files detected, .env.backup excluded)"; \
 	else \
-		echo -e "$(RED)✗$(NC) Exclusion patterns failed ($$files_detected/5 files detected)"; \
+		echo -e "$(RED)[FAIL]$(NC) Exclusion patterns failed ($$files_detected/5 files detected)"; \
 		exit 1; \
 	fi
 	
 	@echo "Step 6: Testing pack/unpack functionality..."
 	@echo "Step 6a: Initializing goingenv in test directory..."
 	@cd test_env_files_functional && ../goingenv init > /dev/null 2>&1
-	@echo -e "$(GREEN)✓$(NC) goingenv initialized in test directory"
+	@echo -e "$(GREEN)[OK]$(NC) goingenv initialized in test directory"
 	@cd test_env_files_functional && echo "test123" | ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null 2>&1 || TEST_PASSWORD="test123" ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null
 	@if [ -f test_env_files_functional/.goingenv/functional-test.enc ]; then \
-		echo -e "$(GREEN)✓$(NC) Pack functionality working"; \
+		echo -e "$(GREEN)[OK]$(NC) Pack functionality working"; \
 	else \
-		echo -e "$(RED)✗$(NC) Pack functionality failed"; \
+		echo -e "$(RED)[FAIL]$(NC) Pack functionality failed"; \
 		exit 1; \
 	fi
 	@mkdir -p test_env_files_functional/unpacked
 	@cd test_env_files_functional && TEST_PASSWORD="test123" ../goingenv unpack -f .goingenv/functional-test.enc --password-env TEST_PASSWORD -t unpacked > /dev/null
 	@unpacked_files=$$(find test_env_files_functional/unpacked -name ".env*" | wc -l); \
 	if [ "$$unpacked_files" -eq 5 ]; then \
-		echo -e "$(GREEN)✓$(NC) Unpack functionality working ($$unpacked_files files restored)"; \
+		echo -e "$(GREEN)[OK]$(NC) Unpack functionality working ($$unpacked_files files restored)"; \
 	else \
-		echo -e "$(RED)✗$(NC) Unpack functionality failed ($$unpacked_files files restored)"; \
+		echo -e "$(RED)[FAIL]$(NC) Unpack functionality failed ($$unpacked_files files restored)"; \
 		exit 1; \
 	fi
 	
@@ -286,15 +288,15 @@ test-functional:
 		mv ~/.goingenv.json.test-backup ~/.goingenv.json; \
 		echo -e "$(YELLOW)!$(NC) Original config restored"; \
 	else \
-		echo -e "$(GREEN)✓$(NC) Cleanup completed"; \
+		echo -e "$(GREEN)[OK]$(NC) Cleanup completed"; \
 	fi
 	
 	@echo ""
-	@echo -e "$(GREEN)🎉 All functional tests passed!$(NC)"
-	@echo "✓ All-inclusive .env.* pattern detection"
-	@echo "✓ Exclusion pattern functionality" 
-	@echo "✓ Pack/unpack workflow"
-	@echo "✓ Configuration management"
+	@echo -e "$(GREEN)All functional tests passed!$(NC)"
+	@echo "[OK] All-inclusive .env.* pattern detection"
+	@echo "[OK] Exclusion pattern functionality"
+	@echo "[OK] Pack/unpack workflow"
+	@echo "[OK] Configuration management"
 
 # Complete test suite including functional tests
 test-complete: clean
@@ -304,10 +306,11 @@ test-complete: clean
 	@echo ""
 	@make test-functional
 	@echo ""
-	@echo -e "$(GREEN)🎉 Complete test suite passed!$(NC)"
-	@echo "✓ Unit tests with race detection"
-	@echo "✓ Integration tests" 
-	@echo "✓ Functional workflow tests"
+	@echo -e "$(GREEN)Complete test suite passed!$(NC)"
+	@echo "[OK] Unit tests with race detection"
+	@echo "[OK] Integration tests"
+	@echo "[OK] E2E tests"
+	@echo "[OK] Functional workflow tests"
 
 # Quick release commands for common scenarios
 release-alpha: pre-release-check
@@ -444,12 +447,17 @@ test-integration:
 	go test -v -run TestFull ./test/integration/...
 	@echo "Integration tests completed$(NC)\""
 
+test-e2e:
+	@echo -e "$(BLUE)Running e2e tests...$(NC)"
+	go test -v -timeout=5m ./test/e2e/...
+	@echo -e "$(GREEN)E2E tests completed$(NC)"
+
 test-coverage:
 	@echo -e "$(BLUE)Running tests with coverage...$(NC)"
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
-	@echo "📊 Coverage summary:"
+	@echo "Coverage summary:"
 	@go tool cover -func=coverage.out | tail -1
 
 test-coverage-ci:
@@ -458,11 +466,12 @@ test-coverage-ci:
 	@go tool cover -func=coverage.out
 
 test-watch:
-	@echo -e "$(BLUE)Running tests in watch mode (requires entr)...$(NC)"
-	@if command -v entr >/dev/null 2>&1; then \
-		find . -name '*.go' | entr -c go test ./...; \
+	@echo -e "$(BLUE)Running tests in watch mode (requires air)...$(NC)"
+	@if command -v air >/dev/null 2>&1 || [ -f $(shell go env GOPATH)/bin/air ]; then \
+		AIR_BIN=$$(command -v air || echo "$(shell go env GOPATH)/bin/air"); \
+		$$AIR_BIN -c .air.toml -- test ./...; \
 	else \
-		echo "$(YELLOW)WARNING:$(NC)  entr not installed. Install with your package manager."; \
+		echo "$(YELLOW)WARNING:$(NC)  air not installed. Install with: go install github.com/air-verse/air@latest"; \
 	fi
 
 test-verbose:
@@ -628,11 +637,41 @@ demo-scenario: demo build
 	cd demo/project1 && DEMO_PASSWORD="demo123" ../../$(BINARY_NAME) list -f .goingenv/demo-backup.enc --password-env DEMO_PASSWORD
 	@echo "Demo scenario completed$(NC)\""
 
-# Development server (for TUI testing)
-dev-server: dev
-	@echo "Starting development server with file watching...$(NC)"
+# Development server with hot-reload (for TUI testing)
+dev-watch:
+	@echo -e "$(BLUE)Starting development with hot-reload...$(NC)"
 	@echo "Press Ctrl+C to stop"
-	./$(BINARY_NAME)-dev
+	@if command -v air >/dev/null 2>&1 || [ -f $(shell go env GOPATH)/bin/air ]; then \
+		AIR_BIN=$$(command -v air || echo "$(shell go env GOPATH)/bin/air"); \
+		$$AIR_BIN; \
+	else \
+		echo "$(YELLOW)WARNING:$(NC)  air not installed. Install with: go install github.com/air-verse/air@latest"; \
+		echo "Falling back to regular dev build..."; \
+		make dev; \
+	fi
+
+# Development server (for TUI testing) - deprecated, use dev-watch
+dev-server: dev-watch
+
+# Watch and auto-rebuild (no execution)
+watch:
+	@echo -e "$(BLUE)Watching for changes and rebuilding...$(NC)"
+	@if command -v air >/dev/null 2>&1 || [ -f $(shell go env GOPATH)/bin/air ]; then \
+		AIR_BIN=$$(command -v air || echo "$(shell go env GOPATH)/bin/air"); \
+		$$AIR_BIN; \
+	else \
+		echo "$(YELLOW)WARNING:$(NC)  air not installed. Install with: go install github.com/air-verse/air@latest"; \
+	fi
+
+# Watch and run with custom arguments
+watch-run:
+	@echo -e "$(BLUE)Watching and running with args: $(ARGS)...$(NC)"
+	@if command -v air >/dev/null 2>&1 || [ -f $(shell go env GOPATH)/bin/air ]; then \
+		AIR_BIN=$$(command -v air || echo "$(shell go env GOPATH)/bin/air"); \
+		$$AIR_BIN -- $(ARGS); \
+	else \
+		echo "$(YELLOW)WARNING:$(NC)  air not installed. Install with: go install github.com/air-verse/air@latest"; \
+	fi
 
 # Profile the application
 profile:
@@ -670,7 +709,7 @@ vuln-check:
 docs:
 	@echo "Generating documentation...$(NC)"
 	@if command -v godoc >/dev/null 2>&1; then \
-		echo "📚 Documentation server: http://localhost:6060/pkg/goingenv/"; \
+		echo "Documentation server: http://localhost:6060/pkg/goingenv/"; \
 		godoc -http=:6060; \
 	else \
 		echo "$(YELLOW)WARNING:$(NC)  godoc not installed. Install with: go install golang.org/x/tools/cmd/godoc@latest"; \
@@ -708,16 +747,20 @@ help:
 	@echo " lint           - Run linter (requires golangci-lint)"
 	@echo " check          - Run all checks (fmt, vet, lint, test)"
 	@echo " check-full     - Run comprehensive checks including integration tests"
+	@echo " watch          - Watch for changes and auto-rebuild (requires air)"
+	@echo " dev-watch      - Watch and run TUI on changes (requires air)"
+	@echo " watch-run      - Watch and run with ARGS (requires air)"
 	@echo ""
 	@echo "Test Commands:"
 	@echo " test           - Run all tests"
 	@echo " test-unit      - Run unit tests only"
 	@echo " test-integration - Run integration tests only"
+	@echo " test-e2e       - Run e2e tests only"
 	@echo " test-functional - Run automated functional workflow tests"
-	@echo " test-complete  - Run complete test suite (unit + integration + functional)"
+	@echo " test-complete  - Run complete test suite (unit + integration + e2e + functional)"
 	@echo " test-coverage  - Run tests with coverage report"
 	@echo " test-coverage-ci - Run tests with coverage for CI"
-	@echo " test-watch     - Run tests in watch mode (requires entr)"
+	@echo " test-watch     - Run tests in watch mode (requires air)"
 	@echo " test-verbose   - Run tests with verbose output"
 	@echo " test-bench     - Run benchmarks"
 	@echo " test-clean     - Clean test artifacts"
@@ -755,6 +798,8 @@ help:
 	@echo ""
 	@echo "Examples:"
 	@echo " make build                    # Build for current platform"
+	@echo " make watch                    # Hot-reload development"
+	@echo " make watch-run ARGS='status demo/'  # Hot-reload with specific command"
 	@echo " make ci-full                  # Run all CI checks locally"
 	@echo " make tag-release              # Create and tag new release"
 	@echo " make push-release-tag         # Push tag to trigger GitHub release"
@@ -764,15 +809,15 @@ help:
 	@echo " make run ARGS='pack'          # Run pack command (interactive password)"
 	@echo " make demo-scenario            # Full demo with sample files"
 	@echo ""
-	@echo "Note: Pushing to main branch automatically creates stable releases."
-	@echo "Use commit message flags: [major], [minor], [skip-release]"
+	@echo "Note: Releases require [release] flag in commit message when pushing to main."
+	@echo "Version flags: [release] (patch), [release] [minor], [release] [major]"
 
 # Phony targets
-.PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration \
+.PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration test-e2e \
         test-functional test-complete test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
         generate-mocks bench check check-full build-all build-linux build-darwin \
         build-windows install uninstall release release-all release-checksums checksums run run-pack run-unpack \
-        run-list run-status demo clean-demo demo-scenario dev-server profile \
+        run-list run-status demo clean-demo demo-scenario dev-server dev-watch watch watch-run profile \
         profile-mem security-scan vuln-check docs stats help \
         ci-test ci-lint ci-build ci-security ci-cross-compile ci-full \
         pre-release-check tag-release push-release-tag release-local check-release-status \

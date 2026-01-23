@@ -6,19 +6,21 @@ This guide provides detailed installation instructions for goingenv on Linux and
 
 ### Automatic Installation (Recommended)
 
-**One-line install (Linux & macOS):**
+**One-line install (always gets latest version):**
 ```bash
 curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
 ```
 
-**Install development version:**
+**Install from release asset (reproducible, version-locked):**
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh | bash
+# Downloads install.sh with embedded version from release assets
+curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/install.sh | bash
 ```
 
-> **Branch Selection:**
-> - `main` - Stable releases, recommended for general use
-> - `develop` - Latest development features, may include unreleased functionality
+> **URL Strategy:**
+> - `raw.githubusercontent.com/.../main/install.sh` - Always installs latest release
+> - `github.com/.../releases/download/vX.Y.Z/install.sh` - Installs that exact version (embedded in script)
+> - Use `--version` flag with any installer to override the default
 
 **Or using wget:**
 ```bash
@@ -45,8 +47,11 @@ chmod +x install.sh
 
 ### Custom Version
 ```bash
-# Install specific version
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v0.1.0-beta.11
+# Install specific version using --version flag
+curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v1.0.0
+
+# Or download version-locked installer from release assets
+curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/install.sh | bash
 
 # Or with local script
 ./install.sh --version v1.0.0
@@ -69,6 +74,26 @@ curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/in
 # Skip shell integration
 ./install.sh --skip-shell
 ```
+
+### Cleanup Options
+
+The installer provides opt-in cleanup functionality for managing old installations:
+
+```bash
+# Upgrade and remove old backup files (keeps last 3)
+./install.sh --cleanup-backups
+
+# Interactively remove GoingEnv installations found in other locations
+./install.sh --cleanup-duplicates
+
+# Do both: cleanup old backups and remove duplicates
+./install.sh --cleanup-all
+
+# Combine with --yes for non-interactive cleanup
+./install.sh --cleanup-all --yes
+```
+
+> **Note:** By default, the installer only warns about duplicate installations and never automatically removes them. Use the cleanup flags to opt into removal.
 
 ### Environment Variables
 ```bash
