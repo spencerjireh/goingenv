@@ -151,17 +151,12 @@ jobs:
     - name: Run gosec
       run: |
         go install github.com/securego/gosec/v2/cmd/gosec@latest
-        gosec -fmt sarif -out results.sarif ./... || true
-        # Check if there are actual high/critical findings
-        if command -v jq &> /dev/null && [ -f results.sarif ]; then
-          ISSUES=$(jq '[.runs[].results[] | select(.level == "error" or .level == "warning")] | length' results.sarif 2>/dev/null || echo "0")
-          if [ "$ISSUES" -gt 0 ]; then
-            echo "Found $ISSUES security issues:"
-            jq '.runs[].results[] | {rule: .ruleId, level: .level, message: .message.text, location: .locations[0].physicalLocation.artifactLocation.uri}' results.sarif
-            exit 1
-          fi
-        fi
-        echo "No security issues found"
+        # Exclude rules that are false positives for CLI tools (matches .golangci.yml):
+        # G115: integer overflow (file size conversions)
+        # G204: subprocess with variable (expected in CLI)
+        # G304: file inclusion via variable (expected in file management CLI)
+        # G407: false positive - flags make([]byte, N) as hardcoded even when filled with rand.Read()
+        gosec -exclude=G115,G204,G304,G407 -fmt sarif -out results.sarif ./...
         
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v3
