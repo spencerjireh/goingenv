@@ -531,7 +531,7 @@ func GetTestFixtures() TestFixtures {
 			".env.production":  "NODE_ENV=production\nAPI_URL=https://api.example.com",
 		},
 		SampleConfig: `{
-			"default_depth": 3,
+			"default_depth": 10,
 			"env_patterns": ["\\.env$", "\\.env\\..*$"],
 			"exclude_patterns": ["node_modules/", "\\.git/", "vendor/"],
 			"max_file_size": 10485760

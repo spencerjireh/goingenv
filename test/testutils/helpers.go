@@ -82,7 +82,7 @@ func CreateTempEnvFiles(t *testing.T) string {
 // CreateTestConfig returns a test configuration
 func CreateTestConfig() *types.Config {
 	return &types.Config{
-		DefaultDepth: 3,
+		DefaultDepth: 10,
 		EnvPatterns: []string{
 			`\.env$`,
 			`\.env\.local$`,

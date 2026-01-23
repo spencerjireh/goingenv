@@ -434,7 +434,7 @@ Create a configuration file at `~/.goingenv/config.json`:
 
 ```json
 {
-  "default_depth": 3,
+  "default_depth": 10,
   "env_patterns": [
     ".env",
     ".env.local",

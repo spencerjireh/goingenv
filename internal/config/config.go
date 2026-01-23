@@ -77,7 +77,7 @@ func (m *Manager) Save(config *types.Config) error {
 // GetDefault returns the default configuration
 func (m *Manager) GetDefault() *types.Config {
 	return &types.Config{
-		DefaultDepth: 3,
+		DefaultDepth: 10,
 		EnvPatterns: []string{
 			`\.env.*`,
 		},

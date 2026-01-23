@@ -307,8 +307,8 @@ func TestManager_GetDefault(t *testing.T) {
 		t.Fatal("GetDefault() returned nil")
 	}
 
-	if config.DefaultDepth != 3 {
-		t.Errorf("DefaultDepth = %d, want 3", config.DefaultDepth)
+	if config.DefaultDepth != 10 {
+		t.Errorf("DefaultDepth = %d, want 10", config.DefaultDepth)
 	}
 
 	if config.MaxFileSize != DefaultMaxFileSize {
