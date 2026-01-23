@@ -50,23 +50,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        clean: true
 
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.22'
         check-latest: true
-
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-1.22-
-          ${{ runner.os }}-go-
+        cache: false
 
     - name: Download dependencies
       run: go mod download
@@ -109,9 +101,6 @@ jobs:
           - os: macos-latest
             go-version: '1.21'
     steps:
-    - name: Clean workspace
-      run: rm -rf ${{ github.workspace }}/*
-
     - name: Checkout code
       uses: actions/checkout@v4
       with:
@@ -123,17 +112,6 @@ jobs:
         go-version: ${{ matrix.go-version }}
         check-latest: true
         cache: false
-
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-${{ matrix.go-version }}-
-          ${{ runner.os }}-go-
 
     - name: Download dependencies
       run: |
@@ -155,12 +133,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        clean: true
 
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.22'
         check-latest: true
+        cache: false
 
     - name: Run govulncheck
       run: |
@@ -184,22 +165,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        clean: true
 
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.22'
         check-latest: true
-
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-1.22-
+        cache: false
 
     - name: Download dependencies
       run: go mod download
@@ -385,22 +359,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        clean: true
 
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.22'
         check-latest: true
-
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-1.22-
+        cache: false
 
     - name: Build binary
       env:
