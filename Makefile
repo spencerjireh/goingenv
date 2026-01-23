@@ -218,9 +218,10 @@ check-release-status:
 test-functional:
 	@echo -e "$(BLUE)Running functional test workflow...$(NC)"
 	@echo "Step 1: Building application..."
+	@rm -rf test_env_files_functional
 	@make build > /dev/null
 	@echo -e "$(GREEN)[OK]$(NC) Build completed"
-	
+
 	@echo "Step 2: Creating test environment files..."
 	@mkdir -p test_env_files_functional
 	@echo "TEST=value" > test_env_files_functional/.env
