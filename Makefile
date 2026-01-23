@@ -219,7 +219,7 @@ test-functional:
 	@echo -e "$(BLUE)Running functional test workflow...$(NC)"
 	@echo "Step 1: Building application..."
 	@make build > /dev/null
-	@echo -e "$(GREEN)✓$(NC) Build completed"
+	@echo -e "$(GREEN)[OK]$(NC) Build completed"
 	
 	@echo "Step 2: Creating test environment files..."
 	@mkdir -p test_env_files_functional
@@ -230,23 +230,23 @@ test-functional:
 	@echo "BACKUP=old" > test_env_files_functional/.env.backup
 	@echo "NEW=format" > test_env_files_functional/.env.new_format
 	@echo "IGNORED=value" > test_env_files_functional/regular.txt
-	@echo -e "$(GREEN)✓$(NC) Test files created (6 .env files + 1 regular file)"
+	@echo -e "$(GREEN)[OK]$(NC) Test files created (6 .env files + 1 regular file)"
 	
 	@echo "Step 3: Backing up existing config..."
 	@if [ -f ~/.goingenv.json ]; then \
 		cp ~/.goingenv.json ~/.goingenv.json.test-backup; \
 		echo -e "$(YELLOW)!$(NC) Existing config backed up"; \
 	else \
-		echo -e "$(GREEN)✓$(NC) No existing config to backup"; \
+		echo -e "$(GREEN)[OK]$(NC) No existing config to backup"; \
 	fi
 	
 	@echo "Step 4: Testing all-inclusive pattern (no config)..."
 	@rm -f ~/.goingenv.json
 	@files_detected=$$(./goingenv status test_env_files_functional/ | grep -c "\.env"); \
 	if [ "$$files_detected" -eq 6 ]; then \
-		echo -e "$(GREEN)✓$(NC) All-inclusive pattern working ($$files_detected/6 files detected)"; \
+		echo -e "$(GREEN)[OK]$(NC) All-inclusive pattern working ($$files_detected/6 files detected)"; \
 	else \
-		echo -e "$(RED)✗$(NC) All-inclusive pattern failed ($$files_detected/6 files detected)"; \
+		echo -e "$(RED)[FAIL]$(NC) All-inclusive pattern failed ($$files_detected/6 files detected)"; \
 		exit 1; \
 	fi
 	
@@ -254,30 +254,30 @@ test-functional:
 	@echo '{"default_depth": 3, "env_patterns": ["\\\\.env.*"], "env_exclude_patterns": ["\\\\.env\\\\.backup$$"], "exclude_patterns": ["node_modules/", "\\\\.git/"], "max_file_size": 10485760}' > ~/.goingenv.json
 	@files_detected=$$(./goingenv status test_env_files_functional/ | grep -c "\.env"); \
 	if [ "$$files_detected" -eq 5 ]; then \
-		echo -e "$(GREEN)✓$(NC) Exclusion patterns working ($$files_detected/5 files detected, .env.backup excluded)"; \
+		echo -e "$(GREEN)[OK]$(NC) Exclusion patterns working ($$files_detected/5 files detected, .env.backup excluded)"; \
 	else \
-		echo -e "$(RED)✗$(NC) Exclusion patterns failed ($$files_detected/5 files detected)"; \
+		echo -e "$(RED)[FAIL]$(NC) Exclusion patterns failed ($$files_detected/5 files detected)"; \
 		exit 1; \
 	fi
 	
 	@echo "Step 6: Testing pack/unpack functionality..."
 	@echo "Step 6a: Initializing goingenv in test directory..."
 	@cd test_env_files_functional && ../goingenv init > /dev/null 2>&1
-	@echo -e "$(GREEN)✓$(NC) goingenv initialized in test directory"
+	@echo -e "$(GREEN)[OK]$(NC) goingenv initialized in test directory"
 	@cd test_env_files_functional && echo "test123" | ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null 2>&1 || TEST_PASSWORD="test123" ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null
 	@if [ -f test_env_files_functional/.goingenv/functional-test.enc ]; then \
-		echo -e "$(GREEN)✓$(NC) Pack functionality working"; \
+		echo -e "$(GREEN)[OK]$(NC) Pack functionality working"; \
 	else \
-		echo -e "$(RED)✗$(NC) Pack functionality failed"; \
+		echo -e "$(RED)[FAIL]$(NC) Pack functionality failed"; \
 		exit 1; \
 	fi
 	@mkdir -p test_env_files_functional/unpacked
 	@cd test_env_files_functional && TEST_PASSWORD="test123" ../goingenv unpack -f .goingenv/functional-test.enc --password-env TEST_PASSWORD -t unpacked > /dev/null
 	@unpacked_files=$$(find test_env_files_functional/unpacked -name ".env*" | wc -l); \
 	if [ "$$unpacked_files" -eq 5 ]; then \
-		echo -e "$(GREEN)✓$(NC) Unpack functionality working ($$unpacked_files files restored)"; \
+		echo -e "$(GREEN)[OK]$(NC) Unpack functionality working ($$unpacked_files files restored)"; \
 	else \
-		echo -e "$(RED)✗$(NC) Unpack functionality failed ($$unpacked_files files restored)"; \
+		echo -e "$(RED)[FAIL]$(NC) Unpack functionality failed ($$unpacked_files files restored)"; \
 		exit 1; \
 	fi
 	
@@ -288,15 +288,15 @@ test-functional:
 		mv ~/.goingenv.json.test-backup ~/.goingenv.json; \
 		echo -e "$(YELLOW)!$(NC) Original config restored"; \
 	else \
-		echo -e "$(GREEN)✓$(NC) Cleanup completed"; \
+		echo -e "$(GREEN)[OK]$(NC) Cleanup completed"; \
 	fi
 	
 	@echo ""
-	@echo -e "$(GREEN)🎉 All functional tests passed!$(NC)"
-	@echo "✓ All-inclusive .env.* pattern detection"
-	@echo "✓ Exclusion pattern functionality" 
-	@echo "✓ Pack/unpack workflow"
-	@echo "✓ Configuration management"
+	@echo -e "$(GREEN)All functional tests passed!$(NC)"
+	@echo "[OK] All-inclusive .env.* pattern detection"
+	@echo "[OK] Exclusion pattern functionality"
+	@echo "[OK] Pack/unpack workflow"
+	@echo "[OK] Configuration management"
 
 # Complete test suite including functional tests
 test-complete: clean
@@ -306,11 +306,11 @@ test-complete: clean
 	@echo ""
 	@make test-functional
 	@echo ""
-	@echo -e "$(GREEN)🎉 Complete test suite passed!$(NC)"
-	@echo "✓ Unit tests with race detection"
-	@echo "✓ Integration tests"
-	@echo "✓ E2E tests"
-	@echo "✓ Functional workflow tests"
+	@echo -e "$(GREEN)Complete test suite passed!$(NC)"
+	@echo "[OK] Unit tests with race detection"
+	@echo "[OK] Integration tests"
+	@echo "[OK] E2E tests"
+	@echo "[OK] Functional workflow tests"
 
 # Quick release commands for common scenarios
 release-alpha: pre-release-check
@@ -457,7 +457,7 @@ test-coverage:
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
-	@echo "📊 Coverage summary:"
+	@echo "Coverage summary:"
 	@go tool cover -func=coverage.out | tail -1
 
 test-coverage-ci:
@@ -709,7 +709,7 @@ vuln-check:
 docs:
 	@echo "Generating documentation...$(NC)"
 	@if command -v godoc >/dev/null 2>&1; then \
-		echo "📚 Documentation server: http://localhost:6060/pkg/goingenv/"; \
+		echo "Documentation server: http://localhost:6060/pkg/goingenv/"; \
 		godoc -http=:6060; \
 	else \
 		echo "$(YELLOW)WARNING:$(NC)  godoc not installed. Install with: go install golang.org/x/tools/cmd/godoc@latest"; \

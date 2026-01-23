@@ -27,7 +27,7 @@ func GetPassword(opts Options) (string, error) {
 			return "", fmt.Errorf("failed to read password from environment: %w", err)
 		}
 		if password != "" {
-			fmt.Fprintf(os.Stderr, "⚠️  Security Warning: Using password from environment variable '%s'\n", opts.PasswordEnv)
+			fmt.Fprintf(os.Stderr, "WARNING: Using password from environment variable '%s'\n", opts.PasswordEnv)
 			fmt.Fprintf(os.Stderr, "   Environment variables may be visible to other processes\n")
 			return password, nil
 		}

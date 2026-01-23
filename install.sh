@@ -488,7 +488,7 @@ show_usage_instructions() {
     local binary_path="$install_dir/$BINARY_NAME"
 
     echo ""
-    echo -e "${GREEN}🎉 GoingEnv installation completed successfully!${NC}"
+    echo -e "${GREEN}GoingEnv installation completed successfully!${NC}"
     echo ""
     echo -e "${CYAN}Usage:${NC}"
     

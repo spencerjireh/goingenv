@@ -780,69 +780,7 @@ When enabled, the following rules apply:
 
 ## Security
 
-### Security Architecture
-
-goingenv uses industry-standard cryptographic practices for protecting environment files:
-
-**Encryption:**
-- **Algorithm**: AES-256-GCM (Galois/Counter Mode)
-- **Key Derivation**: PBKDF2 with SHA-256, 100,000 iterations
-- **Salt**: 32 bytes, cryptographically random per encryption
-- **Nonce**: 12 bytes, cryptographically random per encryption
-
-**File Format:**
-```
-[32 bytes salt][12 bytes nonce][ciphertext with 16-byte auth tag]
-```
-
-### Security Best Practices
-
-**Password Handling:**
-- Use strong, unique passwords for each archive (minimum 12 characters recommended)
-- Use environment variables (`--password-env`) instead of command-line arguments in scripts
-- Passwords are cleared from memory after use via `password.ClearPassword()`
-- Never log or display passwords
-
-**File Permissions:**
-- Archives are created with restrictive permissions (0600 - owner read/write only)
-- Configuration files use 0600 permissions
-- .goingenv directories use 0700 permissions
-- Extracted files are masked to safe permissions (0600)
-
-**Path Traversal Protection:**
-- Archive extraction validates all paths stay within target directory
-- Absolute paths in archives are rejected
-- Path components containing `..` are rejected
-
-**Temp File Security:**
-- Temporary files are created with restrictive permissions
-- Explicit `Chmod(0600)` immediately after creation
-- Cleanup via `defer os.Remove()` on error paths
-
-### Security Limitations
-
-**Password Storage:**
-- goingenv does not store passwords - you must remember them
-- Lost passwords cannot be recovered
-- There is no password reset functionality
-
-**Memory Security:**
-- Passwords are in memory during encryption/decryption operations
-- Password clearing is best-effort (Go garbage collection may retain copies)
-- Consider system memory security for highly sensitive data
-
-**Archive Integrity:**
-- AES-GCM provides authenticated encryption (tamper detection)
-- Corrupted or tampered archives will fail to decrypt
-- Verify archive integrity with `goingenv list` command
-
-### Reporting Security Issues
-
-If you discover a security vulnerability:
-1. Do NOT create a public GitHub issue
-2. Email security concerns to the maintainer
-3. Include detailed reproduction steps
-4. Allow reasonable time for a fix before disclosure
+For comprehensive security documentation including encryption details, best practices, and vulnerability reporting, see **[SECURITY.md](SECURITY.md)**.
 
 ## Getting Help
 
