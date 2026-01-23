@@ -244,7 +244,7 @@ test-functional:
 	@echo "Step 4: Testing all-inclusive pattern (no config)..."
 	@rm -f ~/.goingenv.json
 	@cd test_env_files_functional && ../goingenv init > /dev/null 2>&1
-	@files_detected=$$(./goingenv status test_env_files_functional/ | grep -c "\.env"); \
+	@files_detected=$$(cd test_env_files_functional && ../goingenv status . | grep -c "\.env"); \
 	if [ "$$files_detected" -eq 6 ]; then \
 		echo -e "$(GREEN)[OK]$(NC) All-inclusive pattern working ($$files_detected/6 files detected)"; \
 	else \
@@ -254,7 +254,7 @@ test-functional:
 	
 	@echo "Step 5: Testing exclusion patterns..."
 	@echo '{"default_depth": 3, "env_patterns": ["\\\\.env.*"], "env_exclude_patterns": ["\\\\.env\\\\.backup$$"], "exclude_patterns": ["node_modules/", "\\\\.git/"], "max_file_size": 10485760}' > ~/.goingenv.json
-	@files_detected=$$(./goingenv status test_env_files_functional/ | grep -c "\.env"); \
+	@files_detected=$$(cd test_env_files_functional && ../goingenv status . | grep -c "\.env"); \
 	if [ "$$files_detected" -eq 5 ]; then \
 		echo -e "$(GREEN)[OK]$(NC) Exclusion patterns working ($$files_detected/5 files detected, .env.backup excluded)"; \
 	else \
