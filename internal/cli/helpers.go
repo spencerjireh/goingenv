@@ -55,17 +55,6 @@ type ListOpts struct {
 	Limit     int
 }
 
-// StatusOpts holds parsed status command flags
-type StatusOpts struct {
-	Verbose       bool
-	Directory     string
-	ShowArchives  bool
-	ShowFiles     bool
-	ShowConfig    bool
-	ShowStats     bool
-	ShowRecommend bool
-}
-
 // initApp checks initialization and creates app
 func initApp() (*types.App, error) {
 	if !config.IsInitialized() {
@@ -240,39 +229,6 @@ func parseListOpts(cmd *cobra.Command) (*ListOpts, error) {
 	}
 	if o.Limit, err = cmd.Flags().GetInt("limit"); err != nil {
 		return nil, fmt.Errorf("failed to get limit flag: %w", err)
-	}
-
-	return o, nil
-}
-
-// parseStatusOpts parses status command flags
-func parseStatusOpts(cmd *cobra.Command) (*StatusOpts, error) {
-	o := &StatusOpts{}
-	var err error
-
-	if o.Verbose, err = cmd.Flags().GetBool("verbose"); err != nil {
-		return nil, fmt.Errorf("failed to get verbose flag: %w", err)
-	}
-	if o.Directory, err = cmd.Flags().GetString("directory"); err != nil {
-		return nil, fmt.Errorf("failed to get directory flag: %w", err)
-	}
-	if o.Directory == "" {
-		o.Directory = "."
-	}
-	if o.ShowArchives, err = cmd.Flags().GetBool("archives"); err != nil {
-		return nil, fmt.Errorf("failed to get archives flag: %w", err)
-	}
-	if o.ShowFiles, err = cmd.Flags().GetBool("files"); err != nil {
-		return nil, fmt.Errorf("failed to get files flag: %w", err)
-	}
-	if o.ShowConfig, err = cmd.Flags().GetBool("config"); err != nil {
-		return nil, fmt.Errorf("failed to get config flag: %w", err)
-	}
-	if o.ShowStats, err = cmd.Flags().GetBool("stats"); err != nil {
-		return nil, fmt.Errorf("failed to get stats flag: %w", err)
-	}
-	if o.ShowRecommend, err = cmd.Flags().GetBool("recommendations"); err != nil {
-		return nil, fmt.Errorf("failed to get recommendations flag: %w", err)
 	}
 
 	return o, nil

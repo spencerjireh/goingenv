@@ -39,19 +39,24 @@ func NewApp() (*types.App, error) {
 	}, nil
 }
 
+// appVersion stores the version for use in CLI output
+var appVersion string
+
 // NewRootCommand creates and returns the root command
 func NewRootCommand(version string) *cobra.Command {
+	appVersion = version
+
 	var rootCmd = &cobra.Command{
 		Use:   "goingenv",
 		Short: "Environment File Manager with Encryption",
 		Long: `goingenv is a CLI tool for managing environment files with encryption capabilities.
-		
+
 It can scan, encrypt, and archive your .env files securely, making it easy to
 backup, transfer, and restore your environment configurations.`,
 		Version: version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose") //nolint:errcheck // flag always exists
-			return runInteractiveMode(verbose)
+			return runInteractiveMode(verbose, version)
 		},
 	}
 
@@ -69,11 +74,15 @@ backup, transfer, and restore your environment configurations.`,
 }
 
 // runInteractiveMode launches the TUI interface
-func runInteractiveMode(verbose bool) error {
+func runInteractiveMode(verbose bool, version string) error {
+	out := NewOutput(version)
+
 	// Check if GoingEnv is initialized
 	if !config.IsInitialized() {
-		fmt.Println("goingenv is not initialized in this directory.")
-		fmt.Println("Run 'goingenv init' first to set up goingenv.")
+		out.Header()
+		out.Blank()
+		out.Warning("goingenv is not initialized in this directory")
+		out.Hint("Run 'goingenv init' first to set up goingenv")
 		return nil
 	}
 
@@ -84,7 +93,7 @@ func runInteractiveMode(verbose bool) error {
 	}
 
 	// Create and run TUI
-	model := tui.NewModel(app, verbose)
+	model := tui.NewModel(app, verbose, version)
 	program := tea.NewProgram(model, tea.WithAltScreen())
 
 	// Ensure cleanup happens even if there's an error

@@ -18,7 +18,13 @@
       "WebFetch(domain:productionresultssa9.blob.core.windows.net)",
       "Bash(make test-functional:*)",
       "WebFetch(domain:productionresultssa12.blob.core.windows.net)",
-      "WebFetch(domain:productionresultssa10.blob.core.windows.net)"
+      "WebFetch(domain:productionresultssa10.blob.core.windows.net)",
+      "Bash(grep:*)",
+      "Bash(make lint:*)",
+      "Bash(gofmt:*)",
+      "Bash(make fmt:*)",
+      "Bash(make dev:*)",
+      "Bash(go vet:*)"
     ]
   }
 }

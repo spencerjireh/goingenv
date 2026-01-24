@@ -6,31 +6,26 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Color palette
+// Color palette from DESIGN.md
 var (
-	PrimaryColor   = lipgloss.Color("#7D56F4")
-	SecondaryColor = lipgloss.Color("#FAFAFA")
-	ErrorColor     = lipgloss.Color("#FF5555")
-	SuccessColor   = lipgloss.Color("#50FA7B")
-	WarningColor   = lipgloss.Color("#F1FA8C")
-	InfoColor      = lipgloss.Color("#8BE9FD")
-	MutedColor     = lipgloss.Color("#6272A4")
+	PrimaryColor   = lipgloss.Color("#22d3a7")
+	SecondaryColor = lipgloss.Color("#e9eaeb")
+	ErrorColor     = lipgloss.Color("#ff6b6b")
+	SuccessColor   = lipgloss.Color("#22d3a7")
+	WarningColor   = lipgloss.Color("#ffd93d")
+	InfoColor      = lipgloss.Color("#7c9cbc")
+	MutedColor     = lipgloss.Color("#6b7a8f")
 )
 
 // Base styles
 var (
-	// TitleStyle is used for screen titles
+	// TitleStyle is used for screen titles (simplified, no background)
 	TitleStyle = lipgloss.NewStyle().
-			Background(PrimaryColor).
-			Foreground(SecondaryColor).
-			Padding(0, 1).
-			MarginBottom(1).
-			Bold(true)
+			MarginBottom(1)
 
 	// HeaderStyle is used for section headers
 	HeaderStyle = lipgloss.NewStyle().
-			Foreground(PrimaryColor).
-			Bold(true).
+			Foreground(MutedColor).
 			MarginBottom(1)
 
 	// ErrorStyle is used for error messages
@@ -61,17 +56,15 @@ var (
 			Foreground(MutedColor).
 			Faint(true)
 
-	// ListStyle is used for bordered lists
+	// ListStyle is used for lists (borderless)
 	ListStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(PrimaryColor).
 			Padding(1).
 			MarginBottom(1)
 
 	// CodeStyle is used for code snippets and file paths
 	CodeStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("#282A36")).
-			Foreground(lipgloss.Color("#F8F8F2")).
+			Background(lipgloss.Color("#1c1f24")).
+			Foreground(SecondaryColor).
 			Padding(0, 1).
 			MarginLeft(2)
 
@@ -82,15 +75,8 @@ var (
 
 	// HighlightStyle is used to highlight important information
 	HighlightStyle = lipgloss.NewStyle().
-			Background(InfoColor).
-			Foreground(lipgloss.Color("#282A36")).
-			Padding(0, 1).
+			Foreground(PrimaryColor).
 			Bold(true)
-
-	// BorderStyle is used for general borders
-	BorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder()).
-			BorderForeground(PrimaryColor)
 
 	// ProgressBarStyle is used for progress indicators
 	ProgressBarStyle = lipgloss.NewStyle().
@@ -107,14 +93,11 @@ var (
 
 	// MenuItemStyle customizes menu items
 	MenuItemStyle = lipgloss.NewStyle().
-			PaddingLeft(1)
+			PaddingLeft(2)
 
-	// SelectedMenuItemStyle customizes selected menu items
+	// SelectedMenuItemStyle customizes selected menu items (chevron-based, no background)
 	SelectedMenuItemStyle = lipgloss.NewStyle().
-				Background(PrimaryColor).
-				Foreground(SecondaryColor).
-				PaddingLeft(1).
-				Bold(true)
+				Foreground(SecondaryColor)
 )
 
 // Layout styles for different screen sizes
@@ -134,41 +117,31 @@ var (
 			Width(100) // This will be set dynamically
 )
 
-// Specific component styles
+// Specific component styles (borderless)
 var (
-	// PasswordInputStyle customizes password input fields
+	// PasswordInputStyle customizes password input fields (no border)
 	PasswordInputStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(PrimaryColor).
 				Padding(0, 1).
 				Width(40)
 
-	// FilePickerStyle customizes the file picker
+	// FilePickerStyle customizes the file picker (no border)
 	FilePickerStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(PrimaryColor).
 			Padding(1).
 			Height(10)
 
-	// ProgressStyle customizes progress bars
+	// ProgressStyle customizes progress bars (no border)
 	ProgressStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(PrimaryColor).
 			Padding(0, 1).
 			Width(50)
 
-	// StatusCardStyle is used for status information cards
+	// StatusCardStyle is used for status information cards (no border)
 	StatusCardStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(InfoColor).
 			Padding(1).
 			MarginBottom(1).
 			Width(60)
 
-	// ArchiveCardStyle is used for archive information display
+	// ArchiveCardStyle is used for archive information display (no border)
 	ArchiveCardStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(SuccessColor).
 				Padding(1).
 				MarginBottom(1)
 )
@@ -228,6 +201,41 @@ func RenderProgressBar(percentage float64, width int) string {
 	return ProgressBarStyle.Render(bar)
 }
 
+// RenderHeader creates branded header: [*]goingenv v{version}
+func RenderHeader(version string) string {
+	bracketStyle := lipgloss.NewStyle().Foreground(MutedColor)
+	asteriskStyle := lipgloss.NewStyle().Foreground(PrimaryColor)
+	wordmarkStyle := lipgloss.NewStyle().Foreground(SecondaryColor)
+	versionStyle := lipgloss.NewStyle().Foreground(MutedColor)
+
+	return lipgloss.JoinHorizontal(lipgloss.Left,
+		bracketStyle.Render("["),
+		asteriskStyle.Render("*"),
+		bracketStyle.Render("]"),
+		wordmarkStyle.Render("goingenv"),
+		versionStyle.Render(" v"+version),
+	)
+}
+
+// RenderMenuItem renders menu item with optional selection chevron
+func RenderMenuItem(item string, selected bool) string {
+	if selected {
+		chevronStyle := lipgloss.NewStyle().Foreground(PrimaryColor)
+		return chevronStyle.Render("> ") + item
+	}
+	return "  " + item
+}
+
+// RenderFooter renders keyboard hints in muted color
+func RenderFooter(hints ...string) string {
+	return MutedStyle.Render(strings.Join(hints, "  "))
+}
+
+// RenderSectionHeader renders a section header
+func RenderSectionHeader(title string) string {
+	return MutedStyle.Render(title)
+}
+
 // Theme configuration for different modes
 type Theme struct {
 	Primary   lipgloss.Color
@@ -239,43 +247,36 @@ type Theme struct {
 	Muted     lipgloss.Color
 }
 
-// DarkTheme provides a dark color scheme
+// DarkTheme provides a dark color scheme (brand-aligned)
 var DarkTheme = Theme{
-	Primary:   lipgloss.Color("#7D56F4"),
-	Secondary: lipgloss.Color("#FAFAFA"),
-	Error:     lipgloss.Color("#FF5555"),
-	Success:   lipgloss.Color("#50FA7B"),
-	Warning:   lipgloss.Color("#F1FA8C"),
-	Info:      lipgloss.Color("#8BE9FD"),
-	Muted:     lipgloss.Color("#6272A4"),
+	Primary:   lipgloss.Color("#22d3a7"),
+	Secondary: lipgloss.Color("#e9eaeb"),
+	Error:     lipgloss.Color("#ff6b6b"),
+	Success:   lipgloss.Color("#22d3a7"),
+	Warning:   lipgloss.Color("#ffd93d"),
+	Info:      lipgloss.Color("#7c9cbc"),
+	Muted:     lipgloss.Color("#6b7a8f"),
 }
 
 // LightTheme provides a light color scheme
 var LightTheme = Theme{
-	Primary:   lipgloss.Color("#5A4FCF"),
-	Secondary: lipgloss.Color("#1A1A1A"),
-	Error:     lipgloss.Color("#D63031"),
-	Success:   lipgloss.Color("#00B894"),
-	Warning:   lipgloss.Color("#FDCB6E"),
-	Info:      lipgloss.Color("#74B9FF"),
-	Muted:     lipgloss.Color("#636E72"),
+	Primary:   lipgloss.Color("#22d3a7"),
+	Secondary: lipgloss.Color("#121417"),
+	Error:     lipgloss.Color("#ff6b6b"),
+	Success:   lipgloss.Color("#22d3a7"),
+	Warning:   lipgloss.Color("#ffd93d"),
+	Info:      lipgloss.Color("#7c9cbc"),
+	Muted:     lipgloss.Color("#6b7a8f"),
 }
 
 // ApplyTheme applies a theme to all styles
 func ApplyTheme(theme *Theme) {
-	TitleStyle = TitleStyle.Background(theme.Primary).Foreground(theme.Secondary)
-	HeaderStyle = HeaderStyle.Foreground(theme.Primary)
+	TitleStyle = TitleStyle.Foreground(theme.Secondary)
+	HeaderStyle = HeaderStyle.Foreground(theme.Muted)
 	ErrorStyle = ErrorStyle.Foreground(theme.Error)
 	SuccessStyle = SuccessStyle.Foreground(theme.Success)
 	WarningStyle = WarningStyle.Foreground(theme.Warning)
 	InfoStyle = InfoStyle.Foreground(theme.Info)
 	MutedStyle = MutedStyle.Foreground(theme.Muted)
-	ListStyle = ListStyle.BorderForeground(theme.Primary)
-	BorderStyle = BorderStyle.BorderForeground(theme.Primary)
 	ProgressBarStyle = ProgressBarStyle.Foreground(theme.Success)
-	PasswordInputStyle = PasswordInputStyle.BorderForeground(theme.Primary)
-	FilePickerStyle = FilePickerStyle.BorderForeground(theme.Primary)
-	ProgressStyle = ProgressStyle.BorderForeground(theme.Primary)
-	StatusCardStyle = StatusCardStyle.BorderForeground(theme.Info)
-	ArchiveCardStyle = ArchiveCardStyle.BorderForeground(theme.Success)
 }

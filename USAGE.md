@@ -239,8 +239,8 @@ goingenv status
 # Detailed status with file analysis
 goingenv status --verbose
 
-# Status with statistics
-goingenv status --stats
+# Status for specific directory
+goingenv status /path/to/project
 ```
 
 ## Common Workflows

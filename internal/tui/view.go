@@ -45,12 +45,19 @@ func (m *Model) View() string {
 
 // renderMenu renders the main menu screen
 func (m *Model) renderMenu() string {
-	title := "goingenv v1.0.0"
+	view := RenderHeader(m.version)
 	if m.debugLogger.IsEnabled() {
-		title += " [DEBUG MODE]"
+		view += " " + DimStyle.Render("[DEBUG]")
 	}
-	view := TitleStyle.Render(title) + "\n"
-	view += m.menu.View()
+	view += "\n\n"
+
+	// Custom menu rendering with chevron selection
+	items := m.menu.Items()
+	for i := range items {
+		if mi, ok := items[i].(MenuItem); ok {
+			view += RenderMenuItem(mi.Title(), i == m.menu.Index()) + "\n"
+		}
+	}
 
 	if m.error != "" {
 		view += "\n" + ErrorStyle.Render("Error: "+m.error)
@@ -67,94 +74,110 @@ func (m *Model) renderMenu() string {
 		view += "\n" + DimStyle.Render("Window size: "+fmt.Sprintf("%dx%d", m.width, m.height))
 	}
 
+	view += "\n\n" + RenderFooter("[up/down] navigate", "[enter] select", "[q] quit")
+
 	return view
 }
 
 // renderPackPassword renders the pack password entry screen
 func (m *Model) renderPackPassword() string {
-	view := TitleStyle.Render("Pack Environment Files") + "\n\n"
+	view := RenderHeader(m.version) + "\n\n"
 
 	if len(m.scannedFiles) > 0 {
-		view += HeaderStyle.Render(fmt.Sprintf("Found %d environment files:", len(m.scannedFiles))) + "\n"
+		view += RenderSectionHeader(fmt.Sprintf("Packing %d environment files", len(m.scannedFiles))) + "\n\n"
 		for i, file := range m.scannedFiles {
 			if i < 5 { // Show first 5 files
-				view += fmt.Sprintf("  • %s (%s)\n", file.RelativePath, utils.FormatSize(file.Size))
+				view += fmt.Sprintf("  %s (%s)\n", file.RelativePath, utils.FormatSize(file.Size))
 			} else if i == 5 {
-				view += fmt.Sprintf("  • ... and %d more files\n", len(m.scannedFiles)-5)
+				view += fmt.Sprintf("  ... and %d more files\n", len(m.scannedFiles)-5)
 				break
 			}
 		}
 		view += "\n"
 	}
 
-	view += HeaderStyle.Render("Enter encryption password:") + "\n"
-	view += m.textInput.View() + "\n\n"
-	view += "Press Enter to continue, Esc to go back\n"
+	view += "Password: " + m.textInput.View() + "\n"
 
 	if m.error != "" {
-		view += ErrorStyle.Render("Error: " + m.error)
+		view += "\n" + ErrorStyle.Render("Error: "+m.error)
 	}
+
+	view += "\n\n" + RenderFooter("[enter] confirm", "[esc] cancel")
 
 	return view
 }
 
 // renderUnpackPassword renders the unpack password entry screen
 func (m *Model) renderUnpackPassword() string {
-	view := TitleStyle.Render("Unpack Archive") + "\n\n"
-	view += HeaderStyle.Render("Selected archive:") + "\n"
+	view := RenderHeader(m.version) + "\n\n"
+
+	view += RenderSectionHeader("Unpacking archive") + "\n\n"
 	view += fmt.Sprintf("  %s\n\n", filepath.Base(m.selectedArchive))
-	view += HeaderStyle.Render("Enter decryption password:") + "\n"
-	view += m.textInput.View() + "\n\n"
-	view += "Press Enter to continue, Esc to go back\n"
+
+	view += "Password: " + m.textInput.View() + "\n"
 
 	if m.error != "" {
-		view += ErrorStyle.Render("Error: " + m.error)
+		view += "\n" + ErrorStyle.Render("Error: "+m.error)
 	}
+
+	view += "\n\n" + RenderFooter("[enter] confirm", "[esc] cancel")
 
 	return view
 }
 
 // renderListPassword renders the list password entry screen
 func (m *Model) renderListPassword() string {
-	view := TitleStyle.Render("List Archive Contents") + "\n\n"
-	view += HeaderStyle.Render("Selected archive:") + "\n"
+	view := RenderHeader(m.version) + "\n\n"
+
+	view += RenderSectionHeader("List archive contents") + "\n\n"
 	view += fmt.Sprintf("  %s\n\n", filepath.Base(m.selectedArchive))
-	view += HeaderStyle.Render("Enter decryption password:") + "\n"
-	view += m.textInput.View() + "\n\n"
-	view += "Press Enter to continue, Esc to go back\n"
+
+	view += "Password: " + m.textInput.View() + "\n"
 
 	if m.error != "" {
-		view += ErrorStyle.Render("Error: " + m.error)
+		view += "\n" + ErrorStyle.Render("Error: "+m.error)
 	}
+
+	view += "\n\n" + RenderFooter("[enter] confirm", "[esc] cancel")
 
 	return view
 }
 
 // renderUnpackSelect renders the unpack file selection screen
 func (m *Model) renderUnpackSelect() string {
-	view := TitleStyle.Render("Select Archive to Unpack") + "\n\n"
+	view := RenderHeader(m.version) + "\n\n"
+
+	view += RenderSectionHeader("Select archive to unpack") + "\n\n"
 	view += m.filepicker.View() + "\n"
-	view += "Select a .enc file, Esc to go back"
+
+	view += "\n" + RenderFooter("[up/down] navigate", "[enter] select", "[esc] back")
+
 	return view
 }
 
 // renderListSelect renders the list file selection screen
 func (m *Model) renderListSelect() string {
-	view := TitleStyle.Render("Select Archive to List") + "\n\n"
+	view := RenderHeader(m.version) + "\n\n"
+
+	view += RenderSectionHeader("Select archive to list") + "\n\n"
 	view += m.filepicker.View() + "\n"
-	view += "Select a .enc file, Esc to go back"
+
+	view += "\n" + RenderFooter("[up/down] navigate", "[enter] select", "[esc] back")
+
 	return view
 }
 
 // renderPacking renders the packing progress screen
 func (m *Model) renderPacking() string {
-	view := TitleStyle.Render("Packing Files...") + "\n\n"
+	view := RenderHeader(m.version) + "\n\n"
+
+	view += RenderSectionHeader("Packing environment files...") + "\n\n"
 	view += m.progress.View() + "\n\n"
 
 	if m.message != "" {
 		view += SuccessStyle.Render(m.message)
 	} else {
-		view += "Encrypting and archiving environment files..."
+		view += MutedStyle.Render("Encrypting and archiving...")
 	}
 
 	return view
@@ -162,13 +185,15 @@ func (m *Model) renderPacking() string {
 
 // renderUnpacking renders the unpacking progress screen
 func (m *Model) renderUnpacking() string {
-	view := TitleStyle.Render("Unpacking Files...") + "\n\n"
+	view := RenderHeader(m.version) + "\n\n"
+
+	view += RenderSectionHeader("Unpacking files...") + "\n\n"
 	view += m.progress.View() + "\n\n"
 
 	if m.message != "" {
 		view += SuccessStyle.Render(m.message)
 	} else {
-		view += "Decrypting and extracting files..."
+		view += MutedStyle.Render("Decrypting and extracting...")
 	}
 
 	return view
@@ -176,47 +201,27 @@ func (m *Model) renderUnpacking() string {
 
 // renderListing renders the archive listing screen
 func (m *Model) renderListing() string {
-	view := TitleStyle.Render("Archive Contents") + "\n\n"
+	view := RenderHeader(m.version) + "\n\n"
+
+	view += RenderSectionHeader("Archive contents") + "\n\n"
 
 	if m.message != "" {
-		view += m.message + "\n\n"
+		view += m.message + "\n"
 	}
 
-	view += "Press Esc to go back"
+	view += "\n" + RenderFooter("[esc] back")
+
 	return view
 }
 
 // renderStatus renders the status screen
 func (m *Model) renderStatus() string {
-	view := TitleStyle.Render("Status") + "\n\n"
+	view := RenderHeader(m.version) + "\n\n"
 
 	// Current directory
 	cwd, _ := os.Getwd() //nolint:errcheck // best effort
-	view += HeaderStyle.Render("Current Directory:") + "\n"
+	view += RenderSectionHeader("Directory") + "\n"
 	view += fmt.Sprintf("  %s\n\n", cwd)
-
-	// Available archives
-	archives, err := m.app.Archiver.GetAvailableArchives("")
-	switch {
-	case err != nil:
-		view += HeaderStyle.Render("Available Archives:") + "\n"
-		view += ErrorStyle.Render("Error reading archives: "+err.Error()) + "\n\n"
-	case len(archives) == 0:
-		view += HeaderStyle.Render("Available Archives:") + "\n"
-		view += "  No archives found in .goingenv folder\n\n"
-	default:
-		view += HeaderStyle.Render(fmt.Sprintf("Available Archives (%d):", len(archives))) + "\n"
-		for _, archive := range archives {
-			info, statErr := os.Stat(archive)
-			if statErr == nil {
-				view += fmt.Sprintf("  • %s (%s) - %s\n",
-					filepath.Base(archive),
-					utils.FormatSize(info.Size()),
-					info.ModTime().Format("2006-01-02 15:04:05"))
-			}
-		}
-		view += "\n"
-	}
 
 	// Detected environment files
 	scanOpts := types.ScanOptions{
@@ -225,12 +230,12 @@ func (m *Model) renderStatus() string {
 	}
 	files, err := m.app.Scanner.ScanFiles(&scanOpts)
 	if err == nil && len(files) > 0 {
-		view += HeaderStyle.Render(fmt.Sprintf("Detected Environment Files (%d):", len(files))) + "\n"
+		view += RenderSectionHeader(fmt.Sprintf("Environment Files (%d)", len(files))) + "\n"
 		for i, file := range files {
 			if i < 10 { // Show first 10 files
-				view += fmt.Sprintf("  • %s (%s)\n", file.RelativePath, utils.FormatSize(file.Size))
+				view += fmt.Sprintf("  %s\n", file.RelativePath)
 			} else if i == 10 {
-				view += fmt.Sprintf("  • ... and %d more files\n", len(files)-10)
+				view += fmt.Sprintf("  ... and %d more files\n", len(files)-10)
 				break
 			}
 		}
@@ -238,79 +243,99 @@ func (m *Model) renderStatus() string {
 
 		// Show file statistics
 		stats := scanner.GetFileStats(files)
-		view += HeaderStyle.Render("Statistics:") + "\n"
-		view += fmt.Sprintf("  • Total Size: %s\n", utils.FormatSize(stats.TotalSize))
-		view += fmt.Sprintf("  • Average Size: %s\n", utils.FormatSize(stats.AverageSize))
+		view += RenderSectionHeader("Statistics") + "\n"
+		view += fmt.Sprintf("  Total Size: %s\n", utils.FormatSize(stats.TotalSize))
+		view += "\n"
+	} else if err == nil {
+		view += RenderSectionHeader("Environment Files") + "\n"
+		view += MutedStyle.Render("  No environment files detected") + "\n\n"
 	}
 
-	view += "Press Esc to go back"
+	// Available archives
+	archives, err := m.app.Archiver.GetAvailableArchives("")
+	switch {
+	case err != nil:
+		view += RenderSectionHeader("Archives") + "\n"
+		view += ErrorStyle.Render("  Error reading archives: "+err.Error()) + "\n"
+	case len(archives) == 0:
+		view += RenderSectionHeader("Archives") + "\n"
+		view += MutedStyle.Render("  No archives found") + "\n"
+	default:
+		view += RenderSectionHeader(fmt.Sprintf("Archives (%d)", len(archives))) + "\n"
+		for _, archive := range archives {
+			info, statErr := os.Stat(archive)
+			if statErr == nil {
+				view += fmt.Sprintf("  %s    %s    %s\n",
+					filepath.Base(archive),
+					utils.FormatSize(info.Size()),
+					utils.FormatTimeAgo(info.ModTime()))
+			}
+		}
+	}
+
+	view += "\n" + RenderFooter("[p] pack", "[u] unpack", "[esc] back", "[q] quit")
+
 	return view
 }
 
 // renderSettings renders the settings screen
 func (m *Model) renderSettings() string {
-	view := TitleStyle.Render("Settings") + "\n\n"
+	view := RenderHeader(m.version) + "\n\n"
 
-	view += HeaderStyle.Render("Default Scan Depth:") + "\n"
-	view += fmt.Sprintf("  %d directories deep\n\n", m.app.Config.DefaultDepth)
+	view += RenderSectionHeader("Settings") + "\n\n"
 
-	view += HeaderStyle.Render("Environment File Patterns:") + "\n"
+	view += fmt.Sprintf("  Scan Depth        %d\n", m.app.Config.DefaultDepth)
+	view += fmt.Sprintf("  Max File Size     %s\n\n", utils.FormatSize(m.app.Config.MaxFileSize))
+
+	view += RenderSectionHeader("Patterns") + "\n"
+	view += "  Include:\n"
 	for _, pattern := range m.app.Config.EnvPatterns {
-		view += fmt.Sprintf("  • %s\n", pattern)
+		view += fmt.Sprintf("    %s\n", pattern)
 	}
-	view += "\n"
-
-	view += HeaderStyle.Render("Exclude Patterns:") + "\n"
+	view += "  Exclude:\n"
 	for _, pattern := range m.app.Config.ExcludePatterns {
-		view += fmt.Sprintf("  • %s\n", pattern)
+		view += fmt.Sprintf("    %s\n", pattern)
 	}
 	view += "\n"
 
-	view += HeaderStyle.Render("Configuration:") + "\n"
-	view += fmt.Sprintf("  • Max File Size: %s\n", utils.FormatSize(m.app.Config.MaxFileSize))
-	view += fmt.Sprintf("  • goingenv Directory: %s\n", config.GetGoingEnvDir())
-	view += "\n"
+	view += RenderSectionHeader("Config Location") + "\n"
+	view += fmt.Sprintf("  %s\n", config.GetGoingEnvDir())
 
-	view += "Press Esc to go back"
+	view += "\n" + RenderFooter("[esc] back")
+
 	return view
 }
 
 // renderHelp renders the help screen
 func (m *Model) renderHelp() string {
-	view := TitleStyle.Render("Help & Documentation") + "\n\n"
+	view := RenderHeader(m.version) + "\n\n"
 
-	view += HeaderStyle.Render("Interactive Mode Navigation:") + "\n"
-	view += "  • Use arrow keys or j/k to navigate menus\n"
-	view += "  • Press Enter to select options\n"
-	view += "  • Press Esc to go back to previous screen\n"
-	view += "  • Press q or Ctrl+C to quit the application\n\n"
+	view += RenderSectionHeader("Keyboard Shortcuts") + "\n\n"
 
-	view += HeaderStyle.Render("Command Line Usage:") + "\n"
-	view += "  • goingenv pack -k \"password\" [-d /path] [-o name.enc]\n"
-	view += "  • goingenv unpack -k \"password\" [-f archive.enc] [--overwrite]\n"
-	view += "  • goingenv list -f archive.enc -k \"password\"\n"
-	view += "  • goingenv status\n\n"
+	view += "  Navigation\n"
+	view += MutedStyle.Render("    up/k     Move up") + "\n"
+	view += MutedStyle.Render("    down/j   Move down") + "\n"
+	view += MutedStyle.Render("    enter    Select") + "\n"
+	view += MutedStyle.Render("    esc      Back/Cancel") + "\n"
+	view += MutedStyle.Render("    q        Quit") + "\n\n"
 
-	view += HeaderStyle.Render("Environment File Patterns:") + "\n"
-	view += "  • .env (main environment file)\n"
-	view += "  • .env.local (local overrides)\n"
-	view += "  • .env.development (development settings)\n"
-	view += "  • .env.production (production settings)\n"
-	view += "  • .env.staging (staging settings)\n"
-	view += "  • .env.test (test settings)\n\n"
+	view += "  Quick Actions\n"
+	view += MutedStyle.Render("    p        Pack files") + "\n"
+	view += MutedStyle.Render("    u        Unpack archive") + "\n"
+	view += MutedStyle.Render("    s        View status") + "\n\n"
 
-	view += HeaderStyle.Render("Security Features:") + "\n"
-	view += "  • AES-256-GCM encryption\n"
-	view += "  • PBKDF2 key derivation (100,000 iterations)\n"
-	view += "  • SHA-256 file integrity checksums\n"
-	view += "  • Secure random salt and nonce generation\n\n"
+	view += RenderSectionHeader("CLI Usage") + "\n\n"
+	view += MutedStyle.Render("  goingenv pack -k \"password\"") + "\n"
+	view += MutedStyle.Render("  goingenv unpack -k \"password\"") + "\n"
+	view += MutedStyle.Render("  goingenv list -f archive.enc") + "\n"
+	view += MutedStyle.Render("  goingenv status") + "\n\n"
 
-	view += HeaderStyle.Render("Tips:") + "\n"
-	view += "  • Use strong, unique passwords for each archive\n"
-	view += "  • Archives are stored in .goingenv/ directory\n"
-	view += "  • Encrypted archives (.enc) are safe to commit to git\n"
-	view += "  • Use 'status' command to see detected files\n\n"
+	view += RenderSectionHeader("Security") + "\n\n"
+	view += MutedStyle.Render("  AES-256-GCM encryption") + "\n"
+	view += MutedStyle.Render("  PBKDF2-SHA256 (100k iterations)") + "\n"
+	view += MutedStyle.Render("  SHA-256 file integrity") + "\n"
 
-	view += "Press Esc to go back"
+	view += "\n" + RenderFooter("[esc] back")
+
 	return view
 }
