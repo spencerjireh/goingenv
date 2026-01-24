@@ -6,8 +6,8 @@ This directory contains brand assets for goingenv. See `/DESIGN.md` for the comp
 
 ```
 assets/
-  logo-full.svg           # Full lockup: [*]goingenv
-  logo-icon.svg           # Icon only: [*]
+  logo-full.svg           # Full lockup: [●]goingenv
+  logo-icon.svg           # Icon only: [●]
   logo-full-mono-light.svg # Monochrome for light backgrounds
   logo-full-mono-dark.svg  # Monochrome for dark backgrounds
   github-avatar.png       # GitHub avatar (500x500)
@@ -40,18 +40,18 @@ assets/
 ### Primary Lockup
 
 ```
-[*]goingenv
+[●]goingenv
 ```
 
 - No space between `]` and `g`
 - Brackets: `#6b7a8f`
-- Asterisk: `#22d3a7`
+- Circle: `#22d3a7`
 - Wordmark: `#e9eaeb` (dark bg) or `#121417` (light bg)
 
 ### Icon Only
 
 ```
-[*]
+[●]
 ```
 
 Use for favicon, app icons, small contexts.

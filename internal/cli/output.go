@@ -61,11 +61,11 @@ func NewOutputWithWriter(stdout, stderr io.Writer, useColors bool, version strin
 	}
 }
 
-// Header prints the branded header: [*] goingenv v{version}
+// Header prints the branded header: [●] goingenv v{version}
 func (o *Output) Header() {
 	if o.useColors {
 		fmt.Fprintf(o.stdout, "%s goingenv v%s\n",
-			brandStyle.Render("[*]"),
+			brandStyle.Render("[●]"),
 			o.version)
 	} else {
 		fmt.Fprintf(o.stdout, "[*] goingenv v%s\n", o.version)

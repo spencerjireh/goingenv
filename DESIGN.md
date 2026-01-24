@@ -23,17 +23,18 @@ This document defines the visual identity for goingenv across all touchpoints: w
 ### Primary Lockup
 
 ```
-[*]goingenv
+[●]goingenv
 ```
 
 - **Format:** Logomark integrated with wordmark (no space)
 - **Font:** JetBrains Mono Medium
 - **Reads as:** A terminal command or CLI tool name
+- **Unicode:** Uses Black Circle (U+25CF) for modern, softer aesthetic
 
 ### Logomark (Icon Only)
 
 ```
-[*]
+[●]
 ```
 
 - **Usage:** Favicon, app icons, GitHub avatar, TUI badge, small contexts
@@ -44,11 +45,11 @@ This document defines the visual identity for goingenv across all touchpoints: w
 ```
 ┌─────────────────────────────────────────────────┐
 │                                                 │
-│   [  *  ]  g o i n g e n v                      │
+│   [  ●  ]  g o i n g e n v                      │
 │   ↑  ↑  ↑  ↑─────────────↑                      │
 │   │  │  │  └── Wordmark (JetBrains Mono)        │
 │   │  │  └───── Closing bracket                  │
-│   │  └──────── Dot/asterisk (brand color)       │
+│   │  └──────── Circle (brand color, U+25CF)     │
 │   └─────────── Opening bracket                  │
 │                                                 │
 └─────────────────────────────────────────────────┘
@@ -57,12 +58,12 @@ This document defines the visual identity for goingenv across all touchpoints: w
 ### Spacing Rules
 
 - No space between `]` and `g`
-- Brackets and asterisk are part of the logomark
+- Brackets and circle are part of the logomark
 - When stacking, center the icon above the wordmark
 
 **Stacked Version:**
 ```
-  [*]
+  [●]
 goingenv
 ```
 
@@ -142,7 +143,7 @@ Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif
 
 ```
 Brackets:  #6b7a8f (Primary/muted gray)
-Asterisk:  #22d3a7 (Signal/teal)
+Circle:    #22d3a7 (Signal/teal)
 Wordmark:  #e9eaeb (Text/light)
 ```
 
@@ -150,7 +151,7 @@ Wordmark:  #e9eaeb (Text/light)
 
 ```
 Brackets:  #6b7a8f (Primary/muted gray)
-Asterisk:  #22d3a7 (Signal/teal)
+Circle:    #22d3a7 (Signal/teal)
 Wordmark:  #121417 (Base/dark)
 ```
 
@@ -225,7 +226,7 @@ var DarkTheme = ColorPalette{
 Every screen follows this structure:
 
 ```
-[*]goingenv v1.1.0                        <- Header (always)
+[●]goingenv v1.1.0                        <- Header (always)
                                           <- Blank line
 {Content Area}                            <- Screen-specific content
                                           <- Flexible space
@@ -242,12 +243,12 @@ Every screen follows this structure:
 ### Header Specification
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 ```
 
 **Styling:**
 - `[` and `]` - Muted color (`#6b7a8f`)
-- `*` - Brand teal (`#22d3a7`)
+- `●` - Brand teal (`#22d3a7`)
 - `goingenv` - Primary text (`#e9eaeb`)
 - `v1.1.0` - Muted color (`#6b7a8f`)
 
@@ -257,7 +258,7 @@ func renderHeader(version string) string {
     return lipgloss.JoinHorizontal(
         lipgloss.Left,
         mutedStyle.Render("["),
-        primaryStyle.Render("*"),
+        primaryStyle.Render("●"),
         mutedStyle.Render("]"),
         textStyle.Render("goingenv"),
         mutedStyle.Render(" v"+version),
@@ -306,7 +307,7 @@ Always visible, shows available actions for current screen.
 > [U] Unpack Archive              <- Selected (teal chevron)
   [L] List Archive Contents
   [S] Status
-  [*] Settings
+  [●] Settings
   [?] Help
 ```
 
@@ -332,13 +333,13 @@ func renderMenuItem(item string, selected bool) string {
 #### Main Menu
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 > [P] Pack Environment Files
   [U] Unpack Archive
   [L] List Archive Contents
   [S] Status
-  [*] Settings
+  [●] Settings
   [?] Help
 
 [↑↓] navigate  [enter] select  [q] quit
@@ -347,7 +348,7 @@ func renderMenuItem(item string, selected bool) string {
 #### Status Screen
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 Directory
   ~/projects/myapp
@@ -371,7 +372,7 @@ Archives
 #### Pack Screen (Password Entry)
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 Packing 3 environment files
 
@@ -393,7 +394,7 @@ Password: ••••••••_
 #### Progress Screen
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 Packing environment files...
 
@@ -414,7 +415,7 @@ Packing environment files...
 #### Success Screen
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 Packed successfully
 
@@ -431,7 +432,7 @@ Packed successfully
 #### Error Screen
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 Error
 
@@ -451,7 +452,7 @@ Error
 #### List Archive Screen
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 Archive: envs.goingenv
 
@@ -468,7 +469,7 @@ Archive: envs.goingenv
 #### Help Screen
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 Keyboard Shortcuts
 
@@ -495,7 +496,7 @@ Keyboard Shortcuts
 #### File Picker Screen
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 Select archive to unpack
 
@@ -515,7 +516,7 @@ Select archive to unpack
 #### Settings Screen
 
 ```
-[*]goingenv v1.1.0
+[●]goingenv v1.1.0
 
 Settings
 
@@ -577,14 +578,14 @@ The following elements from the current TUI should be removed:
 
 ### Menu Icons Reference
 
-Consistent bracket-icon system matching the `[*]` logo:
+Consistent bracket-icon system matching the `[●]` logo:
 
 ```
 [P] Pack Environment Files
 [U] Unpack Archive
 [L] List Archive Contents
 [S] Status
-[*] Settings
+[●] Settings
 [?] Help
 [>] Initialize goingenv (when not initialized)
 ```
@@ -628,7 +629,7 @@ When colors are enabled:
 
 | Element | Color | Hex | ANSI |
 |---------|-------|-----|------|
-| Brand/Logo `[*]` | Teal | `#22d3a7` | 43 |
+| Brand/Logo `[●]` | Teal | `#22d3a7` | 43 |
 | Success `[+]` | Teal | `#22d3a7` | 43 |
 | Warning `[!]` | Yellow | `#ffd93d` | 221 |
 | Error `[x]` | Red | `#ff6b6b` | 203 |
@@ -640,11 +641,11 @@ When colors are enabled:
 
 ### Prefix Indicator System
 
-All output lines use bracketed prefixes for visual consistency with the `[*]` logo.
+All output lines use bracketed prefixes for visual consistency with the `[●]` logo.
 
 | Indicator | Meaning | Color | Usage |
 |-----------|---------|-------|-------|
-| `[*]` | Brand/header | Teal | App header only |
+| `[●]` | Brand/header | Teal | App header only |
 | `[+]` | Success | Teal | Completed actions |
 | `[!]` | Warning | Yellow | Non-fatal issues |
 | `[x]` | Error | Red | Fatal errors |
@@ -661,7 +662,7 @@ All output lines use bracketed prefixes for visual consistency with the `[*]` lo
 #### Header (all commands)
 
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 ```
 
 Shown once at the start of output. Version from build info.
@@ -669,7 +670,7 @@ Shown once at the start of output. Version from build info.
 #### Standard Output Template
 
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 [>] {action description}
 
@@ -688,7 +689,7 @@ No separator lines. Blank lines separate logical sections.
 
 **Standard:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 [+] Initialized
 
@@ -697,7 +698,7 @@ No separator lines. Blank lines separate logical sections.
 
 **Verbose:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 [>] Initializing goingenv...
 
@@ -714,7 +715,7 @@ No separator lines. Blank lines separate logical sections.
 
 **Standard:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 Directory
   ~/projects/myapp
@@ -730,7 +731,7 @@ Archives (1)
 
 **Verbose:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 Directory
   ~/projects/myapp
@@ -757,7 +758,7 @@ Archives (1)
 
 **Standard:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 [>] Packing 3 files...
 
@@ -766,7 +767,7 @@ Archives (1)
 
 **Verbose:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 [>] Packing 3 environment files...
 
@@ -786,7 +787,7 @@ Archives (1)
 
 **With warnings:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 [>] Packing 3 files...
 
@@ -801,7 +802,7 @@ Archives (1)
 
 **Standard:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 [>] Unpacking envs.goingenv...
 
@@ -810,7 +811,7 @@ Archives (1)
 
 **With conflicts:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 [>] Unpacking envs.goingenv...
 
@@ -823,7 +824,7 @@ Archives (1)
 
 **Verbose:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 [>] Unpacking envs.goingenv...
 
@@ -844,7 +845,7 @@ Archives (1)
 
 **Standard:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 envs.goingenv
 
@@ -857,7 +858,7 @@ envs.goingenv
 
 **Verbose:**
 ```
-[*] goingenv v1.1.0
+[●] goingenv v1.1.0
 
 envs.goingenv
   Created: 2025-01-23 14:30:45
@@ -1026,9 +1027,9 @@ var (
 
 func printHeader(version string) {
     if useColors() {
-        fmt.Printf("%s goingenv v%s\n", brandStyle.Render("[*]"), version)
+        fmt.Printf("%s goingenv v%s\n", brandStyle.Render("[●]"), version)
     } else {
-        fmt.Printf("[*] goingenv v%s\n", version)
+        fmt.Printf("[●] goingenv v%s\n", version)
     }
 }
 
@@ -1062,7 +1063,7 @@ func useColors() bool {
 
 ### Navigation Logo
 
-SVG of `[*]goingenv` lockup, linking to home.
+SVG of `[●]goingenv` lockup, linking to home.
 
 ### Code Block Styling
 
@@ -1103,7 +1104,7 @@ The following prompts are designed for AI image generators to create brand asset
 
 ### Prompt 1: Icon/Favicon (Square Format)
 
-**Goal:** Generate the `[*]` logomark as a clean icon.
+**Goal:** Generate the `[●]` logomark as a clean icon.
 
 ```
 Create a minimal, developer-focused icon for a CLI tool called "goingenv".
@@ -1111,12 +1112,12 @@ Create a minimal, developer-focused icon for a CLI tool called "goingenv".
 Design specifications:
 - Square format, suitable for favicon and app icon use
 - Dark background: #121417 (very dark charcoal, almost black)
-- The icon consists of: opening square bracket, asterisk, closing square bracket
-- Written as: [*]
+- The icon consists of: opening square bracket, solid circle, closing square bracket
+- Written as: [●]
 - Brackets color: #6b7a8f (muted blue-gray)
-- Asterisk color: #22d3a7 (teal/cyan green)
+- Circle color: #22d3a7 (teal/cyan green)
 - Font: Monospace, clean, modern (similar to JetBrains Mono or SF Mono)
-- The asterisk should be the visual focal point, slightly brighter/more prominent
+- The circle should be the visual focal point, slightly brighter/more prominent
 - Generous padding around the symbol (approximately 20% margin on each side)
 - No gradients, no shadows, no 3D effects
 - Flat design, pixel-perfect for small sizes
@@ -1130,7 +1131,7 @@ Style reference: Similar to the minimal aesthetic of tools like Vercel, Linear, 
 
 ### Prompt 2: Full Logo Lockup (Horizontal)
 
-**Goal:** Generate the full `[*]goingenv` wordmark.
+**Goal:** Generate the full `[●]goingenv` wordmark.
 
 ```
 Create a horizontal logo lockup for a CLI tool called "goingenv".
@@ -1138,16 +1139,16 @@ Create a horizontal logo lockup for a CLI tool called "goingenv".
 Design specifications:
 - Horizontal format, aspect ratio approximately 4:1
 - Dark background: #121417 (very dark charcoal)
-- The logo reads: [*]goingenv (no space between ] and g)
+- The logo reads: [●]goingenv (no space between ] and g)
 - Brackets [ ] color: #6b7a8f (muted blue-gray)
-- Asterisk * color: #22d3a7 (teal/cyan green)
+- Circle ● color: #22d3a7 (teal/cyan green)
 - Text "goingenv" color: #e9eaeb (off-white)
 - Font: Monospace, medium weight, clean (JetBrains Mono style)
 - All characters should be the same height, aligned on baseline
 - No gradients, shadows, or effects
 - Flat, minimal design
 - Terminal/developer tool aesthetic
-- The asterisk is the only element with the accent color, making it the focal point
+- The circle is the only element with the accent color, making it the focal point
 
 Padding: Comfortable margins, suitable for use in navigation bars or headers.
 
@@ -1168,9 +1169,9 @@ Design specifications:
 - Optional: Subtle gradient glow in top-right corner using #22d3a7 at very low opacity (~5%)
 
 Content centered on image:
-- Logo: [*]goingenv
+- Logo: [●]goingenv
   - Brackets: #6b7a8f
-  - Asterisk: #22d3a7
+  - Circle: #22d3a7
   - Text: #e9eaeb
   - Font: Monospace, medium weight
   - Size: Prominent, approximately 15-20% of image width
@@ -1198,9 +1199,9 @@ Create a GitHub avatar image for a developer tool called "goingenv".
 Design specifications:
 - Dimensions: 500x500 pixels (square)
 - Background: #121417 (very dark charcoal)
-- Center content: The icon [*]
+- Center content: The icon [●]
   - Brackets: #6b7a8f (muted blue-gray)
-  - Asterisk: #22d3a7 (teal/cyan green)
+  - Circle: #22d3a7 (teal/cyan green)
 - Font: Monospace, clean, bold enough to read at small sizes
 - The icon should fill approximately 50-60% of the image width
 - Perfectly centered both horizontally and vertically
@@ -1221,9 +1222,9 @@ Create a logo variant for light backgrounds for a CLI tool called "goingenv".
 Design specifications:
 - Horizontal format
 - Light/white background: #ffffff or #f5f5f5
-- The logo reads: [*]goingenv
+- The logo reads: [●]goingenv
 - Brackets [ ] color: #6b7a8f (muted blue-gray)
-- Asterisk * color: #22d3a7 (teal/cyan green) — keeps brand color
+- Circle ● color: #22d3a7 (teal/cyan green) — keeps brand color
 - Text "goingenv" color: #121417 (dark charcoal)
 - Font: Monospace, medium weight
 - Flat design, no effects
@@ -1240,7 +1241,7 @@ Create a monochrome logo for a CLI tool called "goingenv".
 
 Version A - Teal on dark:
 - Background: #121417
-- All elements (brackets, asterisk, text): #22d3a7
+- All elements (brackets, circle, text): #22d3a7
 
 Version B - Dark on light:
 - Background: #ffffff
@@ -1251,7 +1252,7 @@ Version C - Light on dark:
 - All elements: #e9eaeb
 
 Font: Monospace, medium weight
-Format: Horizontal lockup [*]goingenv
+Format: Horizontal lockup [●]goingenv
 No color differentiation between elements — entire logo is one solid color.
 ```
 
@@ -1266,7 +1267,7 @@ No color differentiation between elements — entire logo is one solid color.
 
 2. **Phase 2: TUI Alignment**
    - Update `internal/tui/styles.go` with new color palette
-   - Update header to show `[*]goingenv v{version}`
+   - Update header to show `[●]goingenv v{version}`
    - Test across terminal emulators
 
 3. **Phase 3: Marketing Assets**
