@@ -117,7 +117,7 @@ func NewModel(app *types.App, verbose bool, version string) *Model {
 			MenuItem{
 				title:       "Settings",
 				description: "Configure default options",
-				icon:        "[*]",
+				icon:        "[●]",
 				action:      "settings",
 			},
 			MenuItem{
@@ -303,7 +303,7 @@ func (m *Model) refreshMenuAfterInit() *Model {
 		MenuItem{
 			title:       "Settings",
 			description: "Configure default options",
-			icon:        "[*]",
+			icon:        "[●]",
 			action:      "settings",
 		},
 		MenuItem{

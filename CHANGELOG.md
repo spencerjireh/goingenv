@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **`goingenv init` command** - Required initialization step for each project directory
 - **Brand design system** - New `DESIGN.md` documenting logo, colors, and UI specifications
-- **CLI output system** - Consistent branded output with prefix indicators (`[*]`, `[+]`, `[!]`, `[x]`, `[>]`, `[?]`, `[-]`, `[~]`)
+- **CLI output system** - Consistent branded output with prefix indicators (`[●]`, `[+]`, `[!]`, `[x]`, `[>]`, `[?]`, `[-]`, `[~]`)
 - **Relative timestamps** - New `FormatTimeAgo` utility showing "2 hours ago" style times
 - TTY-aware color detection for CLI output
 - **Automatic release system** - Pushes to main branch automatically create stable releases
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TUI redesign** - Borderless components, chevron menu selection, branded header with version
 - TUI now shows initialization screen when project is not initialized
 - Archive operations no longer auto-create `.goingenv` directory
-- CLI commands now display branded header `[*] goingenv v{version}`
+- CLI commands now display branded header `[●] goingenv v{version}`
 - Encrypted archives (`.enc` files) are now shareable via git by default - no auto-gitignore modification
 - Restructured README.md for better user experience
 - Enhanced Makefile with CI and release targets

@@ -201,16 +201,16 @@ func RenderProgressBar(percentage float64, width int) string {
 	return ProgressBarStyle.Render(bar)
 }
 
-// RenderHeader creates branded header: [*]goingenv v{version}
+// RenderHeader creates branded header: [●]goingenv v{version}
 func RenderHeader(version string) string {
 	bracketStyle := lipgloss.NewStyle().Foreground(MutedColor)
-	asteriskStyle := lipgloss.NewStyle().Foreground(PrimaryColor)
+	circleStyle := lipgloss.NewStyle().Foreground(PrimaryColor)
 	wordmarkStyle := lipgloss.NewStyle().Foreground(SecondaryColor)
 	versionStyle := lipgloss.NewStyle().Foreground(MutedColor)
 
 	return lipgloss.JoinHorizontal(lipgloss.Left,
 		bracketStyle.Render("["),
-		asteriskStyle.Render("*"),
+		circleStyle.Render("●"),
 		bracketStyle.Render("]"),
 		wordmarkStyle.Render("goingenv"),
 		versionStyle.Render(" v"+version),
