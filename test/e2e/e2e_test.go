@@ -77,7 +77,7 @@ func TestE2E_FullWorkflow(t *testing.T) {
 		result := testutils.RunBinary(t, binary, tmpDir, "status", "--verbose")
 		testutils.AssertSuccess(t, result)
 		testutils.AssertOutputContains(t, result, ".goingenv")
-		testutils.AssertOutputContains(t, result, "exists")
+		testutils.AssertOutputContains(t, result, "Environment Files")
 	})
 
 	// Step 3: Pack
