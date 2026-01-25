@@ -24,7 +24,8 @@
       "Bash(gofmt:*)",
       "Bash(make fmt:*)",
       "Bash(make dev:*)",
-      "Bash(go vet:*)"
+      "Bash(go vet:*)",
+      "Bash(make ci-security:*)"
     ]
   }
 }
