@@ -6,7 +6,7 @@ Secure your `.env` files with AES-256 encryption. No dependencies, no configurat
 
 ## Website
 
-**[Website](https://spencerjirehcebrian.github.io/goingenv/)** - Installation guide, usage examples, and documentation
+**[Website](https://spencerjireh.github.io/goingenv/)** - Installation guide, usage examples, and documentation
 
 > [!WARNING]
 > **Disclaimer** -- This project was developed with AI assistance and has not undergone a formal security audit. While it has been used in production environments, you should perform your own due diligence and security assessment before using it with sensitive data. Recommended for private repositories and internal team projects.
@@ -28,31 +28,31 @@ Secure your `.env` files with AES-256 encryption. No dependencies, no configurat
 **One-line installation (always installs latest):**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
 ```
 
 **Install from release asset (reproducible, version-locked):**
 
 ```bash
 # Downloads installer with embedded version (check releases page for latest)
-curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.1.0/install.sh | bash
+curl -sSL https://github.com/spencerjireh/goingenv/releases/download/v1.1.0/install.sh | bash
 ```
 
 **Install specific version:**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v1.1.0
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version v1.1.0
 ```
 
 **Upgrade and cleanup old installations:**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --cleanup-all
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --cleanup-all
 ```
 
 **Manual installation:**
 
-1. Download the appropriate binary from [releases](https://github.com/spencerjirehcebrian/goingenv/releases)
+1. Download the appropriate binary from [releases](https://github.com/spencerjireh/goingenv/releases)
 2. Extract and move to your PATH: `tar -xzf goingenv-*.tar.gz && mv goingenv /usr/local/bin/`
 
 ### Basic Usage
@@ -103,7 +103,7 @@ goingenv unpack -f backup.enc --password-env MY_PASSWORD
 
 ```bash
 # 1. Install goingenv
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
 
 # 2. Navigate to your project
 cd /path/to/your/project
@@ -162,8 +162,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Links
 
-- **GitHub:** https://github.com/spencerjirehcebrian/goingenv
-- **Issues:** https://github.com/spencerjirehcebrian/goingenv/issues
-- **Releases:** https://github.com/spencerjirehcebrian/goingenv/releases
+- **GitHub:** https://github.com/spencerjireh/goingenv
+- **Issues:** https://github.com/spencerjireh/goingenv/issues
+- **Releases:** https://github.com/spencerjireh/goingenv/releases
 
 ---
