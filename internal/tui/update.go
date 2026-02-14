@@ -185,7 +185,6 @@ func (m *Model) handlePackPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.textInput, cmd = m.textInput.Update(msg)
 		return m, cmd
 	}
-	return m, nil
 }
 
 // handleUnpackPasswordKeys handles keyboard input during unpack password entry
@@ -210,7 +209,6 @@ func (m *Model) handleUnpackPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.textInput, cmd = m.textInput.Update(msg)
 		return m, cmd
 	}
-	return m, nil
 }
 
 // handleListPasswordKeys handles keyboard input during list password entry
@@ -235,7 +233,6 @@ func (m *Model) handleListPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.textInput, cmd = m.textInput.Update(msg)
 		return m, cmd
 	}
-	return m, nil
 }
 
 // handleFileSelectKeys handles keyboard input during file selection
