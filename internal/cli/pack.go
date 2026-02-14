@@ -126,6 +126,7 @@ func displayPackFiles(out *Output, files []types.EnvFile, verbose bool) {
 			out.ListItem(file.RelativePath)
 		case i == 5:
 			out.ListItem(fmt.Sprintf("... and %d more files", len(files)-5))
+			out.Blank()
 			return
 		}
 	}

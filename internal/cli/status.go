@@ -126,6 +126,7 @@ func displayFiles(out *Output, app *types.App, directory string, verbose bool) [
 				out.Indent(file.RelativePath)
 			case i == 10:
 				out.Indent(fmt.Sprintf("... and %d more", len(files)-10))
+				out.Blank()
 				return files
 			}
 		}

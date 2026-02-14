@@ -231,7 +231,11 @@ func displayFilesTable(out *Output, files []types.EnvFile, opts *ListOpts) {
 			parts = append(parts, file.ModTime.Format(constants.DateTimeFormat))
 		}
 		if opts.Checksums {
-			parts = append(parts, file.Checksum[:16]+"...")
+			cs := file.Checksum
+			if len(cs) > 16 {
+				cs = cs[:16] + "..."
+			}
+			parts = append(parts, cs)
 		}
 
 		out.Indent(strings.Join(parts, "    "))
