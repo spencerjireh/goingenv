@@ -263,28 +263,31 @@ func GetDepthLimitCases() []PatternTestCase {
 		},
 		{
 			Name:        "BeyondDefaultDepth",
-			Description: "Files beyond default depth (3) should be skipped",
+			Description: "Files beyond default depth (10) should be skipped",
 			Files: map[string]string{
-				".env":         "DEPTH0=value",
-				"a/.env":       "DEPTH1=value",
-				"a/b/.env":     "DEPTH2=value",
-				"a/b/c/.env":   "DEPTH3=value",
-				"a/b/c/d/.env": "DEPTH4=value", // Beyond depth 3
+				".env":                       "DEPTH0=value",
+				"a/.env":                     "DEPTH1=value",
+				"a/b/.env":                   "DEPTH2=value",
+				"a/b/c/.env":                 "DEPTH3=value",
+				"a/b/c/d/.env":               "DEPTH4=value",
+				"a/b/c/d/e/f/g/h/i/j/k/.env": "DEPTH11=value", // Beyond depth 10
 			},
-			ShouldMatch:    []string{".env", "a/.env", "a/b/.env", "a/b/c/.env"},
-			ShouldNotMatch: []string{"a/b/c/d/.env"},
+			ShouldMatch:    []string{".env", "a/.env", "a/b/.env", "a/b/c/.env", "a/b/c/d/.env"},
+			ShouldNotMatch: []string{"a/b/c/d/e/f/g/h/i/j/k/.env"},
 		},
 		{
 			Name:        "VeryDeepNesting",
-			Description: "Very deep nesting (5+ levels)",
+			Description: "Very deep nesting beyond depth 10",
 			Files: map[string]string{
-				".env":                 "ROOT=value",
-				"a/b/c/d/e/.env":       "VERY_DEEP=value",
-				"a/b/c/d/e/f/.env":     "EVEN_DEEPER=value",
-				"a/b/c/d/e/f/g/h/.env": "WAY_TOO_DEEP=value",
+				".env":                           "ROOT=value",
+				"a/b/c/d/e/.env":                 "DEPTH5=value",
+				"a/b/c/d/e/f/.env":               "DEPTH6=value",
+				"a/b/c/d/e/f/g/h/.env":           "DEPTH8=value",
+				"a/b/c/d/e/f/g/h/i/j/k/.env":     "DEPTH11=value",
+				"a/b/c/d/e/f/g/h/i/j/k/l/m/.env": "DEPTH13=value",
 			},
-			ShouldMatch:    []string{".env"},
-			ShouldNotMatch: []string{"a/b/c/d/e/.env", "a/b/c/d/e/f/.env", "a/b/c/d/e/f/g/h/.env"},
+			ShouldMatch:    []string{".env", "a/b/c/d/e/.env", "a/b/c/d/e/f/.env", "a/b/c/d/e/f/g/h/.env"},
+			ShouldNotMatch: []string{"a/b/c/d/e/f/g/h/i/j/k/.env", "a/b/c/d/e/f/g/h/i/j/k/l/m/.env"},
 		},
 	}
 }
@@ -531,7 +534,7 @@ func GetTestFixtures() TestFixtures {
 			".env.production":  "NODE_ENV=production\nAPI_URL=https://api.example.com",
 		},
 		SampleConfig: `{
-			"default_depth": 3,
+			"default_depth": 10,
 			"env_patterns": ["\\.env$", "\\.env\\..*$"],
 			"exclude_patterns": ["node_modules/", "\\.git/", "vendor/"],
 			"max_file_size": 10485760

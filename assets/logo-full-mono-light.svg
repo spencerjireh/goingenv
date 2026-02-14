@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" width="880" height="200">
+  <rect width="880" height="200" fill="#ffffff"/>
+  <path d="M 40,50 L 65,50 L 65,62 L 52,62 L 52,138 L 65,138 L 65,150 L 40,150 Z" fill="#121417"/>
+  <path d="M 115,50 L 140,50 L 140,150 L 115,150 L 115,138 L 128,138 L 128,62 L 115,62 Z" fill="#121417"/>
+  <circle cx="90" cy="100" r="24" fill="#121417"/>
+  <text x="152" y="118" font-family="JetBrains Mono, SF Mono, Menlo, Consolas, monospace" font-size="64" font-weight="500" fill="#121417">goingenv</text>
+</svg>

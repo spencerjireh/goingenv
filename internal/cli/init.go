@@ -31,55 +31,70 @@ Examples:
 	}
 
 	cmd.Flags().BoolP("force", "f", false, "Force initialization even if already initialized")
+	cmd.Flags().BoolP("verbose", "v", false, "Show detailed information")
 
 	return cmd
 }
 
 // runInitCommand executes the init command
 func runInitCommand(cmd *cobra.Command, args []string) error {
+	out := NewOutput(appVersion)
+
 	force, err := cmd.Flags().GetBool("force")
 	if err != nil {
-		return fmt.Errorf("failed to get force flag: %w", err)
+		return err
 	}
+
+	verbose, err := cmd.Flags().GetBool("verbose")
+	if err != nil {
+		return err
+	}
+
+	out.Header()
+	out.Blank()
 
 	// Check if already initialized
 	if config.IsInitialized() && !force {
-		fmt.Println("goingenv is already initialized in this directory.")
-		fmt.Println("Use 'goingenv init --force' to reinitialize.")
+		out.Warning("goingenv is already initialized in this directory")
+		out.Hint("Use 'goingenv init --force' to reinitialize")
 		return nil
 	}
 
-	fmt.Println("Initializing goingenv in current directory...")
+	if verbose {
+		out.Action("Initializing goingenv...")
+	}
 
 	// Create .goingenv directory for storing encrypted archives
 	if initErr := config.InitializeProject(); initErr != nil {
-		return fmt.Errorf("failed to initialize project: %w", initErr)
+		out.Error("Failed to initialize project")
+		return fmt.Errorf("initialization failed: %w", initErr)
 	}
 
 	// Ensure configuration exists in home directory
 	configMgr := config.NewManager()
 	cfg, err := configMgr.Load()
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		out.Error("Failed to load configuration")
+		return fmt.Errorf("configuration failed: %w", err)
 	}
 
 	// Save default config if it was newly created
 	if err := configMgr.Save(cfg); err != nil {
-		return fmt.Errorf("failed to save configuration: %w", err)
+		out.Error("Failed to save configuration")
+		return fmt.Errorf("save failed: %w", err)
 	}
 
-	fmt.Println("goingenv successfully initialized!")
-	fmt.Println()
-	fmt.Println("What's been created:")
-	fmt.Printf("  - .goingenv/ directory for storing encrypted archives\n")
-	fmt.Printf("  - Configuration file in your home directory\n")
-	fmt.Println()
-	fmt.Println("Next steps:")
-	fmt.Println("  - Run 'goingenv pack' to create your first encrypted archive")
-	fmt.Println("  - Run 'goingenv status' to see what environment files are detected")
-	fmt.Println("  - Use the TUI mode by running 'goingenv' without arguments")
-	fmt.Println()
-	fmt.Println("Encrypted archives (.enc files) are safe to commit to git for sharing.")
+	if verbose {
+		out.Success("Created .goingenv/")
+		out.Blank()
+		out.Hint("Next steps:")
+		out.Indent("Run 'goingenv status' to see detected files")
+		out.Indent("Run 'goingenv pack' to create encrypted archive")
+	} else {
+		out.Success("Initialized")
+		out.Blank()
+		out.Hint("Run 'goingenv status' to see detected files")
+	}
 
 	return nil
 }

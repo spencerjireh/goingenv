@@ -24,7 +24,7 @@ This guide provides everything you need to know for contributing to goingenv dev
 
 ```bash
 # Clone the repository
-git clone https://github.com/spencerjirehcebrian/goingenv.git
+git clone https://github.com/spencerjireh/goingenv.git
 cd goingenv
 
 # Install dependencies
@@ -404,7 +404,7 @@ func TestWithMock(t *testing.T) {
    ```bash
    git clone https://github.com/yourusername/goingenv.git
    cd goingenv
-   git remote add upstream https://github.com/spencerjirehcebrian/goingenv.git
+   git remote add upstream https://github.com/spencerjireh/goingenv.git
    ```
 
 2. **Create Feature Branch**
@@ -796,8 +796,8 @@ For comprehensive security documentation including encryption details, best prac
 
 ## Getting Help
 
-- **GitHub Discussions**: https://github.com/spencerjirehcebrian/goingenv/discussions
-- **Issues**: https://github.com/spencerjirehcebrian/goingenv/issues
+- **GitHub Discussions**: https://github.com/spencerjireh/goingenv/discussions
+- **Issues**: https://github.com/spencerjireh/goingenv/issues
 - **Go Documentation**: https://golang.org/doc/
 - **Cobra Documentation**: https://cobra.dev/
 - **Bubbletea Documentation**: https://github.com/charmbracelet/bubbletea

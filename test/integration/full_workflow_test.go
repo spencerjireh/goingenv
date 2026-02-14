@@ -351,7 +351,7 @@ func TestConfigIntegration(t *testing.T) {
 
 	t.Run("Configuration Validation", func(t *testing.T) {
 		validConfig := &types.Config{
-			DefaultDepth:    3,
+			DefaultDepth:    10,
 			EnvPatterns:     []string{`\.env$`},
 			ExcludePatterns: []string{`node_modules/`},
 			MaxFileSize:     1024 * 1024,

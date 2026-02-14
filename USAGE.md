@@ -239,8 +239,8 @@ goingenv status
 # Detailed status with file analysis
 goingenv status --verbose
 
-# Status with statistics
-goingenv status --stats
+# Status for specific directory
+goingenv status /path/to/project
 ```
 
 ## Common Workflows
@@ -413,7 +413,7 @@ jobs:
       
       - name: Install GoingEnv
         run: |
-          curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --yes
+          curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --yes
       
       - name: Create Environment Backup
         run: |
@@ -434,7 +434,7 @@ Create a configuration file at `~/.goingenv/config.json`:
 
 ```json
 {
-  "default_depth": 3,
+  "default_depth": 10,
   "env_patterns": [
     ".env",
     ".env.local",
@@ -564,7 +564,7 @@ Debug logs are stored in: `~/.goingenv/debug/`
 
 1. **Check documentation**: `goingenv help`
 2. **View command help**: `goingenv pack --help`
-3. **Check GitHub issues**: https://github.com/spencerjirehcebrian/goingenv/issues
+3. **Check GitHub issues**: https://github.com/spencerjireh/goingenv/issues
 4. **Enable debug logging**: `goingenv --verbose`
 
 ## Performance Tips

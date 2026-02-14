@@ -3,6 +3,7 @@ package utils
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 func TestFormatSize(t *testing.T) {
@@ -184,6 +185,76 @@ func TestFilterFilesByPatterns(t *testing.T) {
 				if !expectedMap[item] {
 					t.Errorf("Unexpected item in result: %s", item)
 				}
+			}
+		})
+	}
+}
+
+func TestFormatTimeAgo(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name     string
+		time     time.Time
+		expected string
+	}{
+		{
+			name:     "Just now",
+			time:     now.Add(-30 * time.Second),
+			expected: "just now",
+		},
+		{
+			name:     "1 minute ago",
+			time:     now.Add(-1 * time.Minute),
+			expected: "1 minute ago",
+		},
+		{
+			name:     "Multiple minutes ago",
+			time:     now.Add(-45 * time.Minute),
+			expected: "45 minutes ago",
+		},
+		{
+			name:     "1 hour ago",
+			time:     now.Add(-1 * time.Hour),
+			expected: "1 hour ago",
+		},
+		{
+			name:     "Multiple hours ago",
+			time:     now.Add(-5 * time.Hour),
+			expected: "5 hours ago",
+		},
+		{
+			name:     "1 day ago",
+			time:     now.Add(-24 * time.Hour),
+			expected: "1 day ago",
+		},
+		{
+			name:     "Multiple days ago",
+			time:     now.Add(-3 * 24 * time.Hour),
+			expected: "3 days ago",
+		},
+		{
+			name:     "1 week ago",
+			time:     now.Add(-7 * 24 * time.Hour),
+			expected: "1 week ago",
+		},
+		{
+			name:     "Multiple weeks ago",
+			time:     now.Add(-21 * 24 * time.Hour),
+			expected: "3 weeks ago",
+		},
+		{
+			name:     "Over 30 days ago",
+			time:     now.Add(-60 * 24 * time.Hour),
+			expected: now.Add(-60 * 24 * time.Hour).Format("2006-01-02"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatTimeAgo(tt.time)
+			if result != tt.expected {
+				t.Errorf("FormatTimeAgo() = %q; want %q", result, tt.expected)
 			}
 		})
 	}

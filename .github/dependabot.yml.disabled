@@ -13,9 +13,9 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 5
     reviewers:
-      - "spencerjirehcebrian"
+      - "spencerjireh"
     assignees:
-      - "spencerjirehcebrian"
+      - "spencerjireh"
     commit-message:
       prefix: "deps"
       include: "scope"
@@ -37,9 +37,9 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 3
     reviewers:
-      - "spencerjirehcebrian"
+      - "spencerjireh"
     assignees:
-      - "spencerjirehcebrian"
+      - "spencerjireh"
     commit-message:
       prefix: "ci"
       include: "scope"
@@ -58,9 +58,9 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 3
     reviewers:
-      - "spencerjirehcebrian"
+      - "spencerjireh"
     assignees:
-      - "spencerjirehcebrian"
+      - "spencerjireh"
     commit-message:
       prefix: "deps"
       include: "scope"

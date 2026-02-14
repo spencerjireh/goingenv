@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,7 +83,7 @@ func CreateTempEnvFiles(t *testing.T) string {
 // CreateTestConfig returns a test configuration
 func CreateTestConfig() *types.Config {
 	return &types.Config{
-		DefaultDepth: 3,
+		DefaultDepth: 10,
 		EnvPatterns: []string{
 			`\.env$`,
 			`\.env\.local$`,
@@ -334,11 +335,7 @@ func CreateMinimalTestConfig() *types.Config {
 
 // Helper function to check if a string contains a substring
 func contains(str, substr string) bool {
-	return len(str) >= len(substr) && (str == substr ||
-		(len(str) > len(substr) &&
-			(str[:len(substr)] == substr ||
-				str[len(str)-len(substr):] == substr ||
-				contains(str[1:], substr))))
+	return strings.Contains(str, substr)
 }
 
 // MockTime returns a fixed time for consistent testing

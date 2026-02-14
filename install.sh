@@ -2,13 +2,13 @@
 
 # GoingEnv Installation Script
 # This script installs GoingEnv on Linux and macOS systems
-# Usage: curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
-# Or: wget -qO- https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
+# Or: wget -qO- https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
 
 set -e
 
 # Configuration
-REPO_OWNER="spencerjirehcebrian"
+REPO_OWNER="spencerjireh"
 REPO_NAME="goingenv"
 BINARY_NAME="goingenv"
 GITHUB_REPO="https://github.com/${REPO_OWNER}/${REPO_NAME}"
@@ -340,10 +340,10 @@ check_existing_installation() {
                 echo ""
                 echo "Examples:"
                 echo "  # Force installation without confirmation:"
-                echo "  curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh | bash -s -- --version $VERSION --force"
+                echo "  curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version $VERSION --force"
                 echo ""
                 echo "  # Auto-confirm installation:"
-                echo "  curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/develop/install.sh | bash -s -- --version $VERSION --yes"
+                echo "  curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version $VERSION --yes"
                 exit 1
             fi
         else

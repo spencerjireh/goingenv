@@ -1,24 +1,20 @@
 # goingenv
 
-**Share envs the easy way**
+**Simple environment file sharing for developers**
 
-Tired of complex tools just to share .env files? goingenv is perfect for small teams, personal projects, and private repositories. Get you and your teammates sharing encrypted environments in seconds - no third parties, no setup headaches.
-
-**Made by devs who want easier solutions.**
-
-Strong encryption, zero config needed. Just encrypt, commit, share. Your envs are secure in seconds, not hours. Perfect for small-scale projects where simplicity matters more than enterprise features.
+Secure your `.env` files with AES-256 encryption. No dependencies, no configuration. Perfect for small teams and personal projects where you want to share encrypted environments via Git.
 
 ## Website
 
-**[Website](https://spencerjirehcebrian.github.io/goingenv/)** - Installation guide, usage examples, and documentation
+**[Website](https://spencerjireh.github.io/goingenv/)** - Installation guide, usage examples, and documentation
 
-> [!WARNING]  
-> goingenv hasn't undergone formal security audits, though it's been used successfully in production. Great for private repositories and internal team projects. Always exercise caution with sensitive data.
+> [!WARNING]
+> **Disclaimer** -- This project was developed with AI assistance and has not undergone a formal security audit. While it has been used in production environments, you should perform your own due diligence and security assessment before using it with sensitive data. Recommended for private repositories and internal team projects.
 
 ## Key Features
 
 - **Smart Scanning** - Auto-detects `.env`, `.env.local`, `.env.production`, etc.
-- **AES-256 Encryption** - Military-grade security with PBKDF2 key derivation
+- **AES-256 Encryption** - AES-256-GCM encryption with PBKDF2 key derivation
 - **Beautiful TUI** - Interactive terminal interface with real-time preview
 - **Archive Management** - Compressed, encrypted archives with metadata
 - **Integrity Checks** - SHA-256 checksums ensure data integrity
@@ -32,31 +28,31 @@ Strong encryption, zero config needed. Just encrypt, commit, share. Your envs ar
 **One-line installation (always installs latest):**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
 ```
 
 **Install from release asset (reproducible, version-locked):**
 
 ```bash
-# Replace v1.0.0 with desired version - downloads installer with embedded version
-curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/install.sh | bash
+# Downloads installer with embedded version (check releases page for latest)
+curl -sSL https://github.com/spencerjireh/goingenv/releases/download/v1.1.0/install.sh | bash
 ```
 
 **Install specific version:**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v1.0.0
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version v1.1.0
 ```
 
 **Upgrade and cleanup old installations:**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --cleanup-all
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --cleanup-all
 ```
 
 **Manual installation:**
 
-1. Download the appropriate binary from [releases](https://github.com/spencerjirehcebrian/goingenv/releases)
+1. Download the appropriate binary from [releases](https://github.com/spencerjireh/goingenv/releases)
 2. Extract and move to your PATH: `tar -xzf goingenv-*.tar.gz && mv goingenv /usr/local/bin/`
 
 ### Basic Usage
@@ -107,7 +103,7 @@ goingenv unpack -f backup.enc --password-env MY_PASSWORD
 
 ```bash
 # 1. Install goingenv
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
 
 # 2. Navigate to your project
 cd /path/to/your/project
@@ -166,10 +162,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Links
 
-- **GitHub:** https://github.com/spencerjirehcebrian/goingenv
-- **Issues:** https://github.com/spencerjirehcebrian/goingenv/issues
-- **Releases:** https://github.com/spencerjirehcebrian/goingenv/releases
+- **GitHub:** https://github.com/spencerjireh/goingenv
+- **Issues:** https://github.com/spencerjireh/goingenv/issues
+- **Releases:** https://github.com/spencerjireh/goingenv/releases
 
 ---
-
-**Star this repo if goingenv helps secure your environment files!**

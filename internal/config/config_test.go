@@ -118,7 +118,7 @@ func TestManager_Load_InvalidConfig(t *testing.T) {
 
 	// Create config with invalid depth
 	invalidConfig := &types.Config{
-		DefaultDepth: 100, // Invalid - should be between 1 and 10
+		DefaultDepth: 100, // Invalid - should be between 1 and 50
 		EnvPatterns:  []string{`\.env`},
 		MaxFileSize:  1024,
 	}
@@ -242,7 +242,7 @@ func TestManager_Validate(t *testing.T) {
 		{
 			name: "DefaultDepth too high",
 			config: &types.Config{
-				DefaultDepth: 11,
+				DefaultDepth: 51,
 				EnvPatterns:  []string{`\.env`},
 				MaxFileSize:  1024,
 			},
@@ -307,8 +307,8 @@ func TestManager_GetDefault(t *testing.T) {
 		t.Fatal("GetDefault() returned nil")
 	}
 
-	if config.DefaultDepth != 3 {
-		t.Errorf("DefaultDepth = %d, want 3", config.DefaultDepth)
+	if config.DefaultDepth != 10 {
+		t.Errorf("DefaultDepth = %d, want 10", config.DefaultDepth)
 	}
 
 	if config.MaxFileSize != DefaultMaxFileSize {
