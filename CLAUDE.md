@@ -86,7 +86,7 @@ Two config locations:
 
 golangci-lint is configured with:
 - Max cyclomatic complexity: 15
-- Security scanning via gosec (exclusions: G115, G204, G304, G407)
+- Security scanning via gosec (exclusions: G115, G117, G204, G304, G407, G703)
 - gofmt, goimports, errcheck, staticcheck enabled
 
 ## Release Workflow
