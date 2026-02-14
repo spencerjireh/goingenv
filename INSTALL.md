@@ -8,13 +8,13 @@ This guide provides detailed installation instructions for goingenv on Linux and
 
 **One-line install (always gets latest version):**
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
 ```
 
 **Install from release asset (reproducible, version-locked):**
 ```bash
 # Downloads install.sh with embedded version from release assets
-curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/install.sh | bash
+curl -sSL https://github.com/spencerjireh/goingenv/releases/download/v1.0.0/install.sh | bash
 ```
 
 > **URL Strategy:**
@@ -24,7 +24,7 @@ curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0
 
 **Or using wget:**
 ```bash
-wget -qO- https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
 ```
 
 ### Secure Installation (Download and Inspect)
@@ -33,7 +33,7 @@ For security-conscious users, download and inspect the script first:
 
 ```bash
 # Download the installer
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh -o install.sh
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh -o install.sh
 
 # Review the script (recommended)
 cat install.sh
@@ -48,10 +48,10 @@ chmod +x install.sh
 ### Custom Version
 ```bash
 # Install specific version using --version flag
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --version v1.0.0
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version v1.0.0
 
 # Or download version-locked installer from release assets
-curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/install.sh | bash
+curl -sSL https://github.com/spencerjireh/goingenv/releases/download/v1.0.0/install.sh | bash
 
 # Or with local script
 ./install.sh --version v1.0.0
@@ -115,28 +115,28 @@ export SKIP_SHELL_INTEGRATION=1
 ### Download Pre-built Binary
 
 1. **Visit the releases page:**
-   https://github.com/spencerjirehcebrian/goingenv/releases
+   https://github.com/spencerjireh/goingenv/releases
 
 2. **Download the appropriate binary for your platform:**
 
    **Linux x86_64:**
    ```bash
-   curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/goingenv-v1.0.0-linux-amd64.tar.gz -o goingenv.tar.gz
+   curl -sSL https://github.com/spencerjireh/goingenv/releases/download/v1.0.0/goingenv-v1.0.0-linux-amd64.tar.gz -o goingenv.tar.gz
    ```
 
    **Linux ARM64:**
    ```bash
-   curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/goingenv-v1.0.0-linux-arm64.tar.gz -o goingenv.tar.gz
+   curl -sSL https://github.com/spencerjireh/goingenv/releases/download/v1.0.0/goingenv-v1.0.0-linux-arm64.tar.gz -o goingenv.tar.gz
    ```
 
    **macOS Intel:**
    ```bash
-   curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/goingenv-v1.0.0-darwin-amd64.tar.gz -o goingenv.tar.gz
+   curl -sSL https://github.com/spencerjireh/goingenv/releases/download/v1.0.0/goingenv-v1.0.0-darwin-amd64.tar.gz -o goingenv.tar.gz
    ```
 
    **macOS Apple Silicon:**
    ```bash
-   curl -sSL https://github.com/spencerjirehcebrian/goingenv/releases/download/v1.0.0/goingenv-v1.0.0-darwin-arm64.tar.gz -o goingenv.tar.gz
+   curl -sSL https://github.com/spencerjireh/goingenv/releases/download/v1.0.0/goingenv-v1.0.0-darwin-arm64.tar.gz -o goingenv.tar.gz
    ```
 
 3. **Extract and install:**
@@ -169,7 +169,7 @@ export SKIP_SHELL_INTEGRATION=1
 **Build steps:**
 ```bash
 # Clone the repository
-git clone https://github.com/spencerjirehcebrian/goingenv.git
+git clone https://github.com/spencerjireh/goingenv.git
 cd goingenv
 
 # Install dependencies
@@ -291,16 +291,16 @@ DEBUG=1 ./install.sh
 ```
 
 ### Getting Help
-- **GitHub Issues:** https://github.com/spencerjirehcebrian/goingenv/issues
-- **Documentation:** https://github.com/spencerjirehcebrian/goingenv
-- **Discussions:** https://github.com/spencerjirehcebrian/goingenv/discussions
+- **GitHub Issues:** https://github.com/spencerjireh/goingenv/issues
+- **Documentation:** https://github.com/spencerjireh/goingenv
+- **Discussions:** https://github.com/spencerjireh/goingenv/discussions
 
 ## Uninstallation
 
 ### Using the Installer
 ```bash
 # Download and run uninstaller
-curl -sSL https://raw.githubusercontent.com/spencerjirehcebrian/goingenv/main/install.sh | bash -s -- --uninstall
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --uninstall
 
 # Or with local script
 ./install.sh --uninstall

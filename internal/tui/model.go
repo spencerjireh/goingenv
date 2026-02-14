@@ -56,10 +56,13 @@ type Model struct {
 
 	// Debug logging
 	debugLogger *DebugLogger
+
+	// Version for branded header
+	version string
 }
 
 // NewModel creates a new TUI model
-func NewModel(app *types.App, verbose bool) *Model {
+func NewModel(app *types.App, verbose bool, version string) *Model {
 	// Initialize debug logger
 	debugLogger := NewDebugLogger(verbose)
 
@@ -114,7 +117,7 @@ func NewModel(app *types.App, verbose bool) *Model {
 			MenuItem{
 				title:       "Settings",
 				description: "Configure default options",
-				icon:        "[*]",
+				icon:        "[●]",
 				action:      "settings",
 			},
 			MenuItem{
@@ -154,6 +157,7 @@ func NewModel(app *types.App, verbose bool) *Model {
 		filepicker:    fp,
 		progress:      prog,
 		debugLogger:   debugLogger,
+		version:       version,
 	}
 
 	// Log initial model creation
@@ -299,7 +303,7 @@ func (m *Model) refreshMenuAfterInit() *Model {
 		MenuItem{
 			title:       "Settings",
 			description: "Configure default options",
-			icon:        "[*]",
+			icon:        "[●]",
 			action:      "settings",
 		},
 		MenuItem{

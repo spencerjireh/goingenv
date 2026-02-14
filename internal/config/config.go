@@ -77,7 +77,7 @@ func (m *Manager) Save(config *types.Config) error {
 // GetDefault returns the default configuration
 func (m *Manager) GetDefault() *types.Config {
 	return &types.Config{
-		DefaultDepth: 3,
+		DefaultDepth: 10,
 		EnvPatterns: []string{
 			`\.env.*`,
 		},
@@ -101,11 +101,11 @@ func (m *Manager) GetDefault() *types.Config {
 
 // Validate validates the configuration
 func (m *Manager) Validate(config *types.Config) error {
-	if config.DefaultDepth < 1 || config.DefaultDepth > 10 {
+	if config.DefaultDepth < 1 || config.DefaultDepth > 50 {
 		return &types.ValidationError{
 			Field:   "DefaultDepth",
 			Value:   config.DefaultDepth,
-			Message: "must be between 1 and 10",
+			Message: "must be between 1 and 50",
 		}
 	}
 

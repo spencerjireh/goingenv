@@ -44,74 +44,15 @@ Examples:
 	return cmd
 }
 
-// showScanOpts displays scan options in verbose mode
-func showScanOpts(opts *types.ScanOptions, verbose bool) {
-	if !verbose {
-		return
-	}
-	fmt.Printf("Scanning directory: %s\n", opts.RootPath)
-	fmt.Printf("Maximum depth: %d\n", opts.MaxDepth)
-	fmt.Printf("Include patterns: %v\n", opts.Patterns)
-	fmt.Printf("Exclude patterns: %v\n", opts.ExcludePatterns)
-	fmt.Println()
-}
-
-// showFiles displays found files and returns total size
-func showFiles(files []types.EnvFile, verbose bool) int64 {
-	fmt.Printf("Found %d environment files:\n", len(files))
-	var totalSize int64
-	for _, file := range files {
-		totalSize += file.Size
-		if verbose {
-			fmt.Printf("  - %s (%s) - %s - %s\n",
-				file.RelativePath,
-				utils.FormatSize(file.Size),
-				file.ModTime.Format("2006-01-02 15:04:05"),
-				file.Checksum[:8]+"...")
-		} else {
-			fmt.Printf("  - %s (%s)\n", file.RelativePath, utils.FormatSize(file.Size))
-		}
-	}
-	fmt.Printf("\nTotal size: %s\n", utils.FormatSize(totalSize))
-	return totalSize
-}
-
-// doPack performs the actual packing
-func doPack(app *types.App, opts types.PackOptions) (time.Duration, error) {
-	start := time.Now()
-	err := app.Archiver.Pack(opts)
-	return time.Since(start), err
-}
-
-// showPackResult displays pack result
-func showPackResult(output string, count int, totalSize int64, duration time.Duration, verbose bool) {
-	fmt.Printf("Successfully packed %d files to %s\n", count, output)
-
-	if verbose {
-		fmt.Printf("Operation completed in %v\n", duration)
-
-		if info, err := os.Stat(output); err == nil {
-			compressionRatio := float64(info.Size()) / float64(totalSize) * 100
-			fmt.Printf("Archive size: %s (%.1f%% of original)\n",
-				utils.FormatSize(info.Size()), compressionRatio)
-		}
-
-		fmt.Printf("Archive checksum: calculating...\n")
-		if checksum, err := utils.CalculateFileChecksum(output); err == nil {
-			fmt.Printf("Archive SHA-256: %s\n", checksum)
-		}
-	}
-
-	fmt.Println("\nSecurity reminder:")
-	fmt.Println("   - Store your password securely")
-	fmt.Println("   - Consider backing up the archive to a secure location")
-	fmt.Println("   - Use 'goingenv list' to verify archive contents")
-}
-
 // runPackCommand executes the pack command
 func runPackCommand(cmd *cobra.Command, args []string) error {
+	out := NewOutput(appVersion)
+
 	app, err := initApp()
 	if err != nil {
+		out.Header()
+		out.Blank()
+		out.Error(err.Error())
 		return err
 	}
 
@@ -120,40 +61,80 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	out.Header()
+	out.Blank()
+
 	key, cleanup, err := getPass(opts.PassEnv)
 	if err != nil {
+		out.Error(fmt.Sprintf("Failed to get password: %v", err))
 		return err
 	}
 	defer cleanup()
 
-	scanOpts := buildScanOpts(opts, app.Config)
-	showScanOpts(scanOpts, opts.Verbose)
-
-	files, err := app.Scanner.ScanFiles(scanOpts)
+	files, err := scanPackFiles(out, app, opts)
 	if err != nil {
-		return fmt.Errorf("error scanning files: %w", err)
+		return err
 	}
 
 	if len(files) == 0 {
-		fmt.Println("No environment files found matching the specified criteria.")
-		if opts.Verbose {
-			fmt.Println("\nTip: Use 'goingenv status' to see what files are detected with current settings.")
-		}
+		out.Warning("No environment files found")
+		out.Hint("Use 'goingenv status' to see what files are detected")
 		return nil
 	}
 
-	totalSize := showFiles(files, opts.Verbose)
+	displayPackFiles(out, files, opts.Verbose)
 
 	if opts.DryRun {
-		fmt.Printf("\nDry run completed. Archive would be created at: %s\n", opts.Output)
+		out.Success(fmt.Sprintf("Dry run: would create %s", opts.Output))
 		return nil
 	}
 
 	if !confirm(fmt.Sprintf("Proceed with packing to %s?", opts.Output)) {
-		fmt.Println("Operation cancelled.")
+		out.Skipped("Operation cancelled")
 		return nil
 	}
 
+	return executePack(out, app, files, opts, key)
+}
+
+// scanPackFiles scans for files to pack
+func scanPackFiles(out *Output, app *types.App, opts *PackOpts) ([]types.EnvFile, error) {
+	scanOpts := buildScanOpts(opts, app.Config)
+
+	if opts.Verbose {
+		out.Action(fmt.Sprintf("Scanning %s...", scanOpts.RootPath))
+	}
+
+	files, err := app.Scanner.ScanFiles(scanOpts)
+	if err != nil {
+		out.Error(fmt.Sprintf("Error scanning files: %v", err))
+		return nil, err
+	}
+	return files, nil
+}
+
+// displayPackFiles shows the files to be packed
+func displayPackFiles(out *Output, files []types.EnvFile, verbose bool) {
+	out.Action(fmt.Sprintf("Packing %d files...", len(files)))
+	out.Blank()
+
+	for i, file := range files {
+		switch {
+		case verbose:
+			out.ListItem(fmt.Sprintf("%s (%s)", file.RelativePath, utils.FormatSize(file.Size)))
+		case i < 5:
+			out.ListItem(file.RelativePath)
+		case i == 5:
+			out.ListItem(fmt.Sprintf("... and %d more files", len(files)-5))
+			out.Blank()
+			return
+		}
+	}
+	out.Blank()
+}
+
+// executePack performs the actual packing operation
+func executePack(out *Output, app *types.App, files []types.EnvFile, opts *PackOpts, key string) error { //nolint:unparam // error return kept for consistency
 	packOpts := types.PackOptions{
 		Files:      files,
 		OutputPath: opts.Output,
@@ -163,15 +144,30 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	if opts.Verbose {
-		fmt.Printf("\nPacking files to %s...\n", opts.Output)
+		out.Action("Encrypting...")
 	}
 
-	duration, err := doPack(app, packOpts)
+	start := time.Now()
+	err := app.Archiver.Pack(packOpts)
+	duration := time.Since(start)
+
 	if err != nil {
-		return fmt.Errorf("error packing files: %w", err)
+		out.Error(fmt.Sprintf("Error packing files: %v", err))
+		return err
 	}
 
-	showPackResult(opts.Output, len(files), totalSize, duration, opts.Verbose)
+	out.Success(fmt.Sprintf("Created %s", opts.Output))
+
+	if opts.Verbose {
+		if info, statErr := os.Stat(opts.Output); statErr == nil {
+			out.Indent(fmt.Sprintf("Files: %d", len(files)))
+			out.Indent(fmt.Sprintf("Size: %s", utils.FormatSize(info.Size())))
+			out.Indent(fmt.Sprintf("Time: %v", duration.Round(time.Millisecond)))
+		}
+	}
+
+	out.Blank()
+	out.Hint("Store your password securely")
 
 	return nil
 }

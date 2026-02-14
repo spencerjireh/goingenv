@@ -153,10 +153,12 @@ jobs:
         go install github.com/securego/gosec/v2/cmd/gosec@latest
         # Exclude rules that are false positives for CLI tools (matches .golangci.yml):
         # G115: integer overflow (file size conversions)
+        # G117: struct fields named "Password" flagged as secrets (expected in encryption CLI)
         # G204: subprocess with variable (expected in CLI)
         # G304: file inclusion via variable (expected in file management CLI)
         # G407: false positive - flags make([]byte, N) as hardcoded even when filled with rand.Read()
-        gosec -exclude=G115,G204,G304,G407 -fmt sarif -out results.sarif ./...
+        # G703: path traversal via taint analysis (expected in file management CLI)
+        gosec -exclude=G115,G117,G204,G304,G407,G703 -fmt sarif -out results.sarif ./...
         
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v4

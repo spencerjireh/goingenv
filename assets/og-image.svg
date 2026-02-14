@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <pattern id="dotgrid" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="0.8" fill="#e9eaeb" opacity="0.04"/>
+    </pattern>
+    <radialGradient id="glow" cx="85%" cy="15%" r="50%">
+      <stop offset="0%" stop-color="#22d3a7" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#22d3a7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#121417"/>
+  <rect width="1200" height="630" fill="url(#dotgrid)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <!-- Logomark [●] centered at x=600, shifted left to account for wordmark -->
+  <!-- Left bracket -->
+  <path d="M 370,258 L 385,258 L 385,266 L 377,266 L 377,322 L 385,322 L 385,330 L 370,330 Z" fill="#6b7a8f"/>
+  <!-- Right bracket -->
+  <path d="M 415,258 L 430,258 L 430,330 L 415,330 L 415,322 L 423,322 L 423,266 L 415,266 Z" fill="#6b7a8f"/>
+  <!-- Circle -->
+  <circle cx="400" cy="294" r="16" fill="#22d3a7"/>
+  <!-- Wordmark -->
+  <text x="440" y="312" font-family="JetBrains Mono, SF Mono, Menlo, Consolas, monospace" font-size="52" font-weight="500" fill="#e9eaeb">goingenv</text>
+  <!-- Tagline -->
+  <text x="600" y="370" text-anchor="middle" font-family="JetBrains Mono, SF Mono, Menlo, Consolas, monospace" font-size="22" font-weight="400" fill="#8b9099">Share envs the easy way</text>
+</svg>

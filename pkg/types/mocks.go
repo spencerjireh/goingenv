@@ -115,7 +115,7 @@ func (m *MockConfigManager) GetDefault() *Config {
 		return m.GetDefaultFunc()
 	}
 	return &Config{
-		DefaultDepth:    3,
+		DefaultDepth:    10,
 		EnvPatterns:     []string{`\.env`},
 		ExcludePatterns: []string{`node_modules/`},
 		MaxFileSize:     10 * 1024 * 1024,
