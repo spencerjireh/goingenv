@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -437,7 +438,7 @@ func createTestDir(t *testing.T) string {
 }
 
 // Helper function to create a larger test directory for performance testing
-func createLargeTestDir(t *testing.T, fileCount int) string {
+func createLargeTestDir(t testing.TB, fileCount int) string {
 	tmpDir, err := os.MkdirTemp("", "goingenv-large-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -445,13 +446,13 @@ func createLargeTestDir(t *testing.T, fileCount int) string {
 
 	// Create multiple subdirectories with .env files
 	for i := 0; i < fileCount; i++ {
-		subdir := filepath.Join(tmpDir, "dir", "subdir", "level3")
+		subdir := filepath.Join(tmpDir, fmt.Sprintf("dir%d", i), "subdir", "level3")
 		if err := os.MkdirAll(subdir, 0o755); err != nil {
 			t.Fatalf("Failed to create subdir: %v", err)
 		}
 
 		filename := filepath.Join(subdir, ".env")
-		content := "TEST_VAR_" + string(rune(i)) + "=value" + string(rune(i))
+		content := fmt.Sprintf("TEST_VAR_%d=value%d", i, i)
 
 		if err := os.WriteFile(filename, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create file %s: %v", filename, err)
@@ -472,7 +473,7 @@ func createLargeTestDir(t *testing.T, fileCount int) string {
 }
 
 func BenchmarkScanFiles(b *testing.B) {
-	tmpDir := createLargeTestDir(&testing.T{}, 50)
+	tmpDir := createLargeTestDir(b, 50)
 	defer os.RemoveAll(tmpDir)
 
 	config := &types.Config{

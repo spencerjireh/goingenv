@@ -60,6 +60,9 @@ backup, transfer, and restore your environment configurations.`,
 		},
 	}
 
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
+
 	// Add global verbose flag
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose debug logging for TUI mode")
 

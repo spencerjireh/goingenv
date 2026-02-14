@@ -87,10 +87,6 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 	filesToExtract := filterArchiveFiles(archive.Files, opts.Include, opts.Exclude)
 	displayUnpackFiles(out, filesToExtract, opts.Verbose)
 
-	if !handleConflicts(out, filesToExtract, opts) {
-		return fmt.Errorf("file conflicts detected, use --overwrite to proceed")
-	}
-
 	if opts.DryRun {
 		conflicts := checkFileConflicts(filesToExtract, opts.Target)
 		out.Success(fmt.Sprintf("Dry run: would extract %d files to %s", len(filesToExtract), opts.Target))
@@ -100,6 +96,10 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if !handleConflicts(out, filesToExtract, opts) {
+		return fmt.Errorf("file conflicts detected, use --overwrite to proceed")
+	}
+
 	return executeUnpack(out, app, archiveFile, filesToExtract, opts, key)
 }
 
@@ -107,21 +107,15 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 func selectArchive(out *Output, app *types.App, opts *UnpackOpts) (string, error) {
 	archiveFile, err := pickArchive(app, opts.Archive)
 	if err != nil {
-		out.Header()
-		out.Blank()
 		out.Error(err.Error())
 		return "", err
 	}
 
 	if opts.Archive == "" {
-		out.Header()
-		out.Blank()
 		out.Action(fmt.Sprintf("Using most recent archive: %s", filepath.Base(archiveFile)))
 	}
 
 	if _, statErr := os.Stat(archiveFile); os.IsNotExist(statErr) {
-		out.Header()
-		out.Blank()
 		out.Error(fmt.Sprintf("Archive not found: %s", archiveFile))
 		return "", statErr
 	}
@@ -178,6 +172,9 @@ func executeUnpack(out *Output, app *types.App, archiveFile string, files []type
 		out.Action("Extracting...")
 	}
 
+	// Capture conflicts before extraction so the count is accurate
+	conflicts := checkFileConflicts(files, opts.Target)
+
 	start := time.Now()
 	err := app.Archiver.Unpack(types.UnpackOptions{
 		ArchivePath: archiveFile,
@@ -197,7 +194,7 @@ func executeUnpack(out *Output, app *types.App, archiveFile string, files []type
 		verifyUnpackedFiles(out, files, opts.Target, opts.Verbose)
 	}
 
-	displayUnpackResult(out, files, opts, duration)
+	displayUnpackResult(out, files, conflicts, opts, duration)
 	return nil
 }
 
@@ -215,12 +212,11 @@ func verifyUnpackedFiles(out *Output, files []types.EnvFile, targetDir string, v
 }
 
 // displayUnpackResult shows the unpack result
-func displayUnpackResult(out *Output, files []types.EnvFile, opts *UnpackOpts, duration time.Duration) {
+func displayUnpackResult(out *Output, files []types.EnvFile, conflicts []string, opts *UnpackOpts, duration time.Duration) {
 	out.Success(fmt.Sprintf("Extracted %d files", len(files)))
 
 	if opts.Verbose {
 		out.Indent(fmt.Sprintf("Time: %v", duration.Round(time.Millisecond)))
-		conflicts := checkFileConflicts(files, opts.Target)
 		if len(conflicts) > 0 {
 			if opts.Backup {
 				out.Indent(fmt.Sprintf("Backed up %d existing files", len(conflicts)))

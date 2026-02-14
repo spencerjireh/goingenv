@@ -340,10 +340,10 @@ check_existing_installation() {
                 echo ""
                 echo "Examples:"
                 echo "  # Force installation without confirmation:"
-                echo "  curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/develop/install.sh | bash -s -- --version $VERSION --force"
+                echo "  curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version $VERSION --force"
                 echo ""
                 echo "  # Auto-confirm installation:"
-                echo "  curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/develop/install.sh | bash -s -- --version $VERSION --yes"
+                echo "  curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version $VERSION --yes"
                 exit 1
             fi
         else
