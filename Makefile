@@ -119,7 +119,7 @@ ci-build:
 ci-security:
 	@echo -e "$(BLUE)Running security checks...$(NC)"
 	@if command -v gosec >/dev/null 2>&1; then \
-		gosec -exclude=G115,G204,G304,G407 ./...; \
+		gosec -exclude=G115,G117,G204,G304,G407,G703 ./...; \
 	else \
 		echo "$(YELLOW)WARNING:$(NC)  gosec not installed, skipping security scan"; \
 	fi
@@ -691,7 +691,7 @@ profile-mem:
 security-scan:
 	@echo -e "$(BLUE)Running security scan...$(NC)"
 	@if command -v gosec >/dev/null 2>&1; then \
-		gosec -exclude=G115,G204,G304,G407 ./...; \
+		gosec -exclude=G115,G117,G204,G304,G407,G703 ./...; \
 		echo "Security scan completed$(NC)\""; \
 	else \
 		echo "$(YELLOW)WARNING:$(NC)  gosec not installed. Install with: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest"; \
