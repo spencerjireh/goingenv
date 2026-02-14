@@ -165,6 +165,7 @@ func (m *Model) handleMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handlePackPasswordKeys handles keyboard input during pack password entry
 func (m *Model) handlePackPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg.String() {
 	case "esc":
 		m.debugLogger.LogOperation("pack_cancel", "user cancelled password entry")
@@ -180,12 +181,16 @@ func (m *Model) handlePackPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.debugLogger.LogOperation("pack_execute", fmt.Sprintf("starting pack operation with %d files", len(m.scannedFiles)))
 		m.SetScreen(ScreenPacking)
 		return m, PackFilesCmd(m.app, m.scannedFiles, password)
+	default:
+		m.textInput, cmd = m.textInput.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
 
 // handleUnpackPasswordKeys handles keyboard input during unpack password entry
 func (m *Model) handleUnpackPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg.String() {
 	case "esc":
 		m.debugLogger.LogOperation("unpack_cancel", "user cancelled password entry")
@@ -201,12 +206,16 @@ func (m *Model) handleUnpackPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.debugLogger.LogOperation("unpack_execute", fmt.Sprintf("starting unpack operation for %s", m.selectedArchive))
 		m.SetScreen(ScreenUnpacking)
 		return m, UnpackFilesCmd(m.app, password, m.selectedArchive)
+	default:
+		m.textInput, cmd = m.textInput.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
 
 // handleListPasswordKeys handles keyboard input during list password entry
 func (m *Model) handleListPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg.String() {
 	case "esc":
 		m.debugLogger.LogOperation("list_cancel", "user cancelled password entry")
@@ -220,7 +229,11 @@ func (m *Model) handleListPasswordKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.debugLogger.LogOperation("list_execute", fmt.Sprintf("starting list operation for %s", m.selectedArchive))
+		m.SetScreen(ScreenListing)
 		return m, ListFilesCmd(m.app, password, m.selectedArchive)
+	default:
+		m.textInput, cmd = m.textInput.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
@@ -231,7 +244,19 @@ func (m *Model) handleFileSelectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.SetScreen(ScreenMenu)
 		return m, nil
 	}
-	return m, nil
+	var cmd tea.Cmd
+	m.filepicker, cmd = m.filepicker.Update(msg)
+	if didSelect, path := m.filepicker.DidSelectFile(msg); didSelect {
+		m.selectedArchive = path
+		m.debugLogger.LogFileOperation("file_selected", path, 0)
+		if m.currentScreen == ScreenUnpackSelect {
+			m.SetScreen(ScreenUnpackPassword)
+		} else {
+			m.SetScreen(ScreenListPassword)
+		}
+		m.textInput.Focus()
+	}
+	return m, cmd
 }
 
 // handleGenericKeys handles keyboard input for generic screens
