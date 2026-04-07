@@ -12,15 +12,10 @@ NC=\033[0m
 # Variables
 BINARY_NAME=goingenv
 MAIN_PATH=./cmd/goingenv
-VERSION=1.0.0
+VERSION=$(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "dev")
 BUILD_TIME=$(shell date +%FT%T%z)
 GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LDFLAGS=-ldflags="-s -w -X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X main.GitCommit=$(GIT_COMMIT)"
-
-# Build targets for different platforms
-BINARY_UNIX=$(BINARY_NAME)_unix
-BINARY_WINDOWS=$(BINARY_NAME).exe
-BINARY_DARWIN=$(BINARY_NAME)_darwin
 
 # Default target
 .DEFAULT_GOAL := build
@@ -37,57 +32,6 @@ dev:
 	@echo -e "$(BLUE)Building development version with race detector...$(NC)"
 	go build -race -gcflags="all=-N -l" -o $(BINARY_NAME)-dev $(MAIN_PATH)
 	@echo -e "$(GREEN)Development build completed: $(BINARY_NAME)-dev$(NC)"
-
-# Build optimized release version
-release-build:
-	@echo -e "$(BLUE)Building optimized release version...$(NC)"
-	go build $(LDFLAGS) -trimpath -o $(BINARY_NAME) $(MAIN_PATH)
-	@echo -e "$(GREEN)Release build completed: $(BINARY_NAME)$(NC)"
-
-# Build release binaries for all supported platforms
-release-all:
-	@echo -e "$(BLUE)Building release binaries for all platforms...$(NC)"
-	@mkdir -p dist
-	
-	# Linux AMD64
-	@echo -e "$(BLUE)Building for Linux AMD64...$(NC)"
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
-	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-linux-amd64.tar.gz $(BINARY_NAME)-linux-amd64
-	
-	# Linux ARM64
-	@echo -e "$(BLUE)Building for Linux ARM64...$(NC)"
-	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
-	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-linux-arm64.tar.gz $(BINARY_NAME)-linux-arm64
-	
-	# macOS AMD64
-	@echo -e "$(BLUE)Building for macOS AMD64...$(NC)"
-	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
-	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-darwin-amd64.tar.gz $(BINARY_NAME)-darwin-amd64
-	
-	# macOS ARM64 (Apple Silicon)
-	@echo -e "$(BLUE)Building for macOS ARM64...$(NC)"
-	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
-	cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64
-	
-	@echo "Release binaries created in dist/ directory"
-	@echo "Archives ready for GitHub release:"
-	@ls -la dist/*.tar.gz
-
-# Create checksums for release files
-release-checksums:
-	@echo "Generating checksums...$(NC)"
-	@cd dist && sha256sum *.tar.gz > checksums.txt
-	@echo "Checksums generated in dist/checksums.txt"
-
-# Complete release preparation
-release: clean release-all release-checksums
-	@echo "Release v$(VERSION) prepared successfully!"
-	@echo ""
-	@echo "Upload these files to GitHub release:"
-	@ls -la dist/
-	@echo ""
-	@echo "Install script download URL will be:"
-	@echo "https://github.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/releases/download/v$(VERSION)/"
 
 # CI-friendly targets
 ci-test:
@@ -110,12 +54,6 @@ ci-lint:
 	go vet ./...
 	@echo -e "$(GREEN)Linting passed$(NC)"
 
-ci-build:
-	@echo -e "$(BLUE)Running CI build verification...$(NC)"
-	go build -o /tmp/$(BINARY_NAME) $(MAIN_PATH)
-	/tmp/$(BINARY_NAME) --version
-	@echo -e "$(GREEN)Build verification passed$(NC)"
-
 ci-security:
 	@echo -e "$(BLUE)Running security checks...$(NC)"
 	@if command -v gosec >/dev/null 2>&1; then \
@@ -134,85 +72,22 @@ ci-cross-compile:
 	@echo -e "$(GREEN)Cross-compilation successful$(NC)"
 
 # Run all CI checks locally
-ci-full: deps ci-test ci-lint ci-build ci-security ci-cross-compile
+ci-full: deps ci-test ci-lint ci-security ci-cross-compile
 	@echo -e "$(GREEN)All CI checks passed locally!$(NC)"
 
-# Release management targets
-pre-release-check:
-	@echo -e "$(BLUE)Running pre-release checks...$(NC)"
-	@echo "Current branch: $(shell git branch --show-current)"
-	@echo "Latest commit: $(shell git log -1 --oneline)"
-	@echo ""
-	
-	# Ensure working directory is clean
-	@if ! git diff-index --quiet HEAD --; then \
-		echo "$(RED)ERROR:$(NC) Working directory is not clean. Please commit or stash changes."; \
-		exit 1; \
-	fi
-	
-	# Run full CI suite
-	make ci-full
-	
-	@echo ""
-	@echo -e "$(GREEN)Pre-release checks passed!$(NC)"
-	@echo "Ready to create release tag."
-
-tag-release: pre-release-check
-	@echo -e "$(BLUE)Creating release tag...$(NC)"
-	@echo ""
-	@read -p "Enter version (e.g., 1.0.0): " version; \
-	if [[ ! "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-.*)?$$ ]]; then \
-		echo "$(RED)ERROR:$(NC) Invalid version format. Use: 1.0.0 or 1.0.0-alpha.1"; \
-		exit 1; \
-	fi; \
-	tag="v$$version"; \
-	echo "Creating tag: $$tag"; \
-	git tag -a "$$tag" -m "Release $$tag"; \
-	echo ""; \
-	echo "Tag created. Push with:"; \
-	echo "  git push origin $$tag"; \
-	echo ""; \
-	echo "This will trigger automated release creation on GitHub."
-
-push-release-tag:
-	@echo "Pushing latest tag to trigger release...$(NC)"
-	@latest_tag=$$(git tag --sort=-version:refname | head -1); \
-	if [[ -z "$$latest_tag" ]]; then \
-		echo "$(RED)ERROR:$(NC) No tags found. Create a tag first with 'make tag-release'"; \
-		exit 1; \
-	fi; \
-	echo "Pushing tag: $$latest_tag"; \
-	git push origin "$$latest_tag"; \
-	echo ""; \
-	echo -e "$(CYAN)Release triggered! Monitor progress at:$(NC)"; \
-	echo "  https://github.com/$(shell git config --get remote.origin.url | sed 's/.*github.com[:/]\([^/]*\/[^/.]*\).*/\1/')/actions"
-
+# Build release binaries locally (simulates what GitHub Actions builds)
 release-local: clean
-	@echo -e "$(BLUE)Creating local release simulation...$(NC)"
-	@version=$$(git describe --tags --always 2>/dev/null || echo "dev"); \
-	echo "Building release for version: $$version"; \
-	make release-all; \
-	echo ""; \
-	echo " Local release created in dist/"; \
-	echo "This simulates what GitHub Actions will build."
-
-check-release-status:
-	@echo "Checking latest release status...$(NC)"
-	@latest_tag=$$(git tag --sort=-version:refname | head -1); \
-	if [[ -z "$$latest_tag" ]]; then \
-		echo "No releases found"; \
-		exit 0; \
-	fi; \
-	echo "Latest tag: $$latest_tag"; \
-	echo ""; \
-	echo "GitHub release:"; \
-	if command -v gh >/dev/null 2>&1; then \
-		gh release view "$$latest_tag" 2>/dev/null || echo "  Release not found on GitHub"; \
-	else \
-		echo " Install 'gh' CLI to check release status"; \
-	fi; \
-	echo ""; \
-	echo "Install command:";
+	@printf "$(BLUE)Building local release binaries (v$(VERSION))...$(NC)\n"
+	@mkdir -p dist
+	@for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do \
+		os=$${platform%%-*}; arch=$${platform##*-}; \
+		printf "$(BLUE)  Building $$platform...$(NC)\n"; \
+		GOOS=$$os GOARCH=$$arch go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME) $(MAIN_PATH); \
+		cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-$$platform.tar.gz $(BINARY_NAME) && rm $(BINARY_NAME) && cd ..; \
+	done
+	@cd dist && shasum -a 256 *.tar.gz > checksums.txt
+	@printf "$(GREEN)Local release built in dist/ (version: $(VERSION))$(NC)\n"
+	@ls -la dist/
 
 # Automated functional testing workflow
 test-functional:
@@ -314,91 +189,12 @@ test-complete: clean
 	@echo "[OK] E2E tests"
 	@echo "[OK] Functional workflow tests"
 
-# Quick release commands for common scenarios
-release-alpha: pre-release-check
-	@echo -e "$(BLUE)Creating alpha release...$(NC)"
-	@next_version=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$$' | head -1 | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)-alpha\.\([0-9]*\)/\1.\2.\3-alpha.\4/' | awk -F'-alpha\.' '{print $$1 "-alpha." ($$2+1)}'); \
-	if [[ -z "$$next_version" ]]; then \
-		next_version="1.0.0-alpha.1"; \
-	fi; \
-	echo "Next alpha version: $$next_version"; \
-	read -p "Proceed with v$$next_version? [Y/n]: " -r; \
-	if [[ $$REPLY =~ ^[Nn]$$ ]]; then \
-		echo "Cancelled"; \
-		exit 1; \
-	fi; \
-	tag="v$$next_version"; \
-	echo "Creating tag: $$tag"; \
-	git tag -a "$$tag" -m "Release $$tag"; \
-	echo "Tag created. Use 'make push-release-tag' to publish."
-
-release-beta: pre-release-check
-	@echo -e "$(BLUE)Creating beta release...$(NC)"
-	@next_version=$$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$$' | head -1 | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)-beta\.\([0-9]*\)/\1.\2.\3-beta.\4/' | awk -F'-beta\.' '{print $$1 "-beta." ($$2+1)}'); \
-	if [[ -z "$$next_version" ]]; then \
-		next_version="1.0.0-beta.1"; \
-	fi; \
-	echo "Next beta version: $$next_version"; \
-	read -p "Proceed with v$$next_version? [Y/n]: " -r; \
-	if [[ $$REPLY =~ ^[Nn]$$ ]]; then \
-		echo "Cancelled"; \
-		exit 1; \
-	fi; \
-	tag="v$$next_version"; \
-	echo "Creating tag: $$tag"; \
-	git tag -a "$$tag" -m "Release $$tag"; \
-	echo "Tag created. Use 'make push-release-tag' to publish."
-
-release-stable: pre-release-check
-	@echo -e "$(BLUE)Creating stable release...$(NC)"
-	@echo "$(YELLOW)WARNING:$(NC)  This creates a production release!"
-	@read -p "Enter stable version (e.g., 1.0.0): " version; \
-	if [[ ! "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$$ ]]; then \
-		echo "$(RED)ERROR:$(NC) Invalid stable version format. Use: 1.0.0"; \
-		exit 1; \
-	fi; \
-	tag="v$$version"; \
-	echo "Creating STABLE tag: $$tag"; \
-	read -p "Are you sure? This will be marked as latest release [y/N]: " -r; \
-	if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
-		echo "Cancelled"; \
-		exit 1; \
-	fi; \
-	git tag -a "$$tag" -m "Release $$tag"; \
-	echo "Stable tag created. Use 'make push-release-tag' to publish."
-
-# One-command release flows
-quick-alpha: release-alpha push-release-tag
-	@echo -e "$(GREEN)Alpha release published!$(NC)"
-
-quick-beta: release-beta push-release-tag  
-	@echo -e "$(GREEN)Beta release published!$(NC)"
-
-quick-stable: release-stable push-release-tag
-	@echo -e "$(GREEN)Stable release published!$(NC)"
-
-# Release with custom version
-release-version:
-	@echo -e "$(BLUE)Creating custom version release...$(NC)"
-	@read -p "Enter version (e.g., 1.0.0 or 1.0.0-rc.1): " version; \
-	if [[ ! "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-.*)?$$ ]]; then \
-		echo "$(RED)ERROR:$(NC) Invalid version format. Use: 1.0.0 or 1.0.0-alpha.1"; \
-		exit 1; \
-	fi; \
-	echo "$$version" | make tag-release
-
 # Clean build artifacts
 clean:
 	@printf "$(BLUE)Cleaning build artifacts...$(NC)\n"
 	go clean
 	rm -f $(BINARY_NAME)
 	rm -f $(BINARY_NAME)-dev
-	rm -f $(BINARY_UNIX)
-	rm -f $(BINARY_WINDOWS)
-	rm -f $(BINARY_DARWIN)
-	rm -f $(BINARY_NAME)-linux-*
-	rm -f $(BINARY_NAME)-darwin-*
-	rm -f $(BINARY_NAME)-windows-*
 	rm -rf dist/
 	rm -f coverage.out coverage.html
 	@printf "$(GREEN)Clean completed$(NC)\n"
@@ -513,32 +309,6 @@ check: fmt vet lint test
 check-full: fmt vet lint test-unit test-integration
 	@echo "All comprehensive checks passed"
 
-# Build for all platforms
-build-all: build-linux build-darwin build-windows
-	@echo "Multi-platform build completed$(NC)\""
-
-# Build for Linux (multiple architectures)
-build-linux:
-	@echo -e "$(BLUE)Building for Linux...$(NC)"
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
-	CGO_ENABLED=0 GOOS=linux GOARCH=386 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-386 $(MAIN_PATH)
-	@echo "Linux builds completed$(NC)\""
-
-# Build for macOS (multiple architectures)
-build-darwin:
-	@echo -e "$(BLUE)Building for macOS...$(NC)"
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
-	@echo "macOS builds completed$(NC)\""
-
-# Build for Windows (multiple architectures)
-build-windows:
-	@echo -e "$(BLUE)Building for Windows...$(NC)"
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe $(MAIN_PATH)
-	CGO_ENABLED=0 GOOS=windows GOARCH=386 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-386.exe $(MAIN_PATH)
-	@echo "Windows builds completed$(NC)\""
-
 # Install the binary globally
 install: build
 	@echo -e "$(BLUE)Installing $(BINARY_NAME) globally...$(NC)"
@@ -552,41 +322,6 @@ uninstall:
 	if [ -z "$$GOBIN" ]; then GOBIN=$$(go env GOPATH)/bin; fi; \
 	rm -f "$$GOBIN/$(BINARY_NAME)"
 	@echo "$(BINARY_NAME) uninstalled"
-
-# Create release archives and checksums (legacy target)
-release-legacy: clean build-all
-	@echo -e "$(BLUE)Creating release archives...$(NC)"
-	mkdir -p dist
-	
-	# Linux AMD64
-	tar -czf dist/$(BINARY_NAME)-$(VERSION)-linux-amd64.tar.gz $(BINARY_NAME)-linux-amd64 README.md
-	
-	# Linux ARM64
-	tar -czf dist/$(BINARY_NAME)-$(VERSION)-linux-arm64.tar.gz $(BINARY_NAME)-linux-arm64 README.md
-	
-	# Linux 386
-	tar -czf dist/$(BINARY_NAME)-$(VERSION)-linux-386.tar.gz $(BINARY_NAME)-linux-386 README.md
-	
-	# macOS AMD64
-	tar -czf dist/$(BINARY_NAME)-$(VERSION)-darwin-amd64.tar.gz $(BINARY_NAME)-darwin-amd64 README.md
-	
-	# macOS ARM64 (Apple Silicon)
-	tar -czf dist/$(BINARY_NAME)-$(VERSION)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64 README.md
-	
-	# Windows AMD64
-	zip -j dist/$(BINARY_NAME)-$(VERSION)-windows-amd64.zip $(BINARY_NAME)-windows-amd64.exe README.md
-	
-	# Windows 386
-	zip -j dist/$(BINARY_NAME)-$(VERSION)-windows-386.zip $(BINARY_NAME)-windows-386.exe README.md
-	
-	@echo "Release archives created in dist/"
-
-# Generate checksums for releases
-checksums:
-	@echo "Generating checksums...$(NC)"
-	cd dist && sha256sum * > checksums.txt
-	cd dist && md5sum * > checksums.md5
-	@echo "Checksums generated"
 
 # Run the application
 run:
@@ -735,11 +470,7 @@ help:
 	@echo "Build Commands:"
 	@echo " build          - Build binary for current platform"
 	@echo " dev            - Build development version with race detector"
-	@echo " release-build  - Build optimized release version"
-	@echo " build-all      - Build for all platforms"
-	@echo " build-linux    - Build for Linux (amd64, arm64, 386)"
-	@echo " build-darwin   - Build for macOS (amd64, arm64)"
-	@echo " build-windows  - Build for Windows (amd64, 386)"
+	@echo " release-local  - Build release binaries for all platforms locally"
 	@echo ""
 	@echo "Development Commands:"
 	@echo " clean          - Clean build artifacts"
@@ -769,9 +500,7 @@ help:
 	@echo " generate-mocks - Generate mock implementations"
 	@echo " bench          - Run benchmarks"
 	@echo ""
-	@echo "Release Commands:"
-	@echo " release        - Create release archives"
-	@echo " checksums      - Generate checksums for releases"
+	@echo "Install Commands:"
 	@echo " install        - Install binary globally"
 	@echo " uninstall      - Uninstall binary"
 	@echo ""
@@ -803,24 +532,17 @@ help:
 	@echo " make watch                    # Hot-reload development"
 	@echo " make watch-run ARGS='status demo/'  # Hot-reload with specific command"
 	@echo " make ci-full                  # Run all CI checks locally"
-	@echo " make tag-release              # Create and tag new release"
-	@echo " make push-release-tag         # Push tag to trigger GitHub release"
-	@echo " make quick-alpha              # Create and publish alpha release"
-	@echo " make quick-beta               # Create and publish beta release"  
-	@echo " make quick-stable             # Create and publish stable release"
+	@echo " make release-local            # Build release binaries locally"
 	@echo " make run ARGS='pack'          # Run pack command (interactive password)"
 	@echo " make demo-scenario            # Full demo with sample files"
 	@echo ""
-	@echo "Note: Releases require [release] flag in commit message when pushing to main."
-	@echo "Version flags: [release] (patch), [release] [minor], [release] [major]"
+	@echo "Releases: git tag -a v1.2.3 -m 'Release v1.2.3' && git push origin v1.2.3"
 
 # Phony targets
-.PHONY: build dev release-build clean deps fmt vet lint test test-unit test-integration test-e2e \
+.PHONY: build dev clean deps fmt vet lint test test-unit test-integration test-e2e \
         test-functional test-complete test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
-        generate-mocks bench check check-full build-all build-linux build-darwin \
-        build-windows install uninstall release release-all release-checksums checksums run run-pack run-unpack \
-        run-list run-status demo clean-demo demo-scenario dev-server dev-watch watch watch-run profile \
+        generate-mocks bench check check-full release-local \
+        install uninstall run run-pack run-unpack run-list run-status \
+        demo clean-demo demo-scenario dev-server dev-watch watch watch-run profile \
         profile-mem security-scan vuln-check docs stats help \
-        ci-test ci-lint ci-build ci-security ci-cross-compile ci-full \
-        pre-release-check tag-release push-release-tag release-local check-release-status \
-        release-alpha release-beta release-stable quick-alpha quick-beta quick-stable release-version
+        ci-test ci-lint ci-security ci-cross-compile ci-full
