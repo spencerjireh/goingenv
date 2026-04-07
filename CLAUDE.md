@@ -91,10 +91,15 @@ golangci-lint is configured with:
 
 ## Release Workflow
 
-Releases require `[release]` flag in commit message when pushing to main:
-- `[release]` -- Patch version bump (default)
-- `[release] [minor]` -- Minor version bump
-- `[release] [major]` -- Major version bump
-- No `[release]` flag -- CI validation only, no release
+Releases are triggered by pushing a Git tag:
 
-Manual releases: `make quick-alpha`, `make quick-beta`, `make quick-stable`, or use GitHub Actions workflow_dispatch
+```bash
+git tag -a v1.2.3 -m "Release v1.2.3"
+git push origin v1.2.3
+```
+
+This triggers the `release.yml` workflow which builds binaries for all platforms, creates archives with checksums, and publishes a GitHub Release with install instructions.
+
+- Stable versions: `v1.2.3` (marked as latest release)
+- Prereleases: `v1.2.3-alpha.1`, `v1.2.3-rc.1` (marked as prerelease)
+- Local build test: `make release-local` (builds all platforms locally into `dist/`)

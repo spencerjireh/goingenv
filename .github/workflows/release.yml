@@ -1,0 +1,216 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    name: Build (${{ matrix.goos }}-${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        clean: true
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+        check-latest: true
+        cache: false
+
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        VERSION: ${{ github.ref_name }}
+        GIT_COMMIT: ${{ github.sha }}
+      run: |
+        BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+        go build \
+          -trimpath \
+          -ldflags="-s -w -X main.Version=$VERSION -X main.BuildTime=$BUILD_TIME -X main.GitCommit=$GIT_COMMIT" \
+          -o goingenv-$GOOS-$GOARCH \
+          ./cmd/goingenv
+
+        chmod +x goingenv-$GOOS-$GOARCH
+
+        if [[ "$GOOS" == "linux" && "$GOARCH" == "amd64" ]]; then
+          ./goingenv-$GOOS-$GOARCH --version
+        fi
+
+    - name: Create archive
+      run: |
+        ARCHIVE_NAME="goingenv-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
+
+        cp goingenv-${{ matrix.goos }}-${{ matrix.goarch }} goingenv
+        tar -czf "$ARCHIVE_NAME" goingenv
+        sha256sum "$ARCHIVE_NAME" > "$ARCHIVE_NAME.sha256"
+
+        echo "Archive: $ARCHIVE_NAME"
+        echo "Size: $(du -h $ARCHIVE_NAME | cut -f1)"
+        echo "SHA256: $(cat $ARCHIVE_NAME.sha256)"
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: goingenv-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: |
+          goingenv-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          goingenv-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz.sha256
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-release
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist/
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+
+        find dist/ -name "*.tar.gz" -exec mv {} release-assets/ \;
+        find dist/ -name "*.sha256" -exec mv {} release-assets/ \;
+
+        cd release-assets
+        cat *.sha256 > checksums.txt
+        rm *.sha256
+
+        echo "Release assets:"
+        ls -la
+        echo "Checksums:"
+        cat checksums.txt
+
+    - name: Create versioned install script
+      run: |
+        VERSION="${{ github.ref_name }}"
+        cp install.sh release-assets/install.sh
+
+        sed -i 's/^SCRIPT_VERSION=""$/SCRIPT_VERSION="'"$VERSION"'"/' release-assets/install.sh
+
+        if grep -q "SCRIPT_VERSION=\"$VERSION\"" release-assets/install.sh; then
+          echo "Embedded version $VERSION in install.sh"
+        else
+          echo "ERROR: Failed to embed version in install.sh"
+          grep "SCRIPT_VERSION=" release-assets/install.sh
+          exit 1
+        fi
+
+        chmod +x release-assets/install.sh
+
+    - name: Get previous tag
+      id: prev_tag
+      run: |
+        PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | grep -v "^${{ github.ref_name }}$" | head -1)
+        echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+        echo "Previous tag: ${PREVIOUS_TAG:-none}"
+
+    - name: Generate release notes
+      run: |
+        VERSION="${{ github.ref_name }}"
+        PREVIOUS_TAG="${{ steps.prev_tag.outputs.tag }}"
+
+        if [[ -n "$PREVIOUS_TAG" ]]; then
+          RELEASE_NOTES=$(curl -s -H "Authorization: token ${{ github.token }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/generate-notes" \
+            -d "{\"tag_name\":\"$VERSION\",\"previous_tag_name\":\"$PREVIOUS_TAG\"}" \
+            | jq -r '.body' || echo "See commit history for details.")
+        else
+          RELEASE_NOTES="**Initial Release**"
+        fi
+
+        {
+          echo "## Installation"
+          echo ""
+          echo "**Quick Install (Always Latest):**"
+          echo '```bash'
+          echo "curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash"
+          echo '```'
+          echo ""
+          echo "**Install This Exact Version:**"
+          echo '```bash'
+          echo "curl -sSL https://github.com/${{ github.repository }}/releases/download/$VERSION/install.sh | bash"
+          echo '```'
+          echo ""
+          echo "**Install Specific Version:**"
+          echo '```bash'
+          echo "curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --version $VERSION"
+          echo '```'
+          echo ""
+          echo "**Upgrade with Cleanup:**"
+          echo '```bash'
+          echo "curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --cleanup-all"
+          echo '```'
+          echo ""
+          echo "**Manual Download:**"
+          echo "Download the appropriate binary for your platform from the assets below."
+          echo ""
+          echo "## Verification"
+          echo ""
+          echo '```bash'
+          echo "sha256sum -c checksums.txt"
+          echo '```'
+          echo ""
+          echo "---"
+          echo ""
+        } > release_notes.md
+
+        echo "$RELEASE_NOTES" >> release_notes.md
+
+        echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+        cat release_notes.md >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Check if prerelease
+      id: prerelease
+      run: |
+        if [[ "${{ github.ref_name }}" =~ -.*$ ]]; then
+          echo "value=true" >> $GITHUB_OUTPUT
+        else
+          echo "value=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: GoingEnv ${{ github.ref_name }}
+        body: ${{ env.RELEASE_BODY }}
+        draft: false
+        prerelease: ${{ steps.prerelease.outputs.value }}
+        files: release-assets/*
+        generate_release_notes: false
+        make_latest: ${{ steps.prerelease.outputs.value == 'false' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

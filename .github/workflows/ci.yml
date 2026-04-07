@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'public/**'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/release.yml'
+  pull_request:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'public/**'
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        clean: true
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+        check-latest: true
+        cache: false
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Check formatting
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Code is not formatted. Please run 'gofmt -s -w .'"
+          gofmt -s -l .
+          exit 1
+        fi
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Check go mod tidy
+      run: |
+        go mod tidy
+        if ! git diff --exit-code go.mod go.sum; then
+          echo "go.mod or go.sum is not tidy. Please run 'go mod tidy'"
+          exit 1
+        fi
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v9
+      with:
+        version: v2.8
+        args: --config=.golangci.yml
+
+  test:
+    name: Test (${{ matrix.os }}, Go ${{ matrix.go-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        go-version:
+          # go.mod declares go 1.23.0 as minimum supported version.
+          # With the toolchain directive, users on 1.23 auto-upgrade to the
+          # declared toolchain version. Consider dropping this entry and
+          # bumping go.mod minimum when 1.23 reaches EOL.
+          - '1.23'
+          - 'stable'
+        exclude:
+          - os: macos-latest
+            go-version: '1.23'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        clean: true
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        check-latest: true
+        cache: false
+
+    - name: Download dependencies
+      run: |
+        go mod download
+        go mod verify
+
+    - name: Run unit tests
+      run: go test -v -race -timeout=5m ./pkg/... ./internal/...
+
+    - name: Run integration tests
+      run: go test -v -timeout=2m ./test/integration/...
+
+    - name: Run functional tests
+      run: make test-functional
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        clean: true
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+        check-latest: true
+        cache: false
+
+    - name: Run govulncheck
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        govulncheck ./...
+
+    - name: Run gosec
+      run: |
+        go install github.com/securego/gosec/v2/cmd/gosec@latest
+        # Exclude rules that are false positives for CLI tools:
+        # G115: integer overflow (file size conversions)
+        # G117: struct fields named "Password" flagged as secrets
+        # G204: subprocess with variable (expected in CLI)
+        # G304: file inclusion via variable (expected in file management CLI)
+        # G407: false positive on make([]byte, N) filled with rand.Read()
+        # G703: path traversal via taint analysis (expected in file management CLI)
+        gosec -exclude=G115,G117,G204,G304,G407,G703 -fmt sarif -out results.sarif ./...
+
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v4
+      continue-on-error: true
+      with:
+        sarif_file: results.sarif
+
+  test-install-script:
+    name: Test Install Script (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [lint, test, security]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Test install script syntax
+      run: |
+        bash -n install.sh
+        echo "Install script syntax is valid"
+
+    - name: Test install script help
+      run: |
+        chmod +x install.sh
+        ./install.sh --help
+
+    - name: Test install script dry run
+      run: |
+        DEBUG=1 NO_SUDO=1 SKIP_SHELL_INTEGRATION=1 ./install.sh --version v99.99.99 || echo "Expected failure for non-existent version"
