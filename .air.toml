@@ -4,7 +4,7 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  entrypoint = ["./tmp/goingenv"]
+  bin = "./tmp/goingenv"
   cmd = "go build -o ./tmp/goingenv ./cmd/goingenv"
   delay = 1000
   exclude_dir = ["dist", "test", ".goingenv", "demo", "tmp", "vendor"]
@@ -12,7 +12,7 @@ tmp_dir = "tmp"
   exclude_regex = ["_test\\.go", "_templ\\.go"]
   exclude_unchanged = false
   follow_symlink = false
-  full_bin = ""
+  full_bin = "cd /tmp/goingenv-sandbox && {{root}}/tmp/goingenv"
   include_dir = []
   include_ext = ["go", "tpl", "tmpl", "html"]
   include_file = []

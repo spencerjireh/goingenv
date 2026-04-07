@@ -1,203 +1,40 @@
 package tui
 
 import (
-	"fmt"
+	"time"
 
-	"github.com/charmbracelet/bubbles/filepicker"
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"goingenv/internal/config"
 	"goingenv/pkg/types"
 )
 
-// Screen represents different UI screens
-type Screen string
+// TabID identifies each tab in the tab bar.
+type TabID int
 
 const (
-	ScreenInit           Screen = "init"
-	ScreenMenu           Screen = "menu"
-	ScreenPackPassword   Screen = "pack_password"
-	ScreenUnpackSelect   Screen = "unpack_select"
-	ScreenUnpackPassword Screen = "unpack_password"
-	ScreenListSelect     Screen = "list_select"
-	ScreenListPassword   Screen = "list_password"
-	ScreenPacking        Screen = "packing"
-	ScreenUnpacking      Screen = "unpacking"
-	ScreenListing        Screen = "listing"
-	ScreenStatus         Screen = "status"
-	ScreenSettings       Screen = "settings"
-	ScreenHelp           Screen = "help"
+	TabPack TabID = iota
+	TabUnpack
+	TabList
+	TabStatus
+	TabSettings
+	tabCount = 5
 )
 
-// Model represents the TUI application state
-type Model struct {
-	// Application dependencies
-	app *types.App
-
-	// Current state
-	currentScreen   Screen
-	width           int
-	height          int
-	message         string
-	error           string
-	selectedArchive string
-
-	// UI components
-	menu       list.Model
-	textInput  textinput.Model
-	filepicker filepicker.Model
-	progress   progress.Model
-
-	// Data
-	scannedFiles []types.EnvFile
-
-	// Debug logging
-	debugLogger *DebugLogger
-
-	// Version for branded header
-	version string
+// Tab is the interface every tab must implement.
+type Tab interface {
+	Update(msg tea.Msg) (Tab, tea.Cmd)
+	View(width, height int) string
+	ShortHelp() []key.Binding
+	FullHelp() [][]key.Binding
+	Title() string
+	// InputFocused returns true when a text input is active (disables global number keys).
+	InputFocused() bool
 }
 
-// NewModel creates a new TUI model
-func NewModel(app *types.App, verbose bool, version string) *Model {
-	// Initialize debug logger
-	debugLogger := NewDebugLogger(verbose)
-
-	// Check if project is initialized and create appropriate menu items
-	var items []list.Item
-	var initialScreen Screen
-
-	if !config.IsInitialized() {
-		// Only show init option if not initialized
-		items = []list.Item{
-			MenuItem{
-				title:       "Initialize goingenv",
-				description: "Set up goingenv in this directory",
-				icon:        ">",
-				action:      "init",
-			},
-			MenuItem{
-				title:       "Help",
-				description: "Command documentation and examples",
-				icon:        "?",
-				action:      "help",
-			},
-		}
-		initialScreen = ScreenInit
-	} else {
-		// Show full menu if initialized
-		items = []list.Item{
-			MenuItem{
-				title:       "Pack Environment Files",
-				description: "Scan and encrypt environment files",
-				icon:        "[P]",
-				action:      "pack",
-			},
-			MenuItem{
-				title:       "Unpack Archive",
-				description: "Decrypt and restore archived files",
-				icon:        "[U]",
-				action:      "unpack",
-			},
-			MenuItem{
-				title:       "List Archive Contents",
-				description: "Browse archive contents without extracting",
-				icon:        "[L]",
-				action:      "list",
-			},
-			MenuItem{
-				title:       "Status",
-				description: "View current directory and available archives",
-				icon:        "[S]",
-				action:      "status",
-			},
-			MenuItem{
-				title:       "Settings",
-				description: "Configure default options",
-				icon:        "[●]",
-				action:      "settings",
-			},
-			MenuItem{
-				title:       "Help",
-				description: "Command documentation and examples",
-				icon:        "[?]",
-				action:      "help",
-			},
-		}
-		initialScreen = ScreenMenu
-	}
-
-	// Create list component
-	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	l.Title = "goingenv - Environment File Manager"
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
-
-	// Create text input component
-	ti := textinput.New()
-	ti.Placeholder = "Enter password..."
-	ti.EchoMode = textinput.EchoPassword
-	ti.CharLimit = 256
-
-	// Create file picker component
-	fp := filepicker.New()
-	fp.AllowedTypes = []string{".enc"}
-
-	// Create progress component
-	prog := progress.New(progress.WithDefaultGradient())
-
-	model := &Model{
-		app:           app,
-		currentScreen: initialScreen,
-		menu:          l,
-		textInput:     ti,
-		filepicker:    fp,
-		progress:      prog,
-		debugLogger:   debugLogger,
-		version:       version,
-	}
-
-	// Log initial model creation
-	model.debugLogger.Log("TUI Model initialized with verbose logging: %v", verbose)
-	if verbose {
-		model.debugLogger.Log("Debug log file: %s", debugLogger.GetLogPath())
-	}
-
-	return model
-}
-
-// Init implements tea.Model interface
-func (m *Model) Init() tea.Cmd {
-	return nil
-}
-
-// MenuItem represents a menu item in the TUI
-type MenuItem struct {
-	title       string
-	description string
-	icon        string
-	action      string
-}
-
-// Title implements list.Item interface
-func (mi MenuItem) Title() string {
-	return mi.icon + " " + mi.title
-}
-
-// Description implements list.Item interface
-func (mi MenuItem) Description() string {
-	return mi.description
-}
-
-// FilterValue implements list.Item interface
-func (mi MenuItem) FilterValue() string {
-	return mi.title
-}
-
-// Message types for async operations
+// Message types used by the old screen-based model (kept for commands.go compatibility).
 type (
 	PackCompleteMsg   string
 	UnpackCompleteMsg string
@@ -207,116 +44,304 @@ type (
 	ProgressMsg       float64
 )
 
-// Helper methods for state management
+// Model is the root Bubbletea model for the full-screen TUI.
+type Model struct {
+	app         *types.App
+	debugLogger *DebugLogger
+	version     string
 
-// SetScreen changes the current screen
-func (m *Model) SetScreen(screen Screen) {
-	oldScreen := m.currentScreen
-	m.currentScreen = screen
+	width  int
+	height int
 
-	// Log screen transition
-	m.debugLogger.LogScreen(oldScreen, screen)
+	// Tab system
+	activeTab TabID
+	tabs      [tabCount]Tab
 
-	// Reset state when changing screens
-	m.message = ""
-	m.error = ""
+	// Overlays
+	modal       *ModalState
+	toasts      []Toast
+	helpVisible bool
+	help        help.Model
+}
 
-	// Focus/blur components as needed
-	switch screen {
-	case ScreenPackPassword, ScreenUnpackPassword, ScreenListPassword:
-		m.textInput.Focus()
-		m.textInput.SetValue("")
-		m.debugLogger.LogOperation("text_input", "focused and cleared for password entry")
-	default:
-		m.textInput.Blur()
-		m.debugLogger.LogOperation("text_input", "blurred")
+// ModalState holds the state for a confirmation modal overlay.
+type ModalState struct {
+	Title     string
+	Body      string
+	OnConfirm tea.Cmd
+}
+
+// Toast holds the state for a toast notification.
+type Toast struct {
+	ID        int
+	Message   string
+	IsError   bool
+	ExpiresAt time.Time
+}
+
+var toastCounter int
+
+// NewModel creates a new root TUI model.
+func NewModel(app *types.App, verbose bool, version string) *Model {
+	debugLogger := NewDebugLogger(verbose)
+
+	h := help.New()
+
+	m := &Model{
+		app:         app,
+		debugLogger: debugLogger,
+		version:     version,
+		activeTab:   TabPack,
+		help:        h,
+	}
+
+	// Initialize all tabs
+	m.tabs[TabPack] = NewPackTab(app, debugLogger)
+	m.tabs[TabUnpack] = NewUnpackTab(app, debugLogger)
+	m.tabs[TabList] = NewListTab(app, debugLogger)
+	m.tabs[TabStatus] = NewStatusTab(app, debugLogger)
+	m.tabs[TabSettings] = NewSettingsTab(app, debugLogger)
+
+	debugLogger.Log("TUI Model initialized (tabbed layout) with verbose logging: %v", verbose)
+	if verbose {
+		debugLogger.Log("Debug log file: %s", debugLogger.GetLogPath())
+	}
+
+	return m
+}
+
+// Init implements tea.Model.
+func (m *Model) Init() tea.Cmd {
+	return nil
+}
+
+// Update implements tea.Model.
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.help.Width = msg.Width
+		m.debugLogger.Log("Window resized: %dx%d", msg.Width, msg.Height)
+		return m, nil
+
+	case ToastExpiredMsg:
+		m.removeToast(msg.ID)
+		return m, nil
+
+	case ShowModalMsg:
+		m.modal = &ModalState{
+			Title:     msg.Title,
+			Body:      msg.Body,
+			OnConfirm: msg.OnConfirm,
+		}
+		return m, nil
+
+	case ToastMsg:
+		return m, m.addToast(msg.Message, msg.IsError)
+
+	case SwitchTabMsg:
+		if msg.Tab >= 0 && msg.Tab < tabCount {
+			m.activeTab = msg.Tab
+		}
+		return m, nil
+
+	// Route async completion messages to their owning tab, not the active tab.
+	case ScanCompleteMsg, PackCompleteMsg:
+		updated, cmd := m.tabs[TabPack].Update(msg)
+		m.tabs[TabPack] = updated
+		return m, cmd
+
+	case UnpackCompleteMsg:
+		updated, cmd := m.tabs[TabUnpack].Update(msg)
+		m.tabs[TabUnpack] = updated
+		return m, cmd
+
+	case ListCompleteMsg:
+		updated, cmd := m.tabs[TabList].Update(msg)
+		m.tabs[TabList] = updated
+		return m, cmd
+
+	// ErrorMsg: route to the active tab (the tab that initiated the operation).
+	case ErrorMsg:
+		updated, cmd := m.tabs[m.activeTab].Update(msg)
+		m.tabs[m.activeTab] = updated
+		return m, cmd
+
+	case tea.KeyMsg:
+		return m.handleKeyMsg(msg)
+
+	case tea.MouseMsg:
+		return m.handleMouseMsg(msg)
+
+	// Spinner ticks route to all tabs that might have spinners.
+	case spinner.TickMsg:
+		var cmds []tea.Cmd
+		for i := range m.tabs {
+			updated, cmd := m.tabs[i].Update(msg)
+			m.tabs[i] = updated
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+		return m, tea.Batch(cmds...)
+	}
+
+	// Default: dispatch to active tab
+	updated, cmd := m.tabs[m.activeTab].Update(msg)
+	m.tabs[m.activeTab] = updated
+	return m, cmd
+}
+
+func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Modal takes priority over everything
+	if m.modal != nil {
+		return m.updateModal(msg)
+	}
+
+	// Ctrl+C always quits
+	if key.Matches(msg, GlobalKeys.Quit) {
+		return m, tea.Quit
+	}
+
+	inputFocused := m.tabs[m.activeTab].InputFocused()
+
+	// Help toggle (disabled when text input focused)
+	if !inputFocused && key.Matches(msg, GlobalKeys.Help) {
+		m.helpVisible = !m.helpVisible
+		return m, nil
+	}
+
+	// When help overlay is visible, any key closes it
+	if m.helpVisible {
+		m.helpVisible = false
+		return m, nil
+	}
+
+	// Tab switching (disabled when text input focused)
+	if !inputFocused {
+		switch {
+		case key.Matches(msg, GlobalKeys.NextTab):
+			m.activeTab = (m.activeTab + 1) % tabCount
+			m.debugLogger.Log("Tab switched to: %s", tabNames[m.activeTab])
+			return m, nil
+		case key.Matches(msg, GlobalKeys.PrevTab):
+			m.activeTab = (m.activeTab + tabCount - 1) % tabCount
+			m.debugLogger.Log("Tab switched to: %s", tabNames[m.activeTab])
+			return m, nil
+		case key.Matches(msg, GlobalKeys.Tab1):
+			m.activeTab = TabPack
+			return m, nil
+		case key.Matches(msg, GlobalKeys.Tab2):
+			m.activeTab = TabUnpack
+			return m, nil
+		case key.Matches(msg, GlobalKeys.Tab3):
+			m.activeTab = TabList
+			return m, nil
+		case key.Matches(msg, GlobalKeys.Tab4):
+			m.activeTab = TabStatus
+			return m, nil
+		case key.Matches(msg, GlobalKeys.Tab5):
+			m.activeTab = TabSettings
+			return m, nil
+		}
+
+		// q quits only when no input is focused
+		if msg.String() == "q" {
+			return m, tea.Quit
+		}
+	}
+
+	// Dispatch to active tab
+	updated, cmd := m.tabs[m.activeTab].Update(msg)
+	m.tabs[m.activeTab] = updated
+	return m, cmd
+}
+
+func (m *Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	// Check if click is on the tab bar row (row 1, after header)
+	if msg.Type == tea.MouseLeft && msg.Y == headerHeight {
+		idx := tabClickIndex(msg.X)
+		if idx >= 0 && idx < tabCount {
+			m.activeTab = TabID(idx)
+			m.debugLogger.Log("Tab clicked: %s", tabNames[m.activeTab])
+			return m, nil
+		}
+	}
+	return m, nil
+}
+
+func (m *Model) updateModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "Y":
+		cmd := m.modal.OnConfirm
+		m.modal = nil
+		return m, cmd
+	case "n", "N", "esc":
+		m.modal = nil
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m *Model) addToast(message string, isError bool) tea.Cmd {
+	toastCounter++
+	id := toastCounter
+	m.toasts = append(m.toasts, Toast{
+		ID:        id,
+		Message:   message,
+		IsError:   isError,
+		ExpiresAt: time.Now().Add(3 * time.Second),
+	})
+	return tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
+		return ToastExpiredMsg{ID: id}
+	})
+}
+
+func (m *Model) removeToast(id int) {
+	for i, t := range m.toasts {
+		if t.ID == id {
+			m.toasts = append(m.toasts[:i], m.toasts[i+1:]...)
+			return
+		}
 	}
 }
 
-// SetError sets an error message and returns to menu
-func (m *Model) SetError(err string) {
-	m.error = err
-	m.message = ""
-	m.debugLogger.LogError("user_operation", fmt.Errorf("%s", err))
-	m.SetScreen(ScreenMenu)
-}
-
-// SetMessage sets a success message
-func (m *Model) SetMessage(msg string) {
-	m.message = msg
-	m.error = ""
-	m.debugLogger.LogMessage("success", msg)
-}
-
-// GetSelectedMenuItem returns the currently selected menu item
-func (m *Model) GetSelectedMenuItem() MenuItem {
-	if item, ok := m.menu.SelectedItem().(MenuItem); ok {
-		return item
+// View implements tea.Model.
+func (m *Model) View() string {
+	if m.width == 0 || m.height == 0 {
+		return ""
 	}
-	return MenuItem{}
+
+	contentH := ContentHeight(m.height)
+
+	header := RenderHeader(m.version)
+	tabBar := renderTabBar(m.activeTab, m.width)
+	content := m.tabs[m.activeTab].View(m.width, contentH)
+	content = padContent(content, contentH)
+	footer := renderShortHelp(m.tabs[m.activeTab].ShortHelp())
+
+	// Compose vertical layout
+	base := header + "\n" + tabBar + "\n" + content + "\n" + footer
+
+	// Layer overlays
+	if m.helpVisible {
+		base = m.renderHelpOverlay(base)
+	}
+	if m.modal != nil {
+		base = m.renderModalOverlay(base)
+	}
+	if len(m.toasts) > 0 {
+		base = m.renderToastOverlay(base)
+	}
+
+	return base
 }
 
-// UpdateSize updates the model dimensions
-func (m *Model) UpdateSize(width, height int) {
-	m.debugLogger.LogOperation("resize", fmt.Sprintf("from %dx%d to %dx%d", m.width, m.height, width, height))
-	m.width = width
-	m.height = height
-	m.menu.SetWidth(width)
-	m.menu.SetHeight(height - 4) // Leave space for title and footer
-}
-
-// Cleanup performs cleanup operations, including closing the debug logger
+// Cleanup closes the debug logger.
 func (m *Model) Cleanup() {
 	if m.debugLogger != nil {
 		m.debugLogger.Close()
 	}
-}
-
-// refreshMenuAfterInit refreshes the menu to show all options after initialization
-func (m *Model) refreshMenuAfterInit() *Model {
-	// Create full menu items now that project is initialized
-	items := []list.Item{
-		MenuItem{
-			title:       "Pack Environment Files",
-			description: "Scan and encrypt environment files",
-			icon:        "[P]",
-			action:      "pack",
-		},
-		MenuItem{
-			title:       "Unpack Archive",
-			description: "Decrypt and restore archived files",
-			icon:        "[U]",
-			action:      "unpack",
-		},
-		MenuItem{
-			title:       "List Archive Contents",
-			description: "Browse archive contents without extracting",
-			icon:        "[L]",
-			action:      "list",
-		},
-		MenuItem{
-			title:       "Status",
-			description: "View current directory and available archives",
-			icon:        "[S]",
-			action:      "status",
-		},
-		MenuItem{
-			title:       "Settings",
-			description: "Configure default options",
-			icon:        "[●]",
-			action:      "settings",
-		},
-		MenuItem{
-			title:       "Help",
-			description: "Command documentation and examples",
-			icon:        "[?]",
-			action:      "help",
-		},
-	}
-
-	// Update the menu with new items
-	m.menu.SetItems(items)
-	m.SetScreen(ScreenMenu)
-
-	return m
 }

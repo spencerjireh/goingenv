@@ -374,6 +374,45 @@ demo-scenario: demo build
 	cd demo/project1 && DEMO_PASSWORD="demo123" ../../$(BINARY_NAME) list -f .goingenv/demo-backup.enc --password-env DEMO_PASSWORD
 	@echo "Demo scenario completed$(NC)\""
 
+# Persistent sandbox directory for TUI development
+TUI_SANDBOX = /tmp/goingenv-sandbox
+
+# Set up the TUI sandbox (idempotent -- only creates if missing)
+tui-sandbox:
+	@if [ ! -d "$(TUI_SANDBOX)/.goingenv" ]; then \
+		mkdir -p "$(TUI_SANDBOX)"; \
+		printf "DB_HOST=localhost\nDB_PORT=5432\n" > "$(TUI_SANDBOX)/.env"; \
+		printf "SECRET_KEY=dev-secret-123\n" > "$(TUI_SANDBOX)/.env.local"; \
+		printf "API_KEY=prod-key-456\nSTRIPE_KEY=sk_live_xxx\n" > "$(TUI_SANDBOX)/.env.production"; \
+		printf "DEBUG=true\nLOG_LEVEL=verbose\n" > "$(TUI_SANDBOX)/.env.development"; \
+		printf "REDIS_URL=redis://localhost:6379\n" > "$(TUI_SANDBOX)/.env.staging"; \
+		cd "$(TUI_SANDBOX)" && "$(CURDIR)/$(BINARY_NAME)" init > /dev/null 2>&1; \
+		printf "$(GREEN)Sandbox created: $(TUI_SANDBOX) (5 env files)$(NC)\n"; \
+	else \
+		printf "$(BLUE)Sandbox ready: $(TUI_SANDBOX)$(NC)\n"; \
+	fi
+
+# Launch the TUI in the sandbox (build + run)
+tui: build tui-sandbox
+	@cd "$(TUI_SANDBOX)" && "$(CURDIR)/$(BINARY_NAME)"
+
+# Launch the TUI with hot-reload via air (rebuilds on every save)
+tui-watch: tui-sandbox
+	@if command -v air >/dev/null 2>&1 || [ -f $(shell go env GOPATH)/bin/air ]; then \
+		AIR_BIN=$$(command -v air || echo "$(shell go env GOPATH)/bin/air"); \
+		printf "$(BLUE)Watching for changes... TUI runs in $(TUI_SANDBOX)$(NC)\n"; \
+		$$AIR_BIN; \
+	else \
+		printf "$(YELLOW)WARNING:$(NC) air not installed. Install with: go install github.com/air-verse/air@latest\n"; \
+		printf "Falling back to make tui...\n"; \
+		make tui; \
+	fi
+
+# Remove the sandbox
+tui-clean:
+	@rm -rf "$(TUI_SANDBOX)"
+	@printf "$(GREEN)Sandbox removed$(NC)\n"
+
 # Development server with hot-reload (for TUI testing)
 dev-watch:
 	@echo -e "$(BLUE)Starting development with hot-reload...$(NC)"
@@ -473,6 +512,9 @@ help:
 	@echo " release-local  - Build release binaries for all platforms locally"
 	@echo ""
 	@echo "Development Commands:"
+	@echo " tui            - Build and launch TUI in sandbox with sample .env files"
+	@echo " tui-watch      - Same as tui but with hot-reload via air"
+	@echo " tui-clean      - Remove the sandbox directory"
 	@echo " clean          - Clean build artifacts"
 	@echo " deps           - Install and update dependencies"
 	@echo " fmt            - Format code"
@@ -539,7 +581,7 @@ help:
 	@echo "Releases: git tag -a v1.2.3 -m 'Release v1.2.3' && git push origin v1.2.3"
 
 # Phony targets
-.PHONY: build dev clean deps fmt vet lint test test-unit test-integration test-e2e \
+.PHONY: build dev tui tui-sandbox tui-watch tui-clean clean deps fmt vet lint test test-unit test-integration test-e2e \
         test-functional test-complete test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
         generate-mocks bench check check-full release-local \
         install uninstall run run-pack run-unpack run-list run-status \

@@ -26,6 +26,11 @@ make ci-full            # Run all CI checks locally
 # Hot-reload development (requires air)
 make watch              # Auto-rebuild on changes
 make watch-run ARGS="status ."  # Run with specific args on changes
+
+# TUI development (sandbox in /tmp/goingenv-sandbox)
+make tui                # Build and launch TUI with sample .env files
+make tui-watch          # Same as tui but with hot-reload via air
+make tui-clean          # Remove the sandbox directory
 ```
 
 ## Architecture

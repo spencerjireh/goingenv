@@ -182,6 +182,29 @@ type (
 	InitCompleteMsg string
 )
 
+// ShowModalMsg triggers a confirmation modal overlay.
+type ShowModalMsg struct {
+	Title     string
+	Body      string
+	OnConfirm tea.Cmd
+}
+
+// ToastMsg triggers a toast notification.
+type ToastMsg struct {
+	Message string
+	IsError bool
+}
+
+// ToastExpiredMsg signals that a toast should be removed.
+type ToastExpiredMsg struct {
+	ID int
+}
+
+// SwitchTabMsg requests switching to a specific tab from within a tab.
+type SwitchTabMsg struct {
+	Tab TabID
+}
+
 // Helper function to format archive contents for display
 func formatArchiveContents(archive *types.Archive) string {
 	result := "Simple string"

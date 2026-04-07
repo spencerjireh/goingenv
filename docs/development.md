@@ -64,6 +64,16 @@ make lint             # Lint code
 make ci-full          # Run all CI checks locally
 ```
 
+### TUI Development Sandbox
+
+A persistent sandbox at `/tmp/goingenv-sandbox` provides sample `.env` files for iterating on the TUI without touching real project data. The sandbox is created once and reused across runs.
+
+```bash
+make tui              # Build and launch TUI in the sandbox
+make tui-watch        # Same as tui but with hot-reload via air
+make tui-clean        # Remove the sandbox directory
+```
+
 ### Hot-Reload with Air
 
 Air automatically rebuilds on file changes. Config is in `.air.toml`.

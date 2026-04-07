@@ -60,12 +60,12 @@ func (d *DebugLogger) Log(format string, args ...interface{}) {
 }
 
 // LogScreen logs screen transitions
-func (d *DebugLogger) LogScreen(from, to Screen) {
+func (d *DebugLogger) LogScreen(from, to string) {
 	d.Log("Screen transition: %s -> %s", from, to)
 }
 
 // LogKeypress logs key press events
-func (d *DebugLogger) LogKeypress(key string, screen Screen) {
+func (d *DebugLogger) LogKeypress(key string, screen string) {
 	d.Log("Keypress: %s (screen: %s)", key, screen)
 }
 

@@ -146,6 +146,70 @@ var (
 				MarginBottom(1)
 )
 
+// Tab bar styles
+var (
+	// ActiveTabStyle highlights the currently selected tab.
+	ActiveTabStyle = lipgloss.NewStyle().
+			Foreground(PrimaryColor).
+			Bold(true).
+			Underline(true)
+
+	// InactiveTabStyle renders unselected tabs.
+	InactiveTabStyle = lipgloss.NewStyle().
+				Foreground(MutedColor)
+
+	// TabGapStyle fills remaining space on the tab bar line.
+	TabGapStyle = lipgloss.NewStyle().
+			Foreground(MutedColor)
+)
+
+// Overlay styles
+var (
+	// ModalBoxStyle renders the modal dialog box.
+	ModalBoxStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(WarningColor).
+			Padding(1, 2)
+
+	// ToastSuccessStyle renders success toast notifications.
+	ToastSuccessStyle = lipgloss.NewStyle().
+				Foreground(SuccessColor).
+				Bold(true)
+
+	// ToastErrorStyle renders error toast notifications.
+	ToastErrorStyle = lipgloss.NewStyle().
+			Foreground(ErrorColor).
+			Bold(true)
+
+	// ToastInfoStyle renders informational toast notifications.
+	ToastInfoStyle = lipgloss.NewStyle().
+			Foreground(InfoColor).
+			Bold(true)
+)
+
+// Wizard step indicator styles
+var (
+	// StepActiveStyle renders the current wizard step.
+	StepActiveStyle = lipgloss.NewStyle().
+			Foreground(PrimaryColor).
+			Bold(true)
+
+	// StepDoneStyle renders completed wizard steps.
+	StepDoneStyle = lipgloss.NewStyle().
+			Foreground(SuccessColor)
+
+	// StepInactiveStyle renders future wizard steps.
+	StepInactiveStyle = lipgloss.NewStyle().
+				Foreground(MutedColor)
+)
+
+// Split pane styles
+var (
+	// SplitDividerStyle renders the vertical divider in two-column layouts.
+	SplitDividerStyle = lipgloss.NewStyle().
+		Foreground(MutedColor)
+)
+
 // Helper functions for dynamic styling
 
 // GetScreenStyle returns appropriate style based on screen width

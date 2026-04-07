@@ -78,26 +78,15 @@ backup, transfer, and restore your environment configurations.`,
 
 // runInteractiveMode launches the TUI interface
 func runInteractiveMode(verbose bool, version string) error {
-	out := NewOutput(version)
-
-	// Check if GoingEnv is initialized
-	if !config.IsInitialized() {
-		out.Header()
-		out.Blank()
-		out.Warning("goingenv is not initialized in this directory")
-		out.Hint("Run 'goingenv init' first to set up goingenv")
-		return nil
-	}
-
 	// Initialize application
 	app, err := NewApp()
 	if err != nil {
 		return fmt.Errorf("failed to initialize application: %w", err)
 	}
 
-	// Create and run TUI
+	// Create and run TUI with mouse support
 	model := tui.NewModel(app, verbose, version)
-	program := tea.NewProgram(model, tea.WithAltScreen())
+	program := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
 
 	// Ensure cleanup happens even if there's an error
 	defer model.Cleanup()
