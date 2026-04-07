@@ -33,7 +33,7 @@ Secure your `.env` files with AES-256-GCM encryption. No dependencies, no config
 | **Interactive TUI** | Beautiful terminal interface with real-time preview |
 | **CLI Mode** | Script-friendly commands for CI/CD and automation |
 | **Integrity Checks** | SHA-256 checksums ensure data integrity |
-| **Cross-Platform** | Linux and macOS (Intel & Apple Silicon) |
+| **Cross-Platform** | Linux, macOS (Intel & Apple Silicon), and Windows via WSL |
 
 ## Quick Start
 
@@ -132,6 +132,7 @@ unset GOINGENV_PASSWORD
 |---|---|
 | Linux | x86_64, ARM64 |
 | macOS | Intel, Apple Silicon |
+| Windows | via [WSL](https://docs.microsoft.com/en-us/windows/wsl/install) |
 
 ## File Patterns Detected
 

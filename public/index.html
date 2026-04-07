@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="goingenv - Share environment variables the simple way. Secure, fast solution for teams without complex third-party services."
+      content="goingenv - Share envs the easy way. Secure, fast solution for teams without complex third-party services."
     />
     <meta
       name="keywords"
       content="environment files, team sharing, encryption, CLI, TUI, .env files, vault alternative"
     />
-    <title>goingenv - Share Environment Variables The Simple Way</title>
+    <title>goingenv - Share Envs The Easy Way</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -440,7 +440,7 @@
           </div>
 
         <p class="text-lg text-text-muted mb-6">
-          Simple environment file sharing for developers.
+          Share envs the easy way.
         </p>
 
         <p class="text-base text-text-muted mb-10">
@@ -543,27 +543,13 @@
           <div class="mb-10"></div>
 
           <h3 class="text-lg font-medium text-text mb-4">Specific version</h3>
-          <div class="code-block mb-10" data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version v1.1.0">
+          <div class="code-block mb-10" data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version v1.x.x">
             <span class="copy-icon">
                 <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </span>
             <code class="text-text-muted text-sm"
-              >curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version v1.1.0</code
-            >
-          </div>
-
-          <h3 class="text-lg font-medium text-text mb-4">
-            Development version
-          </h3>
-          <p class="text-text-muted text-sm mb-4">Latest development features:</p>
-          <div class="code-block mb-10" data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/develop/install.sh | bash">
-            <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-            <code class="text-text-muted text-sm"
-              >curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/develop/install.sh | bash</code
+              >curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version v1.x.x</code
             >
           </div>
 
@@ -883,20 +869,20 @@ chmod +x /usr/local/bin/goingenv">
       // Terminal Animation
       const terminalSequence = [
         { type: 'command', text: 'goingenv init', delay: 60 },
-        { type: 'output', text: 'Initializing goingenv...', delay: 400 },
-        { type: 'output', text: 'Created .goingenv/', delay: 200 },
-        { type: 'success', text: '[OK] Ready to pack', delay: 300 },
+        { type: 'output', text: '[>] Initializing goingenv...', delay: 400 },
+        { type: 'output', text: '[+] Created .goingenv/', delay: 200 },
+        { type: 'success', text: '[+] Initialized', delay: 300 },
         { type: 'blank', delay: 600 },
         { type: 'command', text: 'goingenv status', delay: 60 },
-        { type: 'output', text: 'Found 3 environment files:', delay: 300 },
+        { type: 'output', text: 'Environment Files (3)', delay: 300 },
         { type: 'file', text: '  .env', delay: 150 },
         { type: 'file', text: '  .env.local', delay: 150 },
         { type: 'file', text: '  .env.production', delay: 150 },
         { type: 'blank', delay: 600 },
         { type: 'command', text: 'goingenv pack', delay: 60 },
-        { type: 'output', text: 'Packing environment files...', delay: 400 },
-        { type: 'output', text: 'Encrypting with AES-256-GCM...', delay: 300 },
-        { type: 'success', text: '[OK] Created envs.goingenv (encrypted in 0.003s)', delay: 400 },
+        { type: 'output', text: '[>] Packing 3 files...', delay: 400 },
+        { type: 'output', text: '[>] Encrypting...', delay: 300 },
+        { type: 'success', text: '[+] Created envs.goingenv', delay: 400 },
       ];
 
       const terminalOutput = document.getElementById('terminal-output');

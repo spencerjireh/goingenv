@@ -305,9 +305,8 @@ go list -u -m all
 ### Reporting Security Issues
 
 **Contact Information:**
-- **Email**: security@[your-domain].com
-- **GPG Key**: [Public key fingerprint]
-- **GitHub**: Private security advisory
+- **Email**: email@spencerjireh.com
+- **GitHub**: [Private security advisory](https://github.com/spencerjireh/goingenv/security/advisories/new)
 
 **What to Include:**
 1. Description of the vulnerability

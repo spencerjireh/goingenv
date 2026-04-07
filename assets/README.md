@@ -6,19 +6,22 @@ This directory contains brand assets for goingenv. See `/docs/design.md` for the
 
 ```
 assets/
-  logo-full.svg           # Full lockup: [●]goingenv
-  logo-icon.svg           # Icon only: [●]
-  logo-full-mono-light.svg # Monochrome for light backgrounds
-  logo-full-mono-dark.svg  # Monochrome for dark backgrounds
-  github-avatar.png       # GitHub avatar (500x500)
-  og-image.png            # Open Graph image (1200x630)
-  favicon/                # Favicon files
-    favicon.ico           # Multi-size ICO (16, 32, 48)
-    favicon-16x16.png
-    favicon-32x32.png
-    apple-touch-icon.png  # 180x180
-    icon-192.png          # PWA icon
-    icon-512.png          # PWA icon
+  logo-full.svg             # Full lockup: [●]goingenv
+  logo-full-light.svg       # Full lockup for light backgrounds
+  logo-icon.svg             # Icon only: [●]
+  logo-full-mono-light.svg  # Monochrome for light backgrounds
+  logo-full-mono-dark.svg   # Monochrome for dark backgrounds
+  github-avatar.png         # GitHub avatar (500x500)
+  icon-192.png              # PWA icon
+  icon-512.png              # PWA icon
+  og-image.png              # Open Graph image (1200x630)
+  og-image.svg              # Open Graph image (SVG source)
+
+public/
+  favicon.ico               # Multi-size ICO (16, 32, 48)
+  apple-touch-icon.png      # 180x180
+  icon-192.png              # PWA icon
+  icon-512.png              # PWA icon
 ```
 
 ## Color Palette

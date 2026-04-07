@@ -1290,14 +1290,18 @@ No color differentiation between elements — entire logo is one solid color.
   /apple-touch-icon.png
   /icon-192.png
   /icon-512.png
-  /og-image.png
 
-/assets (or /brand)
+/assets
   /logo-full.svg
+  /logo-full-light.svg
   /logo-icon.svg
   /logo-full-mono-light.svg
   /logo-full-mono-dark.svg
   /github-avatar.png
+  /icon-192.png
+  /icon-512.png
+  /og-image.png
+  /og-image.svg
 
 /docs/design.md (this file)
 ```
