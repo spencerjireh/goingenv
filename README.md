@@ -1,7 +1,9 @@
 <p align="center">
-  <code style="font-size: 2em; letter-spacing: 0.05em;">
-    <span style="color: #6b7a8f">[</span><span style="color: #22d3a7">●</span><span style="color: #6b7a8f">]</span>goingenv
-  </code>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-full.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo-full-light.svg">
+    <img alt="goingenv" src="assets/logo-full-light.svg" width="440">
+  </picture>
 </p>
 
 <p align="center">
