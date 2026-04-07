@@ -1,6 +1,6 @@
 # goingenv Brand Assets
 
-This directory contains brand assets for goingenv. See `/DESIGN.md` for the complete brand and design system documentation.
+This directory contains brand assets for goingenv. See `/docs/design.md` for the complete brand and design system documentation.
 
 ## Directory Structure
 
@@ -69,15 +69,15 @@ Use for favicon, app icons, small contexts.
 
 ## Generating Assets
 
-Assets can be generated using the prompts in `/DESIGN.md` with AI image generators.
+Assets can be generated using the prompts in `/docs/design.md` with AI image generators.
 
 ### Quick Reference
 
 For favicon generation:
-1. Generate 512x512 icon using prompt in DESIGN.md
+1. Generate 512x512 icon using prompt in docs/design.md
 2. Resize to required sizes
 3. Convert to ICO format combining 16, 32, 48 sizes
 
 For OG image:
-1. Generate 1200x630 using prompt in DESIGN.md
+1. Generate 1200x630 using prompt in docs/design.md
 2. Save as PNG with proper compression

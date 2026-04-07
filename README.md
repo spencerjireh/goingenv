@@ -139,11 +139,10 @@ unset GOINGENV_PASSWORD
 
 ## Documentation
 
-- [Installation Guide](INSTALL.md) -- Detailed setup and troubleshooting
-- [User Guide](USAGE.md) -- Complete usage examples and workflows
-- [Developer Guide](DEVELOPMENT.md) -- Building, testing, and contributing
+- [Developer Guide](docs/development.md) -- Building, testing, CI/CD, and contributing
+- [Design System](docs/design.md) -- Brand identity, TUI specs, and CLI output design
 - [Security Guide](SECURITY.md) -- Security considerations and best practices
-- [Website](https://spencerjireh.github.io/goingenv/) -- Online documentation
+- [Website](https://spencerjireh.github.io/goingenv/) -- Installation guide and usage examples
 
 ## License
 

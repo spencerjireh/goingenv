@@ -10,7 +10,7 @@ import (
 	"github.com/muesli/termenv"
 )
 
-// Color palette from DESIGN.md
+// Color palette from docs/design.md
 var (
 	brandColor   = lipgloss.Color("#22d3a7")
 	successColor = lipgloss.Color("#22d3a7")

@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Color palette from DESIGN.md
+// Color palette from docs/design.md
 var (
 	PrimaryColor   = lipgloss.Color("#22d3a7")
 	SecondaryColor = lipgloss.Color("#e9eaeb")

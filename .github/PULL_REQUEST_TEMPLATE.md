@@ -58,4 +58,4 @@ The unified CI/CD pipeline runs in three stages:
 
 **All tests must pass** - No test failures are ignored.
 
-See [CICD.md](CICD.md) for detailed pipeline architecture.
+See [Development Guide](../docs/development.md#cicd-pipeline) for detailed pipeline architecture.

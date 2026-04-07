@@ -1299,7 +1299,7 @@ No color differentiation between elements — entire logo is one solid color.
   /logo-full-mono-dark.svg
   /github-avatar.png
 
-/DESIGN.md (this file)
+/docs/design.md (this file)
 ```
 
 ---
