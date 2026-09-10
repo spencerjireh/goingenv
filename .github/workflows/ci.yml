@@ -49,14 +49,20 @@ jobs:
     # on github.ref. Getting this wrong would silently skip every test job on a
     # release build while ci-ok still reported success, since skipped jobs are
     # not failures.
+    # Values come through env rather than ${{ }} interpolated into the script:
+    # it keeps shellcheck able to reason about the comparison, and avoids
+    # interpolating context data straight into a shell command.
     - name: Decide whether to run code jobs
       id: decide
+      env:
+        REF: ${{ github.ref }}
+        FILTER_CODE: ${{ steps.filter.outputs.code }}
       run: |
-        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+        if [[ "$REF" == refs/tags/* ]]; then
           echo "Tag build: running all jobs."
           echo "code=true" >> "$GITHUB_OUTPUT"
         else
-          echo "code=${{ steps.filter.outputs.code }}" >> "$GITHUB_OUTPUT"
+          echo "code=$FILTER_CODE" >> "$GITHUB_OUTPUT"
         fi
 
   lint:

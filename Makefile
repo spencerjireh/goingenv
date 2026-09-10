@@ -1,7 +1,7 @@
 # goingenv Makefile
 #
-# Tool versions (go, golangci-lint, actionlint, gosec, govulncheck, goreleaser,
-# syft, air) are pinned in mise.toml. Run `make bootstrap` once, then
+# Tool versions (go, golangci-lint, actionlint, shellcheck, gosec, govulncheck,
+# goreleaser, syft, air) are pinned in mise.toml. Run `make bootstrap` once, then
 # everything here uses exactly the versions CI uses.
 
 # Recipes run under bash, not sh. Under sh, `echo -e "..."` prints a literal
