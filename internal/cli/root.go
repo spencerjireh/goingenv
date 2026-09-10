@@ -66,11 +66,12 @@ func NewRootCommand(version string) *cobra.Command {
 
 	var rootCmd = &cobra.Command{
 		Use:   "goingenv",
-		Short: "Environment File Manager with Encryption",
-		Long: `goingenv is a CLI tool for managing environment files with encryption capabilities.
+		Short: "Manage encrypted archives of your .env files",
+		Long: `Bundle your .env files into one AES-256-GCM encrypted archive, commit it
+alongside your code, and let teammates restore it with a shared password.
 
-It can scan, encrypt, and archive your .env files securely, making it easy to
-backup, transfer, and restore your environment configurations.`,
+Run goingenv with no arguments for the terminal UI, which covers the same
+operations as the subcommands below.`,
 		Version: version,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose") //nolint:errcheck // flag always exists
@@ -91,7 +92,7 @@ backup, transfer, and restore your environment configurations.`,
 	// command. `list` also accepts csv, which it supported before this flag
 	// existed; it validates that itself.
 	rootCmd.PersistentFlags().String("format", string(FormatText),
-		"Output format: text, json, porcelain")
+		"Set the output format: text, json, porcelain")
 
 	// Add subcommands
 	rootCmd.AddCommand(newInitCommand())

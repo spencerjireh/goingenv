@@ -226,7 +226,7 @@ func RenderHeader(version string) string {
 		circleStyle.Render("●"),
 		bracketStyle.Render("]"),
 		wordmarkStyle.Render("goingenv"),
-		versionStyle.Render(" v"+version),
+		versionStyle.Render(" v"+strings.TrimPrefix(version, "v")),
 	)
 }
 

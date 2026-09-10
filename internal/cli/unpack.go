@@ -17,14 +17,14 @@ import (
 func newUnpackCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unpack",
-		Short: "Unpack and decrypt archived files",
+		Short: "Unpack and decrypt an archive",
 		Long: `Decrypt and extract files from an encrypted archive.
 
-The unpack command will:
-- Decrypt the specified archive using the provided password
-- Verify file integrity using stored checksums
-- Extract files to the specified directory (default: current directory)
-- Optionally create backups of existing files before overwriting
+The unpack command:
+- Decrypts the archive using the password you supply
+- Verifies file integrity against the stored checksums
+- Extracts files to the target directory (default: current directory)
+- Optionally backs up existing files before overwriting them
 
 Examples:
   goingenv unpack                                         # Interactive password prompt
@@ -34,14 +34,14 @@ Examples:
 		RunE: runUnpackCommand,
 	}
 
-	cmd.Flags().String("password-env", "", "Read password from environment variable")
-	cmd.Flags().StringP("file", "f", "", "Archive file to unpack (default: most recent)")
+	cmd.Flags().String("password-env", "", "Read the password from this environment variable")
+	cmd.Flags().StringP("file", "f", "", "Unpack this archive (default: most recent)")
 	cmd.Flags().StringP("target", "t", "", "Target directory for extraction (default: current directory)")
 	cmd.Flags().Bool("overwrite", false, "Overwrite existing files without prompting")
 	cmd.Flags().Bool("backup", false, "Create backups of existing files before overwriting")
 	cmd.Flags().Bool("verify", true, "Verify file checksums after extraction")
-	cmd.Flags().BoolP("verbose", "v", false, "Show detailed information during unpacking")
-	cmd.Flags().BoolP("dry-run", "", false, "Show what would be extracted without actually doing it")
+	cmd.Flags().BoolP("verbose", "v", false, "Show detailed output")
+	cmd.Flags().BoolP("dry-run", "", false, "Show what would be extracted without extracting")
 	cmd.Flags().StringSliceP("include", "i", nil, "Only extract files matching these patterns")
 	cmd.Flags().StringSliceP("exclude", "e", nil, "Skip files matching these patterns")
 
@@ -84,7 +84,7 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 
 	archive, err := decryptArchive(out, app, archiveFile, key)
 	if err != nil {
-		return fmt.Errorf("decryption failed")
+		return fmt.Errorf("failed to decrypt archive: wrong password, or the file is corrupted")
 	}
 
 	filesToExtract := filterArchiveFiles(archive.Files, opts.Include, opts.Exclude)
@@ -100,7 +100,7 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	if !handleConflicts(out, filesToExtract, opts) {
-		return fmt.Errorf("file conflicts detected, use --overwrite to proceed")
+		return fmt.Errorf("file conflicts detected: use --overwrite to proceed")
 	}
 
 	return executeUnpack(out, app, archiveFile, filesToExtract, opts, key)
@@ -133,8 +133,7 @@ func decryptArchive(out *Output, app *types.App, archiveFile, key string) (*type
 
 	archive, err := app.Archiver.List(archiveFile, key)
 	if err != nil {
-		out.Error("Failed to decrypt archive (check password)")
-		out.Hint("Check your password and try again")
+		out.Error("Failed to decrypt archive: wrong password, or the file is corrupted")
 		return nil, err
 	}
 	return archive, nil
@@ -165,7 +164,7 @@ func handleConflicts(out *Output, files []types.EnvFile, opts *UnpackOpts) bool 
 
 	out.WarningList(fmt.Sprintf("%d files already exist:", len(conflicts)), conflicts, 5)
 	out.Blank()
-	out.Hint("Use --overwrite to overwrite")
+	out.Hint("Use --overwrite to replace them, or --backup to keep a copy")
 	return false
 }
 
@@ -189,7 +188,7 @@ func executeUnpack(out *Output, app *types.App, archiveFile string, files []type
 	duration := time.Since(start)
 
 	if err != nil {
-		out.Error(fmt.Sprintf("Error unpacking files: %v", err))
+		out.Error(fmt.Sprintf("Failed to unpack files: %v", err))
 		return err
 	}
 

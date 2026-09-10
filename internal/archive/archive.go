@@ -102,7 +102,7 @@ func (s *Service) Pack(opts types.PackOptions) error {
 		return &types.ArchiveError{
 			Operation: "pack",
 			Path:      opts.OutputPath,
-			Err:       fmt.Errorf("failed to close tar writer: %w", closeErr),
+			Err:       fmt.Errorf("failed to finalize archive: %w", closeErr),
 		}
 	}
 
@@ -111,7 +111,7 @@ func (s *Service) Pack(opts types.PackOptions) error {
 		return &types.ArchiveError{
 			Operation: "pack",
 			Path:      opts.OutputPath,
-			Err:       fmt.Errorf("failed to seek to beginning: %w", seekErr),
+			Err:       fmt.Errorf("failed to rewind archive: %w", seekErr),
 		}
 	}
 
@@ -120,7 +120,7 @@ func (s *Service) Pack(opts types.PackOptions) error {
 		return &types.ArchiveError{
 			Operation: "pack",
 			Path:      opts.OutputPath,
-			Err:       fmt.Errorf("failed to read tar data: %w", err),
+			Err:       fmt.Errorf("failed to read archive contents: %w", err),
 		}
 	}
 
@@ -190,7 +190,8 @@ func handleExisting(path string, overwrite, backup bool) (skip bool, err error) 
 	}
 
 	if !overwrite {
-		fmt.Printf("Skipping existing file: %s\n", path)
+		// The caller decides how to report a skip. Printing here would go to
+		// stdout and corrupt --format json and --format porcelain.
 		return true, nil
 	}
 
@@ -265,7 +266,7 @@ func (s *Service) Unpack(opts types.UnpackOptions) error {
 			return &types.ArchiveError{
 				Operation: "unpack",
 				Path:      opts.ArchivePath,
-				Err:       fmt.Errorf("failed to read tar header: %w", err),
+				Err:       fmt.Errorf("failed to read archive entry: %w", err),
 			}
 		}
 
@@ -338,7 +339,7 @@ func (s *Service) List(archivePath, password string) (*types.Archive, error) {
 		return nil, &types.ArchiveError{
 			Operation: "list",
 			Path:      archivePath,
-			Err:       fmt.Errorf("failed to unmarshal metadata: %w", err),
+			Err:       fmt.Errorf("failed to parse archive metadata: %w", err),
 		}
 	}
 
@@ -375,7 +376,7 @@ func (s *Service) GetAvailableArchives(dir string) ([]string, error) {
 func (s *Service) writeMetadata(tarWriter *tar.Writer, archive *types.Archive) error {
 	metadataJSON, err := json.Marshal(archive)
 	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
+		return fmt.Errorf("failed to encode archive metadata: %w", err)
 	}
 
 	header := &tar.Header{
@@ -399,7 +400,7 @@ func (s *Service) writeMetadata(tarWriter *tar.Writer, archive *types.Archive) e
 func (s *Service) writeFileToTar(tarWriter *tar.Writer, file *types.EnvFile) error {
 	fileInfo, err := os.Stat(file.Path)
 	if err != nil {
-		return fmt.Errorf("failed to stat file %s: %w", file.Path, err)
+		return fmt.Errorf("failed to read file info for %s: %w", file.Path, err)
 	}
 
 	header := &tar.Header{
@@ -410,7 +411,7 @@ func (s *Service) writeFileToTar(tarWriter *tar.Writer, file *types.EnvFile) err
 	}
 
 	if headerErr := tarWriter.WriteHeader(header); headerErr != nil {
-		return fmt.Errorf("failed to write header for %s: %w", file.Path, headerErr)
+		return fmt.Errorf("failed to write archive entry for %s: %w", file.Path, headerErr)
 	}
 
 	fileContent, err := os.Open(file.Path)

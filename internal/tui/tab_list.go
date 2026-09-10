@@ -274,7 +274,7 @@ func (t *ListTab) View(width, height int) string {
 		if len(archives) == 0 {
 			content = renderEmptyState(
 				"No Archives Found",
-				"Pack your environment files first, then come back here to browse contents.",
+				"There is nothing to browse yet.",
 				"Switch to the Pack tab to create an archive.",
 				width, contentHeight,
 			)
@@ -343,6 +343,6 @@ func (t *ListTab) renderResult(width, height int) string {
 		t.viewport.Width = width
 		t.viewport.Height = height
 	}
-	t.viewport.SetContent("\n" + RenderSectionHeader("  Archive Contents") + "\n\n" + t.resultMsg)
+	t.viewport.SetContent("\n" + RenderSectionHeader("  Archive contents") + "\n\n" + t.resultMsg)
 	return t.viewport.View()
 }

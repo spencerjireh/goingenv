@@ -73,7 +73,7 @@ func (t *StatusTab) View(width, height int) string {
 	if !config.IsInitialized() {
 		return renderEmptyState(
 			"Not Initialized",
-			"goingenv is not set up in this directory.",
+			"goingenv is not set up in this directory yet.",
 			"Switch to the Pack tab and initialize first.",
 			width, height,
 		)

@@ -271,7 +271,7 @@ func (t *PackTab) View(width, height int) string {
 		} else {
 			content = renderEmptyState(
 				"Pack Environment Files",
-				"Scan your project for .env files and encrypt them into a secure archive.",
+				"Scan your project for .env files and encrypt them into one archive.",
 				"Press Enter to scan for environment files.",
 				width, contentHeight,
 			)
@@ -348,7 +348,7 @@ func (t *PackTab) renderResult(width, height int) string {
 		)
 	}
 	return renderEmptyState(
-		"Pack Successful",
+		"Packed",
 		t.resultMsg,
 		"Press Enter or R to pack again.",
 		width, height,

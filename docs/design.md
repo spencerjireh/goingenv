@@ -1,20 +1,6 @@
 # goingenv Brand & Design System
 
-This document defines the visual identity for goingenv across all touchpoints: website, TUI, icons, and marketing materials.
-
----
-
-## Brand Overview
-
-**Name:** goingenv
-**Tagline:** Share envs the easy way
-**Positioning:** Simple, secure environment file sharing for developers and small teams
-
-**Brand Values:**
-- Simplicity over complexity
-- Security without friction
-- Developer-native aesthetics
-- Terminal-first design
+This document defines the visual identity for goingenv across the website, the TUI, the CLI output, icons and the README.
 
 ---
 
@@ -178,7 +164,7 @@ All elements: #e9eaeb (light) / #121417 (dark)
 | 192x192| PNG    | Android Chrome                           |
 | 512x512| PNG    | PWA icon                                 |
 
-### Social & Marketing
+### Social and share images
 
 | Context        | Size      | Format | Content              |
 |----------------|-----------|--------|----------------------|
@@ -329,6 +315,12 @@ func renderMenuItem(item string, selected bool) string {
 ---
 
 ### Screen Specifications
+
+> **Superseded.** These screens describe an earlier menu-driven TUI. The TUI is
+> now a tabbed layout with no main menu and no screen state machine -- each tab
+> lives in its own `internal/tui/tab_*.go`. See
+> [Adding a TUI Tab](development.md#adding-a-tui-tab). The colour, spacing and
+> prefix rules below still apply; the navigation model does not.
 
 #### Main Menu
 
@@ -1176,13 +1168,13 @@ Content centered on image:
   - Font: Monospace, medium weight
   - Size: Prominent, approximately 15-20% of image width
 
-- Below the logo, add tagline: "Share envs the easy way"
+- Below the logo, add the line: "Encrypted .env archives you can commit"
   - Color: #8b9099 (muted gray)
   - Font: Same monospace, regular weight
   - Size: Smaller than logo, approximately 40% of logo text size
 
 Layout:
-- Logo and tagline vertically centered
+- Logo and strapline vertically centered
 - Horizontal center alignment
 - Generous whitespace
 

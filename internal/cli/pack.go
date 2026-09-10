@@ -19,11 +19,11 @@ func newPackCommand() *cobra.Command {
 		Short: "Pack and encrypt environment files",
 		Long: `Scan for environment files in the specified directory and create an encrypted archive.
 
-The pack command will:
-- Scan for common environment file patterns (.env, .env.local, etc.)
-- Calculate checksums for integrity verification
-- Encrypt files using AES-256-GCM with PBKDF2 key derivation
-- Store the encrypted archive in the .goingenv directory
+The pack command:
+- Scans for common environment file patterns (.env, .env.local, etc.)
+- Calculates a checksum for each file
+- Encrypts them using AES-256-GCM with PBKDF2 key derivation
+- Stores the archive in the .goingenv directory
 
 Examples:
   goingenv pack                                    # Interactive password prompt
@@ -34,15 +34,15 @@ Examples:
 		RunE: runPackCommand,
 	}
 
-	cmd.Flags().String("password-env", "", "Read password from environment variable")
-	cmd.Flags().StringP("directory", "d", "", "Directory to scan (default: current directory)")
-	cmd.Flags().StringP("output", "o", "", "Output archive name (default: auto-generated with timestamp)")
-	cmd.Flags().IntP("depth", "", 0, "Maximum directory depth to scan (default: from config)")
-	cmd.Flags().StringSliceP("include", "i", nil, "Additional file patterns to include")
-	cmd.Flags().StringSliceP("exclude", "e", nil, "Additional directory patterns to exclude (matched against directory paths, not filenames)")
-	cmd.Flags().StringSlice("env-exclude", nil, "Additional env-file patterns to exclude (matched against the base filename)")
-	cmd.Flags().BoolP("dry-run", "", false, "Show what would be packed without creating archive")
-	cmd.Flags().BoolP("verbose", "v", false, "Show detailed information during packing")
+	cmd.Flags().String("password-env", "", "Read the password from this environment variable")
+	cmd.Flags().StringP("directory", "d", "", "Scan this directory (default: current directory)")
+	cmd.Flags().StringP("output", "o", "", "Name the output archive (default: timestamped)")
+	cmd.Flags().IntP("depth", "", 0, "Limit how many directories deep to scan (default: from config)")
+	cmd.Flags().StringSliceP("include", "i", nil, "Include additional file patterns")
+	cmd.Flags().StringSliceP("exclude", "e", nil, "Exclude additional directory patterns (matched against directory paths, not filenames)")
+	cmd.Flags().StringSlice("env-exclude", nil, "Exclude additional env-file patterns (matched against the base filename)")
+	cmd.Flags().BoolP("dry-run", "", false, "Show what would be packed without creating an archive")
+	cmd.Flags().BoolP("verbose", "v", false, "Show detailed output")
 
 	return cmd
 }
@@ -83,7 +83,7 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 
 	if len(files) == 0 {
 		out.Warning("No environment files found")
-		out.Hint("Use 'goingenv status' to see what files are detected")
+		out.Hint("Use 'goingenv status' to see detected files")
 		return nil
 	}
 
@@ -112,7 +112,7 @@ func scanPackFiles(out *Output, app *types.App, opts *PackOpts) ([]types.EnvFile
 
 	files, err := app.Scanner.ScanFiles(scanOpts)
 	if err != nil {
-		out.Error(fmt.Sprintf("Error scanning files: %v", err))
+		out.Error(fmt.Sprintf("Failed to scan files: %v", err))
 		return nil, err
 	}
 	return files, nil
@@ -157,7 +157,7 @@ func executePack(out *Output, app *types.App, files []types.EnvFile, opts *PackO
 	duration := time.Since(start)
 
 	if err != nil {
-		out.Error(fmt.Sprintf("Error packing files: %v", err))
+		out.Error(fmt.Sprintf("Failed to pack files: %v", err))
 		return err
 	}
 
@@ -172,7 +172,7 @@ func executePack(out *Output, app *types.App, files []types.EnvFile, opts *PackO
 	}
 
 	out.Blank()
-	out.Hint("Store your password securely")
+	out.Hint("The password is not stored anywhere. Lose it and the archive is unreadable")
 
 	var archiveSize int64
 	if info, statErr := os.Stat(opts.Output); statErr == nil {

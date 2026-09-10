@@ -25,11 +25,11 @@ func newListCommand() *cobra.Command {
 		Short: "List archive contents",
 		Long: `Display the contents of an encrypted archive without extracting files.
 
-The list command will:
-- Decrypt the archive metadata using the provided password
-- Display archive information (creation date, version, description)
-- Show all files contained in the archive with their sizes and timestamps
-- Optionally filter files by patterns or show detailed information
+The list command:
+- Decrypts the archive metadata using the password you supply
+- Shows the archive's creation date, version and description
+- Lists the files it contains with their sizes and timestamps
+- Optionally filters those files by pattern
 
 Examples:
   goingenv list -f backup.enc                           # Interactive password prompt
@@ -38,11 +38,11 @@ Examples:
 		RunE: runListCommand,
 	}
 
-	cmd.Flags().String("password-env", "", "Read password from environment variable")
-	cmd.Flags().StringP("file", "f", "", "Archive file to list (required unless --all is used)")
+	cmd.Flags().String("password-env", "", "Read the password from this environment variable")
+	cmd.Flags().StringP("file", "f", "", "List this archive (required unless --all is used)")
 	cmd.Flags().Bool("all", false, "List contents of all available archives")
 	cmd.Flags().BoolP("verbose", "v", false, "Show detailed file information")
-	cmd.Flags().Bool("sizes", false, "Show file sizes in detailed format")
+	cmd.Flags().Bool("sizes", false, "Show detailed output")
 	cmd.Flags().Bool("dates", false, "Show file modification dates")
 	cmd.Flags().Bool("checksums", false, "Show file checksums")
 	cmd.Flags().StringSliceP("pattern", "p", nil, "Filter files by patterns (glob-style)")
@@ -81,17 +81,10 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	if opts.Archive == "" {
-		out.Header()
-		out.Blank()
-		out.Error("Archive file is required")
-		out.Hint("Use -f flag or --all to list all archives")
-		return fmt.Errorf("archive file is required")
+		return fmt.Errorf("archive file is required: use the -f flag, or --all to list every archive")
 	}
 
 	if _, statErr := os.Stat(opts.Archive); os.IsNotExist(statErr) {
-		out.Header()
-		out.Blank()
-		out.Error(fmt.Sprintf("Archive not found: %s", opts.Archive))
 		return fmt.Errorf("archive not found: %s", opts.Archive)
 	}
 
@@ -101,9 +94,6 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 
 	key, err := password.GetPassword(passwordOpts)
 	if err != nil {
-		out.Header()
-		out.Blank()
-		out.Error(fmt.Sprintf("Failed to get password: %v", err))
 		return fmt.Errorf("failed to get password: %w", err)
 	}
 	defer password.ClearPassword(&key)
@@ -113,9 +103,7 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 
 	archive, err := app.Archiver.List(opts.Archive, key)
 	if err != nil {
-		out.Error("Failed to read archive (check password)")
-		out.Hint("Check your password and try again")
-		return fmt.Errorf("failed to read archive")
+		return fmt.Errorf("failed to read archive: wrong password, or the file is corrupted")
 	}
 
 	// Archive info
@@ -172,7 +160,7 @@ func listAllArchives(out *Output, app *types.App, passwordOpts password.Options,
 
 	if len(archives) == 0 {
 		out.Warning("No archives found")
-		out.Hint(fmt.Sprintf("Archives should be in %s directory", config.GetGoingEnvDir()))
+		out.Hint(fmt.Sprintf("Archives are read from the %s directory", config.GetGoingEnvDir()))
 		return nil
 	}
 

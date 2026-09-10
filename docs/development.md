@@ -89,8 +89,8 @@ make tui-clean        # Remove the sandbox directory
 ### Hot-Reload with Air
 
 Air rebuilds on file changes. Config is in `.air.toml`, which already runs the
-rebuilt binary inside the sandbox -- so `make tui-watch` is the only target
-needed. (There used to be three more, all identical to it.)
+rebuilt binary inside the sandbox, so `make tui-watch` is the only target
+needed.
 
 ```bash
 make tui-watch        # Rebuild and relaunch the TUI on every save
@@ -124,7 +124,7 @@ goingenv/
 | Package | Responsibility |
 |---|---|
 | `internal/cli/` | Cobra commands: `init`, `pack`, `unpack`, `list`, `status` |
-| `internal/tui/` | Bubbletea screen-based state machine |
+| `internal/tui/` | Bubbletea tabbed UI; one `tab_*.go` per tab, no screen state machine |
 | `internal/archive/` | Tar compression, delegates encryption to crypto |
 | `internal/crypto/` | AES-256-GCM with PBKDF2 key derivation |
 | `internal/scanner/` | Regex pattern matching with depth-limited `filepath.Walk` |

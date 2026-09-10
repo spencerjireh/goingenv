@@ -265,7 +265,7 @@ func (t *UnpackTab) View(width, height int) string {
 		if len(archives) == 0 {
 			content = renderEmptyState(
 				"No Archives Found",
-				"Pack your environment files first, then come back here to unpack.",
+				"There is nothing to unpack yet.",
 				"Switch to the Pack tab to create an archive.",
 				width, contentHeight,
 			)
@@ -327,7 +327,7 @@ func (t *UnpackTab) renderResult(width, height int) string {
 		)
 	}
 	return renderEmptyState(
-		"Unpack Successful",
+		"Unpacked",
 		t.resultMsg,
 		"Press Enter or R to unpack again.",
 		width, height,

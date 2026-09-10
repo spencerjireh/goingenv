@@ -435,7 +435,7 @@ e2e_tests() {
         --version "$version" --dir "$tmp/zbin" --no-sudo --yes --force \
         >"$tmp/zsh2.log" 2>&1
     local count
-    count=$(grep -c "Added by GoingEnv installer" "$zhome/.zshrc" || true)
+    count=$(grep -c "Added by goingenv installer" "$zhome/.zshrc" || true)
     if [[ "$count" -eq 1 ]]; then
         ok "re-running does not duplicate the PATH export"
     else

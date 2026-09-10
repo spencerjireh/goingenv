@@ -108,8 +108,7 @@
         text-decoration: underline;
       }
 
-      /* A single visible focus treatment for everything interactive. The
-         previous stylesheet had no :focus rule at all. */
+      /* A single visible focus treatment for everything interactive. */
       a:focus-visible,
       button:focus-visible {
         outline: 2px solid var(--signal);
@@ -283,6 +282,14 @@
       .note {
         font-size: 0.9375rem;
         margin-top: 0.5rem;
+      }
+
+      .disclaimer {
+        font-size: 0.9375rem;
+        color: var(--dim);
+        border-left: 2px solid var(--slate);
+        padding-left: 0.75rem;
+        margin: 1rem 0 0;
       }
 
       /* --- Code blocks ----------------------------------------------- */
@@ -460,9 +467,7 @@
       }
 
       /* --- Responsive ------------------------------------------------
-         The previous stylesheet had no media queries at all, and a
-         fixed-width hero graphic that overflowed any viewport under
-         408px. Everything here is fluid; these only tighten spacing.
+         Everything above is fluid; these only tighten spacing.
          --------------------------------------------------------------- */
 
       @media (max-width: 40rem) {
@@ -516,8 +521,7 @@
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
 
-    <!-- Icon sprite. Defined once and referenced with <use>; these SVGs were
-         previously pasted inline 12 times, about 8KB of duplication. -->
+    <!-- Icon sprite. Defined once and referenced with <use>. -->
     <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
       <symbol id="i-logo" viewBox="0 0 200 200">
         <path d="M 30,40 L 62,40 L 62,58 L 48,58 L 48,142 L 62,142 L 62,160 L 30,160 Z" fill="currentColor" />
@@ -557,6 +561,12 @@
           terminal UI over the same commands.
         </p>
 
+        <p class="disclaimer">
+          Developed with AI assistance, and not formally
+          <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">security
+          audited</a>. Assess it yourself before using it with sensitive data.
+        </p>
+
         <div class="terminal">
           <div class="terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
           <pre><code><span class="p">$</span> <span class="u">goingenv status</span>
@@ -569,7 +579,7 @@ Environment Files (3)
 <span class="p">$</span> <span class="u">goingenv pack</span>
 
 <span class="p">[&gt;]</span> Packing 3 files...
-<span class="ok">[+]</span> Created .goingenv/archive-20260910-174153.enc</code></pre>
+<span class="ok">[+]</span> Created .goingenv/archive-20260910-124213.enc</code></pre>
         </div>
 
         <div class="actions">
@@ -665,9 +675,9 @@ Environment Files (3)
         <div class="step">
           <p><span class="step-n">04</span>On another machine, restore it with the shared password.</p>
           <div class="code">
-            <pre><code>goingenv unpack -f .goingenv/archive-20260910-174153.enc</code></pre>
+            <pre><code>goingenv unpack -f .goingenv/archive-20260910-124213.enc</code></pre>
             <button class="copy" type="button" aria-label="Copy: goingenv unpack"
-              data-copy="goingenv unpack -f .goingenv/archive-20260910-174153.enc">
+              data-copy="goingenv unpack -f .goingenv/archive-20260910-124213.enc">
               <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
               <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
             </button>
@@ -841,12 +851,9 @@ Environment Files (3)
     <script>
       // Copy to clipboard.
       //
-      // These are real <button> elements, so keyboard and screen-reader users
-      // get them for free -- previously they were <div>s with a click handler
-      // and a cursor:pointer that advertised interactivity nobody could reach
-      // without a mouse. A failure now shows in the UI rather than only in the
-      // console: clipboard writes are rejected outside secure contexts, and a
-      // silent no-op looks identical to success.
+      // Failures show in the UI, not just the console: clipboard writes are
+      // rejected outside secure contexts, and a silent no-op looks identical
+      // to success.
       document.querySelectorAll(".copy").forEach(function (button) {
         button.addEventListener("click", function () {
           var text = button.getAttribute("data-copy") || "";

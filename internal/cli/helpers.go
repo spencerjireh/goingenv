@@ -59,7 +59,7 @@ type ListOpts struct {
 // initApp checks initialization and creates app
 func initApp() (*types.App, error) {
 	if !config.IsInitialized() {
-		return nil, fmt.Errorf("goingenv is not initialized in this directory. Run 'goingenv init' first")
+		return nil, fmt.Errorf("goingenv is not initialized in this directory: run 'goingenv init' first")
 	}
 	return NewApp()
 }
@@ -102,7 +102,7 @@ func pickArchive(app *types.App, specified string) (string, error) {
 		return "", fmt.Errorf("failed to find archives: %w", err)
 	}
 	if len(archives) == 0 {
-		return "", fmt.Errorf("no archives found in %s directory. Use -f flag to specify an archive", config.GetGoingEnvDir())
+		return "", fmt.Errorf("no archives found in the %s directory: use the -f flag to specify one", config.GetGoingEnvDir())
 	}
 	return archives[len(archives)-1], nil
 }

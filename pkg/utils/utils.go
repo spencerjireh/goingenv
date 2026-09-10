@@ -63,7 +63,7 @@ func JoinResults(results []string) string {
 		if i > 0 {
 			result += "\n"
 		}
-		result += "  • " + res
+		result += "  [-] " + res
 	}
 	return result
 }
