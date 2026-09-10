@@ -28,7 +28,8 @@ Examples:
   goingenv pack                                    # Interactive password prompt
   goingenv pack --password-env MY_PASSWORD        # Read from environment variable
   goingenv pack -d /path/to/project -o backup.enc # Specify directory and output
-  goingenv pack -d . --depth 5                    # Custom scan depth`,
+  goingenv pack -d . --depth 5                    # Custom scan depth
+  goingenv pack --env-exclude '\.env\.backup$'    # Skip an env file by name`,
 		RunE: runPackCommand,
 	}
 
@@ -37,7 +38,8 @@ Examples:
 	cmd.Flags().StringP("output", "o", "", "Output archive name (default: auto-generated with timestamp)")
 	cmd.Flags().IntP("depth", "", 0, "Maximum directory depth to scan (default: from config)")
 	cmd.Flags().StringSliceP("include", "i", nil, "Additional file patterns to include")
-	cmd.Flags().StringSliceP("exclude", "e", nil, "Additional patterns to exclude")
+	cmd.Flags().StringSliceP("exclude", "e", nil, "Additional directory patterns to exclude (matched against directory paths, not filenames)")
+	cmd.Flags().StringSlice("env-exclude", nil, "Additional env-file patterns to exclude (matched against the base filename)")
 	cmd.Flags().BoolP("dry-run", "", false, "Show what would be packed without creating archive")
 	cmd.Flags().BoolP("verbose", "v", false, "Show detailed information during packing")
 

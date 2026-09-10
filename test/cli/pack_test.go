@@ -428,10 +428,55 @@ func TestPack_WithExcludePattern(t *testing.T) {
 	testutils.InitializeTestDir(t, tmpDir)
 
 	fixtures := testutils.GetTestFixtures()
-	// Exclude patterns are regex - exclude files ending with .test
-	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "pack", "--exclude", `\.test$`)
-
+	// --exclude patterns are regex, and they are matched against directory
+	// paths (scanner.shouldSkipDir appends a "/" before matching), never
+	// against filenames. So a filename pattern like this one excludes nothing
+	// -- all four files are still packed. Use --env-exclude to skip a file by
+	// name; see TestPack_WithEnvExcludePattern.
+	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "pack",
+		"-o", "excluded.enc", "--exclude", `\.test$`)
 	testutils.AssertSuccess(t, result)
+
+	listed := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "list", "-f", filepath.Join(".goingenv", "excluded.enc"))
+	testutils.AssertSuccess(t, listed)
+	for path := range files {
+		testutils.AssertOutputContains(t, listed, path)
+	}
+}
+
+func TestPack_WithEnvExcludePattern(t *testing.T) {
+	tmpDir, cleanup := testutils.CLITestSetup(t)
+	defer cleanup()
+
+	files := map[string]string{
+		".env":            "BASE=value",
+		".env.local":      "LOCAL=value",
+		".env.production": "PROD=value",
+		".env.test":       "TEST=value",
+	}
+
+	for path, content := range files {
+		fullPath := filepath.Join(tmpDir, path)
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
+			t.Fatalf("Failed to create file: %v", err)
+		}
+	}
+
+	testutils.InitializeTestDir(t, tmpDir)
+
+	fixtures := testutils.GetTestFixtures()
+	// --env-exclude is matched against the base filename, so this one does
+	// exclude .env.test from the archive.
+	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "pack",
+		"-o", "env-excluded.enc", "--env-exclude", `\.test$`)
+	testutils.AssertSuccess(t, result)
+
+	// Inspect the archive contents rather than trusting the exit code.
+	listed := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "list", "-f", filepath.Join(".goingenv", "env-excluded.enc"))
+	testutils.AssertSuccess(t, listed)
+	testutils.AssertOutputNotContains(t, listed, ".env.test")
+	testutils.AssertOutputContains(t, listed, ".env.local")
+	testutils.AssertOutputContains(t, listed, ".env.production")
 }
 
 func TestPack_DepthLimitEdgeCases(t *testing.T) {

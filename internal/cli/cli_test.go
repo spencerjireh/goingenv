@@ -285,7 +285,7 @@ func TestNewPackCommand(t *testing.T) {
 	}
 
 	// Check for required flags
-	expectedFlags := []string{"password-env", "directory", "output", "depth", "include", "exclude", "dry-run", "verbose"}
+	expectedFlags := []string{"password-env", "directory", "output", "depth", "include", "exclude", "env-exclude", "dry-run", "verbose"}
 	for _, flag := range expectedFlags {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("Pack command missing --%s flag", flag)
@@ -432,4 +432,82 @@ func TestDisplayFilesCSV(t *testing.T) {
 
 	// Ensure no panic
 	displayFilesCSV(files)
+}
+
+func TestBuildScanOpts_EnvExcludeAppendsConfigPatterns(t *testing.T) {
+	cfg := &types.Config{
+		DefaultDepth:       7,
+		EnvPatterns:        []string{`\.env.*`},
+		EnvExcludePatterns: []string{`\.env\.example$`},
+		ExcludePatterns:    []string{`node_modules/`},
+		MaxFileSize:        1024,
+	}
+	p := &PackOpts{Dir: ".", EnvExclude: []string{`\.env\.backup$`}, Exclude: []string{`dist/`}}
+
+	opts := buildScanOpts(p, cfg)
+
+	// A flag must never be able to drop a configured exclusion: both narrow
+	// the scan, so the result is the union.
+	wantEnvExclude := map[string]bool{`\.env\.backup$`: false, `\.env\.example$`: false}
+	for _, got := range opts.EnvExcludePatterns {
+		if _, ok := wantEnvExclude[got]; !ok {
+			t.Errorf("unexpected EnvExcludePattern %q", got)
+			continue
+		}
+		if wantEnvExclude[got] {
+			t.Errorf("EnvExcludePattern %q appears more than once", got)
+		}
+		wantEnvExclude[got] = true
+	}
+	for pattern, seen := range wantEnvExclude {
+		if !seen {
+			t.Errorf("EnvExcludePatterns missing %q", pattern)
+		}
+	}
+
+	if len(opts.ExcludePatterns) != 2 {
+		t.Errorf("ExcludePatterns = %v, want the flag and config patterns exactly once each", opts.ExcludePatterns)
+	}
+}
+
+func TestBuildScanOpts_DoesNotAliasConfigSlices(t *testing.T) {
+	cfg := &types.Config{
+		DefaultDepth:       7,
+		EnvPatterns:        []string{`\.env.*`},
+		EnvExcludePatterns: []string{`\.env\.example$`},
+		ExcludePatterns:    []string{`node_modules/`},
+		MaxFileSize:        1024,
+	}
+
+	// No flags at all is the case that used to alias the config's own slices,
+	// so appending to the ScanOptions could write into the loaded config.
+	opts := buildScanOpts(&PackOpts{Dir: "."}, cfg)
+
+	opts.ExcludePatterns = append(opts.ExcludePatterns, "scratch/")
+	opts.EnvExcludePatterns = append(opts.EnvExcludePatterns, "scratch")
+
+	if len(cfg.ExcludePatterns) != 1 {
+		t.Errorf("cfg.ExcludePatterns = %v, want it untouched by appends to ScanOptions", cfg.ExcludePatterns)
+	}
+	if len(cfg.EnvExcludePatterns) != 1 {
+		t.Errorf("cfg.EnvExcludePatterns = %v, want it untouched by appends to ScanOptions", cfg.EnvExcludePatterns)
+	}
+}
+
+func TestBuildScanOpts_FallsBackToConfigDepthAndPatterns(t *testing.T) {
+	cfg := &types.Config{
+		DefaultDepth:    7,
+		EnvPatterns:     []string{`\.env.*`},
+		ExcludePatterns: []string{`node_modules/`},
+		MaxFileSize:     1024,
+	}
+
+	opts := buildScanOpts(&PackOpts{Dir: "."}, cfg)
+
+	if opts.MaxDepth != 7 {
+		t.Errorf("MaxDepth = %d, want the config's 7", opts.MaxDepth)
+	}
+	if len(opts.Patterns) != 1 || opts.Patterns[0] != `\.env.*` {
+		t.Errorf("Patterns = %v, want the config's patterns", opts.Patterns)
+	}
 }
