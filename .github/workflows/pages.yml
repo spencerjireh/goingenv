@@ -2,7 +2,10 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main, develop ]
+    # main only. This job deploys straight to the production Pages site with
+    # no environment gate, so listing develop here meant any push to it
+    # published immediately.
+    branches: [main]
     paths:
       - 'public/**'
       - '.github/workflows/pages.yml'
