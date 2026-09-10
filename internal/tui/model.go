@@ -268,14 +268,29 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-	// Check if click is on the tab bar row (row 1, after header)
-	if msg.Type == tea.MouseLeft && msg.Y == headerHeight {
-		idx := tabClickIndex(msg.X)
-		if idx >= 0 && idx < tabCount {
-			m.activeTab = TabID(idx)
-			m.debugLogger.Log("Tab clicked: %s", tabNames[m.activeTab])
-			return m, nil
-		}
+	// Only a left-button PRESS selects a tab.
+	//
+	// Both halves are load-bearing, and this is equivalent to the single
+	// `Type == MouseLeft` test it replaces rather than a new restriction.
+	// Bubbletea used to expose one flat MouseEventType enum, where MouseLeft,
+	// MouseMotion and the wheel events were mutually exclusive values. v1
+	// split it into orthogonal Action and Button fields, so a motion event
+	// carrying a held left button now satisfies Button == MouseButtonLeft.
+	// The program runs with tea.WithMouseCellMotion (see internal/cli/root.go),
+	// so dropping the Action check would re-select a tab on every cell crossed
+	// while dragging across the tab bar. Wheel events arrive as presses with a
+	// wheel Button and are excluded by the button check.
+	if msg.Action != tea.MouseActionPress || msg.Button != tea.MouseButtonLeft {
+		return m, nil
+	}
+	if msg.Y != headerHeight {
+		return m, nil
+	}
+
+	idx := tabClickIndex(msg.X)
+	if idx >= 0 && idx < tabCount {
+		m.activeTab = TabID(idx)
+		m.debugLogger.Log("Tab clicked: %s", tabNames[m.activeTab])
 	}
 	return m, nil
 }

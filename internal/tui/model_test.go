@@ -187,7 +187,8 @@ func TestModel_MouseTabClick(t *testing.T) {
 		m := newTestModel(t)
 		m.activeTab = TabPack
 
-		m.Update(tea.MouseMsg{Type: tea.MouseLeft, X: xForTab(t, TabList), Y: headerHeight})
+		m.Update(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonLeft,
+			X: xForTab(t, TabList), Y: headerHeight})
 
 		if m.activeTab != TabList {
 			t.Errorf("click selected tab %d, want %d", m.activeTab, TabList)
@@ -198,7 +199,8 @@ func TestModel_MouseTabClick(t *testing.T) {
 		m := newTestModel(t)
 		m.activeTab = TabPack
 
-		m.Update(tea.MouseMsg{Type: tea.MouseMotion, X: xForTab(t, TabList), Y: headerHeight})
+		m.Update(tea.MouseMsg{Action: tea.MouseActionMotion, Button: tea.MouseButtonLeft,
+			X: xForTab(t, TabList), Y: headerHeight})
 
 		if m.activeTab != TabPack {
 			t.Errorf("motion selected tab %d; dragging across the tab bar must not switch tabs", m.activeTab)
@@ -209,7 +211,8 @@ func TestModel_MouseTabClick(t *testing.T) {
 		m := newTestModel(t)
 		m.activeTab = TabPack
 
-		m.Update(tea.MouseMsg{Type: tea.MouseLeft, X: xForTab(t, TabList), Y: headerHeight + 5})
+		m.Update(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonLeft,
+			X: xForTab(t, TabList), Y: headerHeight + 5})
 
 		if m.activeTab != TabPack {
 			t.Errorf("a click off the tab bar selected tab %d", m.activeTab)

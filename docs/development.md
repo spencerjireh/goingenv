@@ -23,7 +23,7 @@ Everything you need to contribute to goingenv.
   from `mise.toml`, so your versions match CI exactly.
 - **Git** and **Make**
 
-Building from source without mise needs Go 1.24+ (the minimum `go.mod`
+Building from source without mise needs Go 1.26+ (the minimum `go.mod`
 declares).
 
 ### Quick Setup

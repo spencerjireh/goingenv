@@ -126,14 +126,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        # 1.24 is the minimum go.mod declares. GOTOOLCHAIN=local below is what
+        # 1.26 is the minimum go.mod declares. GOTOOLCHAIN=local below is what
         # makes that leg meaningful -- with the default (auto), Go silently
         # downloads a newer toolchain and the leg tests nothing. That is
         # exactly what the previous '1.23' leg did.
-        go-version: ['1.24', 'stable']
+        go-version: ['1.26', 'stable']
         exclude:
           - os: macos-latest
-            go-version: '1.24'
+            go-version: '1.26'
     env:
       GOTOOLCHAIN: ${{ matrix.go-version == 'stable' && 'auto' || 'local' }}
     steps:
