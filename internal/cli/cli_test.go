@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -324,11 +327,47 @@ func TestNewListCommand(t *testing.T) {
 		t.Errorf("List command Use = %s, want list", cmd.Use)
 	}
 
-	// Check for required flags
-	expectedFlags := []string{"password-env", "file", "all", "verbose", "sizes", "dates", "checksums", "pattern", "sort", "reverse", "format", "limit"}
+	// Check for required flags. --format is deliberately absent here: it is a
+	// persistent flag on the root command now, so that every command offers
+	// the same contract. Declaring it locally as well would shadow the
+	// persistent one.
+	expectedFlags := []string{"password-env", "file", "all", "verbose", "sizes", "dates", "checksums", "pattern", "sort", "reverse", "limit"}
 	for _, flag := range expectedFlags {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("List command missing --%s flag", flag)
+		}
+	}
+
+	if cmd.Flags().Lookup("format") != nil {
+		t.Error("List declares a local --format flag, which would shadow the persistent one")
+	}
+}
+
+// TestRootCommand_FormatIsPersistent pins --format to the root command, where
+// every subcommand inherits it.
+func TestRootCommand_FormatIsPersistent(t *testing.T) {
+	root := NewRootCommand("test")
+
+	flag := root.PersistentFlags().Lookup("format")
+	if flag == nil {
+		t.Fatal("root command is missing the persistent --format flag")
+	}
+	if flag.DefValue != string(FormatText) {
+		t.Errorf("--format default = %q, want %q", flag.DefValue, FormatText)
+	}
+
+	for _, name := range []string{"init", "pack", "unpack", "list", "status"} {
+		var found bool
+		for _, sub := range root.Commands() {
+			if sub.Name() == name {
+				found = true
+				if sub.InheritedFlags().Lookup("format") == nil {
+					t.Errorf("%s does not inherit --format", name)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("root command is missing the %s subcommand", name)
 		}
 	}
 }
@@ -413,10 +452,30 @@ func TestDisplayFilesJSON(t *testing.T) {
 		},
 	}
 
-	// Capture stdout would be needed for full test, but at least ensure no panic
-	err := displayFilesJSON(files)
-	if err != nil {
-		t.Errorf("displayFilesJSON() error = %v", err)
+	// The payload now goes to an injectable writer, so this can assert on the
+	// contract rather than just checking for a panic.
+	var stdout, stderr bytes.Buffer
+	out := NewOutputWithWriterFormat(&stdout, &stderr, false, "test", FormatJSON)
+
+	payload := ListPayload{
+		Archive: ListArchiveInfo{Name: "a.enc", Path: ".goingenv/a.enc"},
+		Files:   toFileInfos(files),
+		Count:   len(files),
+	}
+	if err := out.EmitJSON(payload); err != nil {
+		t.Fatalf("EmitJSON() error = %v", err)
+	}
+
+	// Round-trips as JSON: the whole point of the format.
+	var decoded ListPayload
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("payload is not valid JSON: %v\ngot: %q", err, stdout.String())
+	}
+	if decoded.Count != 1 || len(decoded.Files) != 1 || decoded.Files[0].Path != ".env" {
+		t.Errorf("decoded payload does not match input: %+v", decoded)
+	}
+	if stderr.Len() != 0 {
+		t.Errorf("JSON payload wrote to stderr: %q", stderr.String())
 	}
 }
 
@@ -430,8 +489,24 @@ func TestDisplayFilesCSV(t *testing.T) {
 		},
 	}
 
-	// Ensure no panic
-	displayFilesCSV(files)
+	// CSV goes to the payload stream, so it can now be asserted on rather
+	// than merely checked for not panicking.
+	var stdout, stderr bytes.Buffer
+	out := NewOutputWithWriterFormat(&stdout, &stderr, false, "test", FormatCSV)
+
+	displayFilesCSV(out, files)
+
+	got := stdout.String()
+	wantHeader := "name,path,size,modified,checksum"
+	if !strings.HasPrefix(got, wantHeader) {
+		t.Errorf("CSV output does not start with the header row.\ngot: %q", got)
+	}
+	if !strings.Contains(got, ".env") || !strings.Contains(got, "100") || !strings.Contains(got, "abc123") {
+		t.Errorf("CSV output is missing file fields.\ngot: %q", got)
+	}
+	if stderr.Len() != 0 {
+		t.Errorf("CSV output wrote to stderr: %q", stderr.String())
+	}
 }
 
 func TestBuildScanOpts_EnvExcludeAppendsConfigPatterns(t *testing.T) {

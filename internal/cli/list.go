@@ -1,12 +1,13 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -47,7 +48,6 @@ Examples:
 	cmd.Flags().StringSliceP("pattern", "p", nil, "Filter files by patterns (glob-style)")
 	cmd.Flags().StringP("sort", "s", "name", "Sort files by: name, size, date, type")
 	cmd.Flags().Bool("reverse", false, "Reverse sort order")
-	cmd.Flags().StringP("format", "", "table", "Output format: table, json, csv")
 	cmd.Flags().IntP("limit", "l", 0, "Limit number of files to show (0 = no limit)")
 
 	return cmd
@@ -55,13 +55,17 @@ Examples:
 
 // runListCommand executes the list command
 func runListCommand(cmd *cobra.Command, args []string) error {
-	out := NewOutput(appVersion)
+	// csv is accepted here and nowhere else: this command supported it before
+	// --format was global, and dropping it would break existing callers.
+	out, err := outputFor(cmd, true)
+	if err != nil {
+		return err
+	}
 
 	app, err := initApp()
 	if err != nil {
 		out.Header()
 		out.Blank()
-		out.Error(err.Error())
 		return err
 	}
 
@@ -134,15 +138,13 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 		filesToShow = filesToShow[:opts.Limit]
 	}
 
-	switch opts.Format {
-	case "json":
-		return displayFilesJSON(filesToShow)
-	case "csv":
-		displayFilesCSV(filesToShow)
-		return nil
-	default:
-		displayFilesTable(out, filesToShow, opts)
+	// The header and archive summary above went to stderr in a machine format,
+	// so stdout carries only what follows.
+	if handled, emitErr := emitListResult(out, archive, filesToShow, opts); handled {
+		return emitErr
 	}
+
+	displayFilesTable(out, filesToShow, opts)
 
 	// Summary
 	out.Blank()
@@ -242,27 +244,11 @@ func displayFilesTable(out *Output, files []types.EnvFile, opts *ListOpts) {
 	}
 }
 
-// displayFilesJSON displays files in JSON format
-func displayFilesJSON(files []types.EnvFile) error {
-	output := map[string]interface{}{
-		"files": files,
-		"count": len(files),
-	}
-
-	jsonData, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to format JSON: %w", err)
-	}
-
-	fmt.Println(string(jsonData))
-	return nil
-}
-
 // displayFilesCSV displays files in CSV format
-func displayFilesCSV(files []types.EnvFile) {
-	fmt.Println("name,path,size,modified,checksum")
+func displayFilesCSV(out *Output, files []types.EnvFile) {
+	fmt.Fprintln(out.stdout, "name,path,size,modified,checksum")
 	for _, file := range files {
-		fmt.Printf("%s,%s,%d,%s,%s\n",
+		fmt.Fprintf(out.stdout, "%s,%s,%d,%s,%s\n",
 			filepath.Base(file.RelativePath),
 			file.RelativePath,
 			file.Size,
@@ -321,5 +307,41 @@ func sortFiles(files []types.EnvFile, sortBy string, reverse bool) {
 			}
 			return files[i].RelativePath < files[j].RelativePath
 		})
+	}
+}
+
+// emitListResult writes the machine-readable and csv renderings. It reports
+// whether it handled the format, so the caller falls through to the human
+// table for text without this function having to know how that is drawn.
+func emitListResult(out *Output, archive *types.Archive, files []types.EnvFile, opts *ListOpts) (bool, error) {
+	switch out.Format() {
+	case FormatJSON:
+		return true, out.EmitJSON(ListPayload{
+			Archive: ListArchiveInfo{
+				Name:        filepath.Base(opts.Archive),
+				Path:        opts.Archive,
+				CreatedAt:   archive.CreatedAt,
+				Version:     archive.Version,
+				Description: archive.Description,
+			},
+			Files: toFileInfos(files),
+			Count: len(files),
+		})
+	case FormatPorcelain:
+		records := make([][]string, 0, len(files))
+		for _, f := range files {
+			records = append(records, []string{
+				f.RelativePath,
+				strconv.FormatInt(f.Size, 10),
+				f.ModTime.UTC().Format(time.RFC3339),
+				f.Checksum,
+			})
+		}
+		return true, out.EmitPorcelain(records)
+	case FormatCSV:
+		displayFilesCSV(out, files)
+		return true, nil
+	default:
+		return false, nil
 	}
 }

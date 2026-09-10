@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"goingenv/internal/cli"
@@ -24,7 +23,11 @@ func main() {
 	rootCmd := cli.NewRootCommand(Version)
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Printf("Error: %v\n", err)
+		// Reported through the CLI package so the message matches the
+		// requested --format, and on stderr rather than the stdout this used
+		// to use -- which corrupted every machine-readable format and any
+		// `goingenv ... > file` redirect.
+		cli.ReportError(err)
 		os.Exit(1)
 	}
 }

@@ -275,3 +275,27 @@ func mergePatterns(flag, cfg []string) []string {
 	merged = append(merged, cfg...)
 	return merged
 }
+
+// outputFor builds the Output a command should use, honouring --format.
+//
+// Returns the error rather than a fallback Output: an unrecognised format has
+// to fail loudly, since silently falling back to text would hand a script
+// unparseable output while exiting 0.
+func outputFor(cmd *cobra.Command, allowCSV bool) (*Output, error) {
+	raw, err := cmd.Flags().GetString("format")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get format flag: %w", err)
+	}
+
+	format, err := ParseFormat(raw, allowCSV)
+	if err != nil {
+		return nil, err
+	}
+
+	// Recorded so ReportError can render the failure in the same format the
+	// command was going to use. Commands must not report errors themselves --
+	// see ReportError for why.
+	activeFormat = format
+
+	return NewOutputFormat(appVersion, format), nil
+}

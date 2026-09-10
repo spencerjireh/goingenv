@@ -104,6 +104,8 @@ unit_tests() {
     # fetch_expected_checksum reads from a local file:// base, so no network.
     local rel="$tmp/releases/download/v1.2.3"
     mkdir -p "$rel"
+    # shellcheck disable=SC2034  # read by fetch_expected_checksum from the sourced install.sh.
+    # Deliberately not exported: the e2e section below sets it per-invocation.
     GOINGENV_DOWNLOAD_BASE="file://$tmp"
 
     # Happy path.
@@ -205,8 +207,7 @@ e2e_tests() {
     SERVER_PID=$!
 
     # Wait for the server to accept connections.
-    local i
-    for i in $(seq 1 50); do
+    for _ in $(seq 1 50); do
         if curl -s -o /dev/null "http://127.0.0.1:$port/" 2>/dev/null; then break; fi
         sleep 0.1
     done
@@ -215,7 +216,7 @@ e2e_tests() {
     local status
 
     # 1. Happy path: matching checksum installs.
-    rm -rf "$tmp/bin"
+    rm -rf "${tmp:?}/bin"
     GOINGENV_DOWNLOAD_BASE="$base" bash "$INSTALL_SH" \
         --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
         >"$tmp/happy.log" 2>&1
@@ -228,7 +229,7 @@ e2e_tests() {
     fi
 
     # 1b. Same, with DEBUG=1: debug output on stdout would corrupt the digest.
-    rm -rf "$tmp/bin"
+    rm -rf "${tmp:?}/bin"
     GOINGENV_DOWNLOAD_BASE="$base" DEBUG=1 bash "$INSTALL_SH" \
         --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
         >"$tmp/debug.log" 2>&1
@@ -244,7 +245,7 @@ e2e_tests() {
     cp "$rel/$archive_name" "$tmp/pristine.tar.gz"
 
     # 2. The one that matters: corrupt the archive, leave checksums.txt alone.
-    rm -rf "$tmp/bin"
+    rm -rf "${tmp:?}/bin"
     printf 'corrupted' >> "$rel/$archive_name"
     GOINGENV_DOWNLOAD_BASE="$base" bash "$INSTALL_SH" \
         --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
@@ -272,7 +273,7 @@ e2e_tests() {
 
     # 3. A good archive whose published digest does not match must still be
     #    refused: verification compares against the manifest, not the file.
-    rm -rf "$tmp/bin"
+    rm -rf "${tmp:?}/bin"
     GOINGENV_DOWNLOAD_BASE="$base" bash "$INSTALL_SH" \
         --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
         >"$tmp/mismatch.log" 2>&1
@@ -284,7 +285,7 @@ e2e_tests() {
     fi
 
     # 4. --skip-checksum bypasses that same mismatch and installs.
-    rm -rf "$tmp/bin"
+    rm -rf "${tmp:?}/bin"
     GOINGENV_DOWNLOAD_BASE="$base" bash "$INSTALL_SH" \
         --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
         --skip-checksum >"$tmp/skip.log" 2>&1
@@ -297,7 +298,7 @@ e2e_tests() {
     fi
 
     # 5. Missing checksums.txt must fail closed.
-    rm -rf "$tmp/bin"
+    rm -rf "${tmp:?}/bin"
     mv "$rel/checksums.txt" "$tmp/checksums.txt.bak"
     GOINGENV_DOWNLOAD_BASE="$base" bash "$INSTALL_SH" \
         --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
@@ -328,8 +329,35 @@ e2e_tests() {
         bad "piped --help produced no usage output (main did not run)"
     fi
 
+    # 6a. ...and that usage text must be runnable. $0 is literally "bash" when
+    # the script arrives on stdin, so the help used to read "USAGE: bash
+    # [OPTIONS]" and offer "bash --version v1.3.0" -- copy-pasteable, and inert.
+    if grep -q 'curl -fsSL .*install\.sh | bash -s -- \[OPTIONS\]' <<<"$help_out"; then
+        ok "piped --help prints a pipe-aware usage line"
+    else
+        bad "piped --help did not print a pipe-aware usage line"
+    fi
+
+    # The load-bearing half: this assertion FAILS on the old script, which is
+    # what the "produces the usage text" check above could never do.
+    if ! grep -qE '(^|[[:space:]])bash (\[OPTIONS\]|--[a-z])' <<<"$help_out"; then
+        ok "piped --help never presents bare 'bash' as the command"
+    else
+        bad "piped --help still presents bare 'bash' as the command"
+    fi
+
+    # 6b. File mode must name the script, not a curl pipeline.
+    local file_help_out
+    file_help_out=$(bash "$INSTALL_SH" --help 2>&1)
+    if grep -qF "$INSTALL_SH [OPTIONS]" <<<"$file_help_out" \
+       && ! grep -q 'curl -fsSL' <<<"$file_help_out"; then
+        ok "file-mode --help names the script path"
+    else
+        bad "file-mode --help did not name the script path"
+    fi
+
     # 7. A full install through the pipe.
-    rm -rf "$tmp/bin"
+    rm -rf "${tmp:?}/bin"
     cat "$INSTALL_SH" | GOINGENV_DOWNLOAD_BASE="$base" bash -s -- \
         --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
         >"$tmp/piped.log" 2>&1
@@ -373,6 +401,8 @@ e2e_tests() {
         ok "zsh user gets PATH written to .zshrc"
     else
         bad "zsh user did not get PATH in .zshrc"
+        # shellcheck disable=SC2012  # human-readable failure diagnostic, not parsed.
+        # find -printf is GNU-only and this suite also runs on macOS.
         ls -a "$zhome" | sed 's/^/      /' >&2
     fi
     if [[ ! -f "$zhome/.bashrc" && ! -f "$zhome/.bash_profile" ]]; then

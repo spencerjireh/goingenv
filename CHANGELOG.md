@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-10
+
+### Added
+- **Machine-readable output on every command** - a persistent `--format` flag taking `text` (default), `json` and `porcelain`. In a machine format stdout carries only the payload and all human output moves to stderr, so `goingenv status --format json | jq` works. JSON field names and porcelain column order are a contract; `text` is not stable and should not be parsed
+- `status --format json` reports which configuration file is in force and whether it is the project-local or the per-user one
+- Smoke tests for `internal/tui`, which previously had none
+
+### Fixed
+- **`list --format json` was not pipeable.** The branded header and archive summary were printed to stdout ahead of the JSON, so the one documented machine format could not be consumed by anything
+- **The TUI archive picker listed only the first archive.** Window size never reached the file picker, so its height stayed 0 and every archive after the first was unreachable. On the previous dependency set it listed none at all
+- Errors are printed to stderr rather than stdout, and reported exactly once
+- `curl ... | bash -s -- --help` printed `USAGE: bash [OPTIONS]` and examples like `bash --version v1.3.0`. Under a pipe `$0` is literally `bash`, so every command in the help text was inert if pasted
+- `install.sh` no longer masks the exit status of the `date` call that builds a backup path
+
+### Changed
+- **Minimum Go version is now 1.26** (was 1.24), required by `golang.org/x/crypto` v0.56.0. This affects building from source only; released binaries are unaffected
+- Dependencies updated: bubbletea 0.24 to 1.3, bubbles 0.16 to 0.21, lipgloss 0.8 to 1.1, cobra 1.7 to 1.10, termenv 0.15 to 0.16, x/crypto 0.41 to 0.56, x/term 0.34 to 0.45
+- `list` no longer declares its own `--format` flag, using the persistent one instead. `table` remains accepted as an alias for `text`, and `csv` is still available on `list`
+- Coverage now includes `test/cli` and `test/e2e`, which spawn a compiled binary and previously counted for nothing: 42.8% to 63.4%, with `cmd/goingenv` going from 0% to 100%. No tests were added, that work was simply never measured
+- `shellcheck` runs over `install.sh` and its test suite in `make lint` and CI
+
+### Removed
+- Unused TUI style helpers `GetScreenStyle`, `GetResponsiveWidth`, `RenderWithIcon`, `RenderCard` and the three screen-size style variables only they referenced
+
 ## [1.3.0] - 2026-09-10
 
 ### Added
@@ -127,7 +151,8 @@ go, and promote them to a version section when cutting a release.
 - **Patch (0.0.X)**: Bug fixes, security updates
 - **Prerelease (0.0.0-alpha.1)**: Development versions
 
-[Unreleased]: https://github.com/spencerjireh/goingenv/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/spencerjireh/goingenv/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.4.0
 [1.3.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.3.0
 [1.2.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.2.0
 [1.0.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.0.0

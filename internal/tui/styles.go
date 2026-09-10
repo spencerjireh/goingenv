@@ -100,23 +100,6 @@ var (
 				Foreground(SecondaryColor)
 )
 
-// Layout styles for different screen sizes
-var (
-	// NarrowScreenStyle is used for screens narrower than 80 characters
-	NarrowScreenStyle = lipgloss.NewStyle().
-				Width(80).
-				Padding(1)
-
-	// WideScreenStyle is used for screens wider than 80 characters
-	WideScreenStyle = lipgloss.NewStyle().
-			Width(100).
-			Padding(2)
-
-	// FullWidthStyle takes up the full available width
-	FullWidthStyle = lipgloss.NewStyle().
-			Width(100) // This will be set dynamically
-)
-
 // Specific component styles (borderless)
 var (
 	// PasswordInputStyle customizes password input fields (no border)
@@ -211,40 +194,6 @@ var (
 )
 
 // Helper functions for dynamic styling
-
-// GetScreenStyle returns appropriate style based on screen width
-func GetScreenStyle(width int) lipgloss.Style {
-	if width < 80 {
-		return NarrowScreenStyle.Width(width - 4)
-	} else if width < 120 {
-		return WideScreenStyle.Width(width - 4)
-	}
-	return FullWidthStyle.Width(width - 4)
-}
-
-// GetResponsiveWidth returns appropriate width based on screen size
-func GetResponsiveWidth(screenWidth int, percentage float64) int {
-	width := int(float64(screenWidth) * percentage)
-	if width < 40 {
-		return 40
-	}
-	if width > 120 {
-		return 120
-	}
-	return width
-}
-
-// RenderWithIcon renders text with an icon prefix
-func RenderWithIcon(icon, text string, style lipgloss.Style) string {
-	return style.Render(icon + " " + text)
-}
-
-// RenderCard renders content in a card-like container
-func RenderCard(title, content string, style lipgloss.Style) string {
-	header := HeaderStyle.Render(title)
-	body := lipgloss.NewStyle().MarginLeft(2).Render(content)
-	return style.Render(header + "\n" + body)
-}
 
 // RenderKeyValue renders key-value pairs consistently
 func RenderKeyValue(key, value string) string {

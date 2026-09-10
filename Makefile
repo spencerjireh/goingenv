@@ -77,7 +77,8 @@ uninstall:
 clean:
 	@printf "$(BLUE)Cleaning build artifacts...$(NC)\n"
 	go clean
-	rm -f $(BINARY_NAME) $(BINARY_NAME)-dev coverage.out coverage.html
+	rm -rf $(COVERDIR)
+	rm -f $(BINARY_NAME) $(BINARY_NAME)-dev coverage.out coverage.unit.out coverage.bin.out coverage.html
 	rm -rf dist/ build/
 	@printf "$(GREEN)Clean completed$(NC)\n"
 
@@ -115,6 +116,8 @@ ci-lint:
 	golangci-lint run --config=.golangci.yml
 	@printf "$(BLUE)Linting workflows...$(NC)\n"
 	actionlint
+	@printf "$(BLUE)Linting shell scripts...$(NC)\n"
+	shellcheck $(SHELL_SOURCES)
 	@printf "$(GREEN)Linting passed$(NC)\n"
 
 ci-security:
@@ -170,30 +173,61 @@ test-install:
 
 test-complete: ci-test
 
-# Coverage is measured over the packages that actually produce it. The CLI and
-# E2E suites spawn a separately built binary, so they contribute nothing to a
-# coverage profile no matter how much they exercise -- including them would
-# only make the number look worse than reality.
-COVER_PKGS := ./pkg/...,./internal/...
-COVER_RUN := ./pkg/... ./internal/... ./test/integration/...
+# Coverage spans two mechanisms that have to be merged by hand.
+#
+#   1. The in-process packages -- pkg, internal, test/integration -- produce a
+#      TEXT profile straight from `go test -coverprofile`.
+#   2. test/cli and test/e2e spawn a separately built binary, so they used to
+#      contribute nothing at all however much they exercised. Building that
+#      binary with `go build -cover` and pointing GOCOVERDIR at $(COVERDIR)
+#      makes each subprocess emit BINARY-format data, which
+#      `go tool covdata textfmt` converts into a text profile that can be
+#      concatenated onto (1).
+#
+# Both sides must share a covermode -- atomic, forced by -race on (1) -- or
+# `go tool cover` rejects the result. Coverage is opt-in via
+# GOINGENV_TEST_COVERDIR: with it unset the test harness builds and runs
+# exactly as it always has.
+COVERDIR      := $(CURDIR)/coverage-data
+COVER_PKGS    := ./cmd/...,./internal/...,./pkg/...
+COVER_RUN     := ./pkg/... ./internal/... ./test/integration/...
+COVER_BIN_RUN := ./test/cli/... ./test/e2e/...
 
-test-coverage:
+coverage-collect:
+	rm -rf $(COVERDIR) coverage.out coverage.unit.out coverage.bin.out
+	mkdir -p $(COVERDIR)
 	go test -race -covermode=atomic -coverpkg=$(COVER_PKGS) \
-		-coverprofile=coverage.out $(COVER_RUN)
+		-coverprofile=coverage.unit.out $(COVER_RUN)
+	@# -count=1 is load-bearing: a cached test result never re-runs the
+	@# spawned binary, so $(COVERDIR) would stay empty and coverage would
+	@# silently collapse back to the in-process number. The instrumented
+	@# binary is also slower, hence the longer timeout.
+	GOINGENV_TEST_COVERDIR=$(COVERDIR) go test -count=1 -timeout=10m $(COVER_BIN_RUN)
+	@# Fail loudly rather than quietly reporting a worse number if the
+	@# subprocess plumbing ever breaks -- a dropped -cover flag would
+	@# otherwise regress coverage with CI still green.
+	@test -n "$$(ls -A $(COVERDIR) 2>/dev/null)" || { \
+		printf "$(RED)No coverage data emitted by the spawned binary.$(NC)\n"; \
+		printf "Check that BuildBinary passed -cover and that GOCOVERDIR reached the subprocess.\n"; \
+		exit 1; }
+	go tool covdata textfmt -i=$(COVERDIR) -o=coverage.bin.out
+	@# tail -n +2 strips the second profile's "mode:" line.
+	@{ cat coverage.unit.out; tail -n +2 coverage.bin.out; } > coverage.out
+
+test-coverage: coverage-collect
 	go tool cover -html=coverage.out -o coverage.html
 	@printf "$(GREEN)Coverage report: coverage.html$(NC)\n"
 	@go tool cover -func=coverage.out | tail -1
 
-test-coverage-ci:
-	go test -race -covermode=atomic -coverpkg=$(COVER_PKGS) \
-		-coverprofile=coverage.out $(COVER_RUN)
+test-coverage-ci: coverage-collect
 	@go tool cover -func=coverage.out | tail -1
 
 test-bench:
 	go test -bench=. -benchmem ./...
 
 test-clean:
-	rm -f coverage.out coverage.html
+	rm -rf $(COVERDIR)
+	rm -f coverage.out coverage.unit.out coverage.bin.out coverage.html
 	go clean -testcache
 
 # ---------------------------------------------------------------------------
@@ -207,9 +241,20 @@ fmt:
 vet:
 	go vet ./...
 
+# Enumerated rather than globbed. A glob also picks up build/install.sh -- the
+# gitignored byte-identical copy goreleaser stages for release -- and reports
+# every finding twice. `git ls-files '*.sh'` would exclude it for free but
+# evaluates to empty in a source tarball with no .git, and shellcheck with no
+# arguments reads stdin and hangs.
+SHELL_SOURCES := install.sh test/install/test_install.sh
+
+shellcheck:
+	shellcheck $(SHELL_SOURCES)
+
 lint:
 	golangci-lint run --config=.golangci.yml
 	actionlint
+	shellcheck $(SHELL_SOURCES)
 
 vuln-check:
 	govulncheck ./...
@@ -298,19 +343,20 @@ help:
 	@printf "  test-e2e          End-to-end tests\n"
 	@printf "  test-install      install.sh checksum verification tests\n"
 	@printf "  test-complete     Everything CI runs\n"
-	@printf "  test-coverage     Coverage report (writes coverage.html)\n"
+	@printf "  test-coverage     Coverage report incl. CLI/E2E (writes coverage.html)\n"
 	@printf "  test-bench        Benchmarks\n"
 	@printf "\n"
 	@printf "$(BLUE)Quality$(NC)\n"
 	@printf "  fmt               Format the code\n"
 	@printf "  vet               go vet\n"
-	@printf "  lint              golangci-lint\n"
+	@printf "  lint              golangci-lint, actionlint and shellcheck\n"
+	@printf "  shellcheck        install.sh and its test suite only\n"
 	@printf "  vuln-check        govulncheck\n"
 	@printf "  check             fmt + vet + lint + test\n"
 	@printf "\n"
 	@printf "$(BLUE)CI equivalents$(NC)\n"
 	@printf "  ci-full           Everything CI runs (lint, test, security, release)\n"
-	@printf "  ci-lint           Formatting, vet, tidy, golangci-lint\n"
+	@printf "  ci-lint           Formatting, vet, tidy, golangci-lint, actionlint, shellcheck\n"
 	@printf "  ci-test           The full test suite\n"
 	@printf "  ci-security       govulncheck and gosec\n"
 	@printf "\n"
@@ -334,7 +380,7 @@ help:
         ci-test ci-lint ci-security ci-full \
         release-local release-check \
         test test-unit test-integration test-cli test-e2e test-install \
-        test-complete test-coverage test-coverage-ci test-bench test-clean \
-        fmt vet lint vuln-check deps check \
+        test-complete test-coverage test-coverage-ci coverage-collect test-bench test-clean \
+        fmt vet lint shellcheck vuln-check deps check \
         run tui tui-sandbox tui-watch tui-clean \
         stats help

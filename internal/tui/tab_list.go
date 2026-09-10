@@ -100,6 +100,17 @@ func (t *ListTab) FullHelp() [][]key.Binding {
 }
 
 func (t *ListTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
+	// The archive picker sizes itself from the window size (bubbles
+	// filepicker AutoHeight), and it has to be told before the user opens it
+	// -- the resize almost always arrives while this tab is idle. Routing it
+	// only from the select step left the picker at height 0, listing one
+	// archive however many existed.
+	if sizeMsg, ok := msg.(tea.WindowSizeMsg); ok {
+		var cmd tea.Cmd
+		t.filepicker, cmd = t.filepicker.Update(sizeMsg)
+		return t, cmd
+	}
+
 	switch t.step {
 	case ListStepIdle:
 		return t.updateIdle(msg)
