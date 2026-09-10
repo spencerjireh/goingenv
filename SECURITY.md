@@ -46,9 +46,10 @@ curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.s
 ```
 
 Verification is not optional by default. If the checksum cannot be retrieved,
-the install fails rather than proceeding unverified. To install anyway -- for
-example from a release predating checksum publication -- pass
-`--skip-checksum`, which prints a warning:
+the install fails rather than proceeding unverified. Every published release
+includes `checksums.txt`, so a failure here means a corrupted download, a
+network problem, or a tampered file. `--skip-checksum` exists as an escape
+hatch for constrained environments and prints a warning when used:
 
 ```bash
 curl -sSL .../install.sh | bash -s -- --skip-checksum

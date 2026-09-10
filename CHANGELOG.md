@@ -7,13 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-10
+
+### Fixed
+- **`curl ... | bash` installed nothing.** The installer's "run unless sourced"
+  guard compared `BASH_SOURCE[0]` to `$0`. When bash reads a script from stdin
+  there is no script file, so the comparison failed and `main` never ran: the
+  documented install command printed nothing and exited 0.
+- **PATH was written to the wrong file for zsh users.** The installer selected a
+  shell profile using `$BASH_VERSION`, which is always set inside a bash script,
+  so the zsh branch was unreachable. macOS users got their PATH appended to a
+  bash profile zsh never reads, then "command not found" in the next terminal.
+  Shell detection now uses `$SHELL`.
+- Re-running the installer to upgrade no longer fails in non-interactive mode.
+- `--uninstall` no longer consumes its own script when piped to bash; both of
+  its prompts are now TTY-guarded like the others.
+- The PATH check no longer treats the install directory as an unanchored regex,
+  which could silently skip adding it, and the export is prepended rather than
+  appended so a new install wins over an older copy earlier in PATH.
+- `goingenv init` no longer rewrites the user-level `~/.goingenv.json` on every
+  run; it writes only when no config exists.
+- `-X main.GitCommit` was passed at build time with no corresponding variable,
+  so the linker discarded it silently.
+
+### Added
+- The installer verifies each download's SHA-256 against the release's
+  `checksums.txt` and refuses to install on a mismatch. `--skip-checksum`
+  (`SKIP_CHECKSUM=1`) is the documented escape hatch.
+- `--version` now reports the commit and build time alongside the version.
+- Releases publish SBOMs and a build provenance attestation, verifiable with
+  `gh attestation verify <archive> --repo spencerjireh/goingenv`.
+
+### Changed
+- Releases are built by GoReleaser and gated on the full CI suite; a tag can no
+  longer publish untested code.
+- Minimum Go version for building from source is now 1.24.
+
+
 ### Added
 - **`goingenv init` command** - Required initialization step for each project directory
-- **Brand design system** - New `DESIGN.md` documenting logo, colors, and UI specifications
+- **Brand design system** - `docs/design.md` documenting logo, colors, and UI specifications
 - **CLI output system** - Consistent branded output with prefix indicators (`[●]`, `[+]`, `[!]`, `[x]`, `[>]`, `[?]`, `[-]`, `[~]`)
 - **Relative timestamps** - New `FormatTimeAgo` utility showing "2 hours ago" style times
 - TTY-aware color detection for CLI output
-- **Automatic release system** - Pushes to main branch automatically create stable releases
 - Comprehensive CI/CD pipeline with GitHub Actions
 - Automated release creation with cross-platform binaries
 - Install script for Linux and macOS with platform detection
@@ -21,7 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation split into specialized guides
 - New TUI initialization screen for uninitialized projects
 - Initialization requirement verification tests
-- Semantic version control via commit message flags ([major], [minor], [skip-release])
 
 ### Changed
 - **BREAKING**: All commands now require `goingenv init` to be run first in each project directory
@@ -38,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated documentation to reflect initialization requirement
 
 ### Security
-- Added security scanning with gosec and nancy
+- Added security scanning with gosec and govulncheck
 - Implemented checksum verification for releases
 - Enhanced install script with security features
 - Improved initialization workflow prevents accidental directory creation
@@ -66,8 +101,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Release Process
 
-This changelog is automatically enhanced by GitHub Actions during releases.
-Manual entries can be added to the [Unreleased] section above.
+Per-release notes are generated on GitHub from commit history by GoReleaser.
+This file records notable changes by hand; add entries to [Unreleased] as you
+go, and promote them to a version section when cutting a release.
 
 ### Version Types
 
@@ -75,3 +111,7 @@ Manual entries can be added to the [Unreleased] section above.
 - **Minor (0.X.0)**: New features, backward compatible
 - **Patch (0.0.X)**: Bug fixes, security updates
 - **Prerelease (0.0.0-alpha.1)**: Development versions
+
+[Unreleased]: https://github.com/spencerjireh/goingenv/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.2.0
+[1.0.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.0.0

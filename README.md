@@ -48,14 +48,16 @@ curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.s
 
 **Install a specific version:**
 
+Replace `<tag>` with a tag from the [releases page](https://github.com/spencerjireh/goingenv/releases):
+
 ```bash
-curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version v1.1.1
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version <tag>
 ```
 
 **Install from release asset (version-locked):**
 
 ```bash
-curl -sSL https://github.com/spencerjireh/goingenv/releases/download/v1.1.1/install.sh | bash
+curl -sSL https://github.com/spencerjireh/goingenv/releases/download/<tag>/install.sh | bash
 ```
 
 **Upgrade and cleanup old installations:**
