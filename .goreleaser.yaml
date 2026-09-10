@@ -87,10 +87,13 @@ release:
   header: |
     ## Installation
 
-    **Quick Install (Always Latest):**
+    **Quick Install (latest stable release):**
     ```bash
     curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
     ```
+    Note: this installs the latest *stable* release, which is not this page if
+    you are reading a prerelease. Use one of the commands below to install
+    exactly `{{ .Tag }}`.
 
     **Install This Exact Version:**
     ```bash

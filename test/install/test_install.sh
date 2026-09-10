@@ -296,9 +296,9 @@ e2e_tests() {
         sed 's/^/      /' "$tmp/skip.log" >&2
     fi
 
-    # 4. Missing checksums.txt must fail closed.
+    # 5. Missing checksums.txt must fail closed.
     rm -rf "$tmp/bin"
-    rm -f "$rel/checksums.txt"
+    mv "$rel/checksums.txt" "$tmp/checksums.txt.bak"
     GOINGENV_DOWNLOAD_BASE="$base" bash "$INSTALL_SH" \
         --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
         >"$tmp/nochecksums.log" 2>&1
@@ -307,6 +307,109 @@ e2e_tests() {
         ok "install fails closed when checksums.txt is unavailable"
     else
         bad "install proceeded without a checksums.txt (status=$status)"
+    fi
+
+    # Restore a correct manifest for the remaining cases.
+    printf '%s  %s\n' "$digest" "$archive_name" > "$rel/checksums.txt"
+
+    # ---------------------------------------------------------------------
+    # The piped path: `curl ... | bash`. This is the ONLY way users are told
+    # to install, and until this test existed nothing exercised it -- every
+    # case above runs the script as a FILE. Reading from stdin leaves
+    # BASH_SOURCE empty, which silently stopped main() from running at all.
+    # ---------------------------------------------------------------------
+
+    # 6. Piped --help must produce output.
+    local help_out
+    help_out=$(cat "$INSTALL_SH" | bash -s -- --help 2>&1)
+    if [[ -n "$help_out" ]] && grep -q "USAGE" <<<"$help_out"; then
+        ok "piped --help produces the usage text"
+    else
+        bad "piped --help produced no usage output (main did not run)"
+    fi
+
+    # 7. A full install through the pipe.
+    rm -rf "$tmp/bin"
+    cat "$INSTALL_SH" | GOINGENV_DOWNLOAD_BASE="$base" bash -s -- \
+        --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
+        >"$tmp/piped.log" 2>&1
+    status=$?
+    if [[ $status -eq 0 && -x "$tmp/bin/goingenv" ]]; then
+        ok "piped install (curl | bash) installs the binary"
+    else
+        bad "piped install failed (status=$status)"
+        sed 's/^/      /' "$tmp/piped.log" >&2
+    fi
+
+    # 8. Re-running the piped install upgrades in place rather than failing.
+    #    This used to exit 1 in non-interactive mode, so upgrading via the
+    #    documented one-liner was broken by default.
+    cat "$INSTALL_SH" | GOINGENV_DOWNLOAD_BASE="$base" bash -s -- \
+        --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell \
+        >"$tmp/rerun.log" 2>&1
+    status=$?
+    if [[ $status -eq 0 && -x "$tmp/bin/goingenv" ]]; then
+        ok "re-running the piped install succeeds (upgrade path)"
+    else
+        bad "re-running the piped install failed (status=$status)"
+        sed 's/^/      /' "$tmp/rerun.log" >&2
+    fi
+
+    # ---------------------------------------------------------------------
+    # PATH setup. Every case above passes --skip-shell, so add_to_path had no
+    # coverage at all -- which is how it shipped selecting the profile from
+    # $BASH_VERSION (always set inside this bash script) and writing zsh
+    # users' PATH into a bash profile they never read.
+    # ---------------------------------------------------------------------
+
+    # 9. A zsh user's PATH goes to .zshrc, not .bashrc.
+    local zhome="$tmp/zhome"
+    rm -rf "$zhome" "$tmp/zbin"; mkdir -p "$zhome"
+    cat "$INSTALL_SH" | env HOME="$zhome" SHELL=/bin/zsh \
+        GOINGENV_DOWNLOAD_BASE="$base" bash -s -- \
+        --version "$version" --dir "$tmp/zbin" --no-sudo --yes --force \
+        >"$tmp/zsh.log" 2>&1
+    if [[ -f "$zhome/.zshrc" ]] && grep -q "$tmp/zbin" "$zhome/.zshrc"; then
+        ok "zsh user gets PATH written to .zshrc"
+    else
+        bad "zsh user did not get PATH in .zshrc"
+        ls -a "$zhome" | sed 's/^/      /' >&2
+    fi
+    if [[ ! -f "$zhome/.bashrc" && ! -f "$zhome/.bash_profile" ]]; then
+        ok "zsh user gets no stray bash profile"
+    else
+        bad "a bash profile was created for a zsh user"
+    fi
+
+    # 10. A bash user still gets a bash profile.
+    local bhome="$tmp/bhome"
+    rm -rf "$bhome" "$tmp/bbin"; mkdir -p "$bhome"
+    cat "$INSTALL_SH" | env HOME="$bhome" SHELL=/bin/bash \
+        GOINGENV_DOWNLOAD_BASE="$base" bash -s -- \
+        --version "$version" --dir "$tmp/bbin" --no-sudo --yes --force \
+        >"$tmp/bash.log" 2>&1
+    if grep -qs "$tmp/bbin" "$bhome/.bashrc" "$bhome/.bash_profile"; then
+        ok "bash user gets PATH written to a bash profile"
+    else
+        bad "bash user did not get PATH in a bash profile"
+    fi
+    if [[ ! -f "$zhome/.zshrc.bak" && ! -f "$bhome/.zshrc" ]]; then
+        ok "bash user gets no stray .zshrc"
+    else
+        bad "a .zshrc was created for a bash user"
+    fi
+
+    # 11. Running PATH setup twice must not duplicate the export line.
+    cat "$INSTALL_SH" | env HOME="$zhome" SHELL=/bin/zsh \
+        GOINGENV_DOWNLOAD_BASE="$base" bash -s -- \
+        --version "$version" --dir "$tmp/zbin" --no-sudo --yes --force \
+        >"$tmp/zsh2.log" 2>&1
+    local count
+    count=$(grep -c "Added by GoingEnv installer" "$zhome/.zshrc" || true)
+    if [[ "$count" -eq 1 ]]; then
+        ok "re-running does not duplicate the PATH export"
+    else
+        bad "PATH export appears $count times in .zshrc"
     fi
 }
 

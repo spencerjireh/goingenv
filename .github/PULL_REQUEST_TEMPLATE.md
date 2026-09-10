@@ -48,14 +48,21 @@ Or run individual checks:
 
 ---
 
-## Pipeline Stages
+## CI
 
-The unified CI/CD pipeline runs in three stages:
+`ci.yml` runs these in parallel, gated on a path filter, with a final `ci-ok`
+job that always reports:
 
-1. **VALIDATE** (runs on all PRs): Lint → Test → Security → Build Verification
-2. **BUILD** (main branch only): Cross-platform release builds
-3. **RELEASE** (main branch + `[release]` flag): GitHub Release creation
+```
+changes ──┬──> lint ───────────────┐
+          ├──> test (matrix) ──────┤
+          ├──> security ───────────┼──> ci-ok
+          └──> test-install-script ┘
+```
 
 **All tests must pass** - No test failures are ignored.
 
-See [Development Guide](../docs/development.md#cicd-pipeline) for detailed pipeline architecture.
+Releases are triggered by pushing a `v*` tag, not by merging to main.
+`release.yml` calls `ci.yml` first, so a tag cannot publish untested code.
+
+See [Development Guide](../docs/development.md#cicd-pipeline) for details.

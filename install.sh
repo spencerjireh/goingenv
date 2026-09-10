@@ -318,42 +318,81 @@ is_in_path() {
     esac
 }
 
+# Determine the user's login shell.
+#
+# NOT $BASH_VERSION: this script is itself bash, so that variable is always set
+# and the zsh branch below was unreachable. macOS has defaulted to zsh since
+# Catalina, so every macOS user had their PATH written to a bash profile that
+# zsh never reads -- a successful install followed by "command not found".
+detect_user_shell() {
+    local shell_path="${SHELL:-}"
+
+    # SHELL can be unset (some containers, cron); fall back to the parent process.
+    if [[ -z "$shell_path" ]] && command_exists ps; then
+        shell_path=$(ps -p "$PPID" -o comm= 2>/dev/null | sed 's/^-//' || true)
+    fi
+
+    basename "${shell_path:-sh}"
+}
+
 # Add directory to shell profile
 add_to_path() {
     local dir="$1"
     local shell_profile
+    local user_shell
+    user_shell=$(detect_user_shell)
 
-    # Determine shell profile file
-    if [[ -n "$BASH_VERSION" ]]; then
-        if [[ -f "$HOME/.bash_profile" ]]; then
-            shell_profile="$HOME/.bash_profile"
-        else
-            shell_profile="$HOME/.bashrc"
-        fi
-    elif [[ -n "$ZSH_VERSION" ]]; then
-        shell_profile="$HOME/.zshrc"
-    elif [[ "$SHELL" == */fish ]]; then
-        # Fish shell uses a different method
-        if command_exists fish; then
-            fish -c "set -U fish_user_paths $dir \$fish_user_paths"
-            log "Added $dir to fish PATH"
-            return 0
-        fi
-    else
-        shell_profile="$HOME/.profile"
-    fi
+    debug "Detected user shell: $user_shell"
 
-    # Add to profile if not already present
-    if [[ -f "$shell_profile" ]] && grep -q "$dir" "$shell_profile"; then
+    case "$user_shell" in
+        zsh)
+            # ZDOTDIR relocates zsh's config when set.
+            shell_profile="${ZDOTDIR:-$HOME}/.zshrc"
+            ;;
+        bash)
+            # macOS bash reads .bash_profile for login shells; Linux uses .bashrc.
+            if [[ -f "$HOME/.bash_profile" ]]; then
+                shell_profile="$HOME/.bash_profile"
+            else
+                shell_profile="$HOME/.bashrc"
+            fi
+            ;;
+        fish)
+            if command_exists fish; then
+                fish -c "set -U fish_user_paths $dir \$fish_user_paths"
+                log "Added $dir to fish PATH"
+                return 0
+            fi
+            shell_profile="$HOME/.config/fish/config.fish"
+            mkdir -p "$(dirname "$shell_profile")"
+            ;;
+        *)
+            shell_profile="$HOME/.profile"
+            ;;
+    esac
+
+    # Match our own export line exactly. A bare `grep -q "$dir"` treated the
+    # directory as an unanchored regex, so any pre-existing mention of
+    # .local/bin anywhere in the profile made this return early -- leaving the
+    # user with no PATH entry and no warning either.
+    local export_line="export PATH=\"$dir:\$PATH\""
+    if [[ -f "$shell_profile" ]] && grep -qF "$export_line" "$shell_profile"; then
         debug "$dir already in $shell_profile"
+        log "$dir is already configured in $shell_profile"
+        warn "Restart your shell or run: source $shell_profile"
         return 0
     fi
 
-    echo "" >> "$shell_profile"
-    echo "# Added by GoingEnv installer" >> "$shell_profile"
-    echo "export PATH=\"\$PATH:$dir\"" >> "$shell_profile"
+    {
+        echo ""
+        echo "# Added by GoingEnv installer"
+        echo "$export_line"
+    } >> "$shell_profile"
+
+    # Prepend rather than append, so a freshly installed binary wins over an
+    # older copy already earlier in PATH.
     log "Added $dir to PATH in $shell_profile"
-    warn "Please restart your shell or run: source $shell_profile"
+    warn "Restart your shell or run: source $shell_profile"
 }
 
 # Check for existing installation
@@ -391,16 +430,16 @@ check_existing_installation() {
                     exit 0
                 fi
             else
-                echo -e "${RED}Error: Cannot prompt for confirmation in non-interactive mode.${NC}"
-                echo "Use --force to skip confirmation, --yes to auto-confirm, or run interactively."
-                echo ""
-                echo "Examples:"
-                echo "  # Force installation without confirmation:"
-                echo "  curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version $VERSION --force"
-                echo ""
-                echo "  # Auto-confirm installation:"
-                echo "  curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version $VERSION --yes"
-                exit 1
+                # No TTY: this is the documented `curl ... | bash` path, and
+                # re-running it to upgrade is the most common repeat action.
+                # Refusing here made upgrades fail by default. Replacing the
+                # binary is idempotent and a backup is taken below, so proceed
+                # and say what is happening.
+                if [[ "$current_version" == "$VERSION" ]]; then
+                    log "Reinstalling $VERSION over the existing installation"
+                else
+                    log "Upgrading $current_version -> $VERSION"
+                fi
             fi
         else
             if [[ "$FORCE" == "1" ]]; then
@@ -832,12 +871,21 @@ uninstall() {
         echo "  $installation ($version)"
     done
 
+    # The [[ -t 0 ]] guard matters: with no TTY -- `curl ... | bash -s -- --uninstall`
+    # -- bash is reading the script from stdin, so `read` would consume the next
+    # line of the script itself and branch on it.
     if [[ "$YES" != "1" ]]; then
-        echo ""
-        read -p "Do you want to remove all installations? [y/N]: " -r
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log "Uninstall cancelled by user"
-            exit 0
+        if [[ -t 0 ]]; then
+            echo ""
+            read -p "Do you want to remove all installations? [y/N]: " -r
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log "Uninstall cancelled by user"
+                exit 0
+            fi
+        else
+            error "Refusing to uninstall without confirmation in non-interactive mode."
+            echo "Re-run with --yes to confirm, or run interactively."
+            exit 1
         fi
     fi
 
@@ -852,14 +900,19 @@ uninstall() {
 
     # Ask about removing user data
     if [[ "$YES" != "1" && -d "$HOME/.goingenv" ]]; then
-        echo ""
-        read -p "Do you want to remove user data (~/.goingenv)? [y/N]: " -r
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            if rm -rf "$HOME/.goingenv"; then
-                log "Removed user data directory"
-            else
-                error "Failed to remove user data directory"
+        if [[ -t 0 ]]; then
+            echo ""
+            read -p "Do you want to remove user data (~/.goingenv)? [y/N]: " -r
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                if rm -rf "$HOME/.goingenv"; then
+                    log "Removed user data directory"
+                else
+                    error "Failed to remove user data directory"
+                fi
             fi
+        else
+            # Keep data by default when we cannot ask -- the conservative choice.
+            log "Keeping user data in ~/.goingenv (remove it manually if unwanted)"
         fi
     fi
 
@@ -893,7 +946,7 @@ CLEANUP OPTIONS (opt-in):
     --cleanup-all           Do both (cleanup backups and duplicates)
 
 ENVIRONMENT VARIABLES:
-    GOINGENV_VERSION    Version to install (e.g., v1.0.0)
+    GOINGENV_VERSION    Version to install (e.g., v1.2.0)
     INSTALL_DIR         Custom installation directory
     YES                 Skip prompts (1 to enable)
     NO_SUDO             Avoid system-wide installation (1 to enable)
@@ -912,7 +965,7 @@ EXAMPLES:
     $0
 
     # Install specific version
-    $0 --version v1.0.0
+    $0 --version v1.2.0
 
     # Install to custom directory
     $0 --dir /opt/bin
@@ -1046,8 +1099,13 @@ main() {
 # Handle errors and cleanup
 trap 'error "Installation failed"; exit 1' ERR
 
-# Run main function, unless this file was sourced (the test suite sources it
-# to exercise individual functions).
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# Run main, unless this file was sourced (the test suite sources it to exercise
+# individual functions).
+#
+# The empty check is load-bearing: when bash reads a script from stdin -- which
+# is exactly what `curl ... | bash` does -- there is no script file, so
+# BASH_SOURCE is an empty array while $0 is "bash". Comparing the two alone
+# meant main never ran and the documented install silently did nothing.
+if [[ -z "${BASH_SOURCE[0]:-}" || "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
