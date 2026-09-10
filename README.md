@@ -59,15 +59,16 @@ goingenv unpack -f <archive> # Decrypt and restore
 goingenv list -f <archive>   # Inspect an archive without extracting
 ```
 
-```
- Your project                     .goingenv/
- ────────────                     ──────────
- .env                  pack
- .env.local           ─────>      archive-20260910-124213.enc
- .env.production       AES-256    (one encrypted file, safe to commit)
-
-                       unpack
-                      <─────      Teammate clones and restores
+```mermaid
+flowchart LR
+  subgraph project["Your project"]
+    files[".env<br>.env.local<br>.env.production"]
+  end
+  subgraph store[".goingenv/"]
+    archive["archive-&lt;timestamp&gt;.enc<br>one encrypted file, safe to commit"]
+  end
+  files -->|"pack · AES-256-GCM"| archive
+  archive -->|"unpack"| files
 ```
 
 The password is never stored. Share it through a channel that is not the repository.
