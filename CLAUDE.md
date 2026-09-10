@@ -119,11 +119,18 @@ repo's pinned rules.
 - CLI tests in `test/cli/` and E2E tests in `test/e2e/` -- both spawn the
   compiled binary as a subprocess, so `-race` would only instrument the
   harness. They *do* contribute coverage: see the Coverage section below
-- TUI tests in `internal/tui/` -- smoke tests only, driving the root model the
-  way the runtime does. Deliberately no golden files or exact-layout
-  assertions: those break on every lipgloss release rather than surviving one
+- TUI tests in `internal/tui/` -- smoke tests driving the root model the way
+  the runtime does. Deliberately no golden files or exact-layout assertions:
+  those break on every lipgloss release rather than surviving one. They cover
+  eleven of the twelve items in the manual checklist in `docs/development.md`;
+  the twelfth (alt-screen restore) is terminal state and stays manual
 - Install script tests in `test/install/test_install.sh` -- covers checksum
   verification against a local fixture release
+- Website tests in `test/site/` -- parse `public/index.html` into a DOM and
+  assert structure, accessibility and the claims the page makes. The site has
+  no build step, so these are the only check between an edit and production.
+  Every test fails loudly when it finds no subjects, rather than passing
+  vacuously
 - Shared helpers in `test/testutils/`:
   - `CreateTempGoingEnvDir()` -- required setup for archive tests (creates `.goingenv/` dir)
   - `CreateTempEnvFiles()` -- generates temp dir with sample .env files and excludable dirs
@@ -202,6 +209,10 @@ Shell scripts are linted too: `make shellcheck` covers `install.sh` and
 The file list is enumerated in `SHELL_SOURCES` rather than globbed, so the
 gitignored `build/install.sh` copy is not double-reported.
 
+`make link-check` runs lychee over `LINK_SOURCES` (the markdown files and
+`public/index.html`). It is **not** in `make lint` or `make ci-lint`: it needs
+the network, so it runs on a schedule instead.
+
 Tool versions are pinned in `mise.toml`, so `make lint` runs exactly the
 golangci-lint and shellcheck versions CI runs.
 
@@ -209,11 +220,24 @@ golangci-lint and shellcheck versions CI runs.
 
 `ci.yml` runs `lint`, `test` (Ubuntu/macOS x minimum/stable Go -- the minimum
 leg is pinned to the version `go.mod` declares, with `GOTOOLCHAIN=local` so it
-genuinely tests that floor), `security` and
-`test-install-script` in parallel, gated on a `changes` path filter, with a
-final `ci-ok` job that always reports. **`ci-ok` is the job branch protection
-should require** -- the others are skipped on docs-only changes and would never
-report.
+genuinely tests that floor), `security`, `test-install-script` and `web` in
+parallel, gated on a `changes` path filter, with a final `ci-ok` job that
+always reports. **`ci-ok` is the job branch protection should require** -- the
+others are skipped on docs-only changes and would never report.
+
+The `changes` filter has two outputs. `code` excludes markdown, `docs/`,
+`public/` and `assets/`; `web` selects `public/`, `assets/`, `test/site/` and
+`pages.yml`. Both are forced true on a tag build. Adding a filter means adding
+an output, forwarding it in the `decide` step **and** adding the job to
+`ci-ok`'s `needs` -- miss the last and the job reports without gating anything.
+
+`pages.yml` runs `make test-site` before uploading. It triggers on push to
+`main` rather than through `ci-ok`, so without that step a push that bypassed a
+PR would deploy unchecked.
+
+`link-check.yml` runs `make link-check` weekly. It is not a pull request check
+on purpose: a dead external link is unrelated to the change under review, and a
+rate-limiting host must not block a merge.
 
 `release.yml` calls `ci.yml` via `workflow_call`, so a tag cannot publish
 untested code.

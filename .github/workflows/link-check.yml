@@ -1,0 +1,41 @@
+name: Link check
+
+# Link rot is real but has nothing to do with whatever change is under review,
+# and a slow or rate-limiting host must not block a merge. So this runs on a
+# schedule rather than as a pull request check. A failed scheduled run notifies
+# the repository owner.
+on:
+  schedule:
+    # Mondays, 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: link-check
+  cancel-in-progress: true
+
+jobs:
+  lychee:
+    name: Check links
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    # lychee is pinned in mise.toml, so this runs the same version as
+    # `make link-check` locally.
+    - name: Set up tools
+      uses: jdx/mise-action@v4
+      with:
+        cache: true
+
+    # lychee reads GITHUB_TOKEN to authenticate against the GitHub API. Without
+    # it, the repository's own links exhaust the unauthenticated rate limit and
+    # the run fails for a reason that has nothing to do with link rot.
+    - name: Check links
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: make link-check
