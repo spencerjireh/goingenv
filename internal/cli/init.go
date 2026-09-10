@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"goingenv/internal/config"
+	"goingenv/pkg/types"
 )
 
 // newInitCommand creates the init command
@@ -23,17 +24,47 @@ This command will:
 Encrypted archives (.enc files) can be safely committed to git for sharing
 with team members.
 
+With --project-config, a .goingenv/config.json is written as well. Commit it to
+pin how this repository is scanned: when present it takes precedence over
+~/.goingenv.json, so everyone packing this project gets the same file set
+regardless of their personal configuration.
+
 This must be run before using any other goingenv commands.
 
 Examples:
-  goingenv init`,
+  goingenv init
+  goingenv init --project-config   # also pin scan rules for this repository`,
 		RunE: runInitCommand,
 	}
 
 	cmd.Flags().BoolP("force", "f", false, "Force initialization even if already initialized")
+	cmd.Flags().Bool("project-config", false, "Also write a committed .goingenv/config.json pinning this project's scan rules")
 	cmd.Flags().BoolP("verbose", "v", false, "Show detailed information")
 
 	return cmd
+}
+
+// maybeWriteProjectConfig writes .goingenv/config.json when the caller asked
+// for one and none exists yet, reporting whether it created the file.
+//
+// An existing project config is never overwritten -- it is a committed file, so
+// --force is about re-initializing the directory, not discarding the
+// repository's pinned scan rules.
+func maybeWriteProjectConfig(enabled bool, cfg *types.Config) (bool, error) {
+	if !enabled {
+		return false, nil
+	}
+
+	projMgr := config.NewManagerWithPath(config.ProjectConfigPath())
+	if projMgr.Exists() {
+		return false, nil
+	}
+
+	if saveErr := projMgr.Save(cfg); saveErr != nil {
+		return false, saveErr
+	}
+
+	return true, nil
 }
 
 // runInitCommand executes the init command
@@ -41,6 +72,11 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 	out := NewOutput(appVersion)
 
 	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		return err
+	}
+
+	projectConfig, err := cmd.Flags().GetBool("project-config")
 	if err != nil {
 		return err
 	}
@@ -87,8 +123,17 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	wroteProjectConfig, projErr := maybeWriteProjectConfig(projectConfig, cfg)
+	if projErr != nil {
+		out.Error("Failed to save project configuration")
+		return fmt.Errorf("project config save failed: %w", projErr)
+	}
+
 	if verbose {
 		out.Success("Created .goingenv/")
+		if wroteProjectConfig {
+			out.Success("Created " + config.ProjectConfigPath())
+		}
 		out.Blank()
 		out.Hint("Next steps:")
 		out.Indent("Run 'goingenv status' to see detected files")

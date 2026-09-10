@@ -179,7 +179,7 @@ func (t *StatusTab) buildRightColumn() string {
 	b.WriteString("\n" + RenderSectionHeader("Configuration") + "\n")
 	fmt.Fprintf(&b, "  Scan depth:    %d\n", t.app.Config.DefaultDepth)
 	fmt.Fprintf(&b, "  Max file size: %s\n", utils.FormatSize(t.app.Config.MaxFileSize))
-	fmt.Fprintf(&b, "  Config:        %s\n", config.GetGoingEnvDir())
+	fmt.Fprintf(&b, "  Config:        %s\n", config.ResolveConfigPath())
 
 	return b.String()
 }
