@@ -71,13 +71,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Lets anyone verify the archives were built by this workflow from this
-    # repo: gh attestation verify <archive> --repo spencerjireh/goingenv
-    - name: Attest build provenance
-      uses: actions/attest-build-provenance@v4
-      with:
-        subject-path: dist/*.tar.gz
-
     # Guards the contract install.sh depends on. Cheap, and failing here is far
     # better than publishing an artifact nobody can install.
     - name: Verify release artifact contract
@@ -106,3 +99,16 @@ jobs:
         done
 
         exit $fail
+
+    # Last, because GoReleaser has already published by this point: a failure
+    # here leaves a released-but-unattested version rather than blocking the
+    # release. That is still worth failing the run over -- provenance is a
+    # supply-chain guarantee, not decoration -- but the artifact contract above
+    # must be checked first, since it is what protects users who install.
+    #
+    # If this fails on a GitHub service error, the remedy is to re-run once
+    # their attestation API recovers; the published release is unaffected.
+    - name: Attest build provenance
+      uses: actions/attest-build-provenance@v4
+      with:
+        subject-path: dist/*.tar.gz
