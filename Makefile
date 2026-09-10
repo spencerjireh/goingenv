@@ -115,6 +115,8 @@ ci-lint:
 	golangci-lint run --config=.golangci.yml
 	@printf "$(BLUE)Linting workflows...$(NC)\n"
 	actionlint
+	@printf "$(BLUE)Linting shell scripts...$(NC)\n"
+	shellcheck $(SHELL_SOURCES)
 	@printf "$(GREEN)Linting passed$(NC)\n"
 
 ci-security:
@@ -207,9 +209,20 @@ fmt:
 vet:
 	go vet ./...
 
+# Enumerated rather than globbed. A glob also picks up build/install.sh -- the
+# gitignored byte-identical copy goreleaser stages for release -- and reports
+# every finding twice. `git ls-files '*.sh'` would exclude it for free but
+# evaluates to empty in a source tarball with no .git, and shellcheck with no
+# arguments reads stdin and hangs.
+SHELL_SOURCES := install.sh test/install/test_install.sh
+
+shellcheck:
+	shellcheck $(SHELL_SOURCES)
+
 lint:
 	golangci-lint run --config=.golangci.yml
 	actionlint
+	shellcheck $(SHELL_SOURCES)
 
 vuln-check:
 	govulncheck ./...
@@ -304,13 +317,14 @@ help:
 	@printf "$(BLUE)Quality$(NC)\n"
 	@printf "  fmt               Format the code\n"
 	@printf "  vet               go vet\n"
-	@printf "  lint              golangci-lint\n"
+	@printf "  lint              golangci-lint, actionlint and shellcheck\n"
+	@printf "  shellcheck        install.sh and its test suite only\n"
 	@printf "  vuln-check        govulncheck\n"
 	@printf "  check             fmt + vet + lint + test\n"
 	@printf "\n"
 	@printf "$(BLUE)CI equivalents$(NC)\n"
 	@printf "  ci-full           Everything CI runs (lint, test, security, release)\n"
-	@printf "  ci-lint           Formatting, vet, tidy, golangci-lint\n"
+	@printf "  ci-lint           Formatting, vet, tidy, golangci-lint, actionlint, shellcheck\n"
 	@printf "  ci-test           The full test suite\n"
 	@printf "  ci-security       govulncheck and gosec\n"
 	@printf "\n"
@@ -335,6 +349,6 @@ help:
         release-local release-check \
         test test-unit test-integration test-cli test-e2e test-install \
         test-complete test-coverage test-coverage-ci test-bench test-clean \
-        fmt vet lint vuln-check deps check \
+        fmt vet lint shellcheck vuln-check deps check \
         run tui tui-sandbox tui-watch tui-clean \
         stats help

@@ -110,6 +110,13 @@ jobs:
     - name: Lint workflows
       run: actionlint
 
+    # shellcheck is already on PATH here -- actionlint shells out to it for
+    # `run:` blocks. This puts the repo's own shell scripts under the same
+    # linter, which until now they were not. Delegates to the Makefile so the
+    # file list is defined in one place.
+    - name: Lint shell scripts
+      run: make shellcheck
+
   test:
     name: Test (${{ matrix.os }}, Go ${{ matrix.go-version }})
     runs-on: ${{ matrix.os }}

@@ -481,8 +481,13 @@ check_existing_installation() {
             fi
         fi
 
-        # Backup existing binary
-        local backup_path="${binary_path}.backup.$(date +%Y%m%d_%H%M%S)"
+        # Backup existing binary.
+        #
+        # Declared and assigned separately (SC2155): `local x=$(cmd)` takes
+        # local's exit status, not the command's, so a failing date would go
+        # unnoticed under set -e and yield a path ending in ".backup.".
+        local backup_path
+        backup_path="${binary_path}.backup.$(date +%Y%m%d_%H%M%S)"
         if cp "$binary_path" "$backup_path"; then
             log "Backed up existing binary to $backup_path"
         else
@@ -628,7 +633,14 @@ cleanup_backups() {
     local backup_pattern="${install_dir}/${BINARY_NAME}.backup.*"
     local backups=()
 
-    # Find all backup files and sort by modification time (newest first)
+    # Find all backup files and sort by modification time (newest first).
+    #
+    # SC2086: $backup_pattern is a GLOB and has to stay unquoted so the shell
+    # expands it into a file list -- quoted, ls looks for one file literally
+    # named "goingenv.backup.*". A `for f in ...` loop would avoid the
+    # directive but lose ls -t's mtime ordering, which the retention logic
+    # below depends on.
+    # shellcheck disable=SC2086
     while IFS= read -r backup; do
         [[ -f "$backup" ]] && backups+=("$backup")
     done < <(ls -t $backup_pattern 2>/dev/null || true)
