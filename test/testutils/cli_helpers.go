@@ -187,8 +187,18 @@ func runBinaryCommand(t *testing.T, binaryPath, workDir string, env map[string]s
 		cmd.Dir = workDir
 	}
 
-	// Set up environment
+	// Set up environment.
+	//
+	// HOME is redirected at a per-run temp directory so the binary reads and
+	// writes an isolated ~/.goingenv.json instead of the developer's real one.
+	// Without this every CLI and E2E test is implicitly parameterised by
+	// whatever config happens to be on the machine.
+	//
+	// os/exec dedupes Cmd.Env and keeps the LAST occurrence of each key, so
+	// appending after os.Environ() is a genuine override -- no manual dedupe
+	// needed. Caller-supplied env is appended last so it can still win.
 	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "HOME="+TestHome(t))
 	for k, v := range env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
@@ -376,11 +386,38 @@ func InitializeTestDirWithBinary(t *testing.T, binaryPath, dir string) {
 	}
 }
 
-// CleanupBinary removes the cached binary (call in TestMain cleanup)
+// CleanupBinary removes the cached binary and the shared fake home directory.
+// Call it from TestMain, after m.Run() -- it does not reset the sync.Once
+// guards, so it is only safe once every test has finished.
 func CleanupBinary() {
 	if binaryPath != "" {
 		_ = os.RemoveAll(filepath.Dir(binaryPath))
 	}
+	if testHomeDir != "" {
+		_ = os.RemoveAll(testHomeDir)
+	}
+}
+
+var (
+	testHomeDir  string
+	testHomeOnce sync.Once
+)
+
+// TestHome returns a process-wide temporary directory used as $HOME for every
+// binary spawned by these helpers, so tests never read or write the real
+// ~/.goingenv.json. Pass an explicit HOME in the env map to override it.
+func TestHome(t *testing.T) string {
+	t.Helper()
+
+	testHomeOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "goingenv-test-home-*")
+		if err != nil {
+			t.Fatalf("Failed to create test home directory: %v", err)
+		}
+		testHomeDir = dir
+	})
+
+	return testHomeDir
 }
 
 // SkipIfShort skips the test if running in short mode

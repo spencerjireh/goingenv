@@ -305,7 +305,7 @@ func (t *ListTab) renderPasswordEntry() string {
 	var b strings.Builder
 	b.WriteString("\n")
 	b.WriteString(RenderSectionHeader("  List archive contents") + "\n\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", t.selectedArchive))
+	fmt.Fprintf(&b, "  %s\n\n", t.selectedArchive)
 	b.WriteString("  Password: " + t.textInput.View() + "\n")
 
 	if t.errorMsg != "" {

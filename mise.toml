@@ -10,7 +10,7 @@ go = "1.27.1"
 
 # Linting and security. golangci-lint is pinned to the version CI used before
 # this file existed -- bump deliberately, since new minor versions add linters.
-golangci-lint = "2.8.0"
+golangci-lint = "2.13.2"
 "go:github.com/securego/gosec/v2/cmd/gosec" = "2.29.0"
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
 

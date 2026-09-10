@@ -78,10 +78,13 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("configuration failed: %w", err)
 	}
 
-	// Save default config if it was newly created
-	if err := configMgr.Save(cfg); err != nil {
-		out.Error("Failed to save configuration")
-		return fmt.Errorf("save failed: %w", err)
+	// Only write the user-level config when it does not exist yet. Saving
+	// unconditionally rewrote the user's global config on every `init`.
+	if !configMgr.Exists() {
+		if err := configMgr.Save(cfg); err != nil {
+			out.Error("Failed to save configuration")
+			return fmt.Errorf("save failed: %w", err)
+		}
 	}
 
 	if verbose {

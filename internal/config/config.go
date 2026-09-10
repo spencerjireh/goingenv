@@ -27,6 +27,18 @@ func NewManager() *Manager {
 	}
 }
 
+// NewManagerWithPath creates a configuration manager backed by an explicit
+// path. Tests use this to avoid touching the real user home directory.
+func NewManagerWithPath(path string) *Manager {
+	return &Manager{configPath: path}
+}
+
+// Exists reports whether a configuration file is already present.
+func (m *Manager) Exists() bool {
+	_, err := os.Stat(m.configPath)
+	return err == nil
+}
+
 // Load loads configuration from file or returns default if not found
 func (m *Manager) Load() (*types.Config, error) {
 	if _, err := os.Stat(m.configPath); os.IsNotExist(err) {
@@ -57,9 +69,14 @@ func (m *Manager) Save(config *types.Config) error {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	// Ensure config directory exists with restrictive permissions
-	if err := os.MkdirAll(filepath.Dir(m.configPath), 0o700); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+	// Create the containing directory only when it is actually missing.
+	// MkdirAll would be a no-op on an existing directory, but being explicit
+	// keeps this from reading like it re-permissions the user's home.
+	dir := filepath.Dir(m.configPath)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return fmt.Errorf("failed to create config directory: %w", err)
+		}
 	}
 
 	data, err := json.MarshalIndent(config, "", "  ")

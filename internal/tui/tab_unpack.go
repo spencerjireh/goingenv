@@ -296,7 +296,7 @@ func (t *UnpackTab) renderPasswordEntry() string {
 	var b strings.Builder
 	b.WriteString("\n")
 	b.WriteString(RenderSectionHeader("  Unpacking archive") + "\n\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", t.selectedArchive))
+	fmt.Fprintf(&b, "  %s\n\n", t.selectedArchive)
 	b.WriteString("  Password: " + t.textInput.View() + "\n")
 
 	if t.errorMsg != "" {

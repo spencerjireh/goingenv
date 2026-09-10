@@ -121,7 +121,7 @@ func (t *StatusTab) buildLeftColumn() string {
 	// Directory
 	cwd, _ := os.Getwd() //nolint:errcheck
 	b.WriteString(RenderSectionHeader("Directory") + "\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", cwd))
+	fmt.Fprintf(&b, "  %s\n\n", cwd)
 
 	// Environment files
 	scanOpts := types.ScanOptions{
@@ -133,15 +133,15 @@ func (t *StatusTab) buildLeftColumn() string {
 		b.WriteString(RenderSectionHeader(fmt.Sprintf("Environment Files (%d)", len(files))) + "\n")
 		for i, file := range files {
 			if i < 15 {
-				b.WriteString(fmt.Sprintf("  %s\n", file.RelativePath))
+				fmt.Fprintf(&b, "  %s\n", file.RelativePath)
 			} else if i == 15 {
-				b.WriteString(fmt.Sprintf("  ... and %d more\n", len(files)-15))
+				fmt.Fprintf(&b, "  ... and %d more\n", len(files)-15)
 				break
 			}
 		}
 
 		stats := scanner.GetFileStats(files)
-		b.WriteString(fmt.Sprintf("\n  Total: %s\n", utils.FormatSize(stats.TotalSize)))
+		fmt.Fprintf(&b, "\n  Total: %s\n", utils.FormatSize(stats.TotalSize))
 	} else {
 		b.WriteString(RenderSectionHeader("Environment Files") + "\n")
 		b.WriteString(MutedStyle.Render("  No environment files detected") + "\n")
@@ -167,19 +167,19 @@ func (t *StatusTab) buildRightColumn() string {
 		for _, archive := range archives {
 			info, statErr := os.Stat(archive)
 			if statErr == nil {
-				b.WriteString(fmt.Sprintf("  %s  %s  %s\n",
+				fmt.Fprintf(&b, "  %s  %s  %s\n",
 					filepath.Base(archive),
 					utils.FormatSize(info.Size()),
-					utils.FormatTimeAgo(info.ModTime())))
+					utils.FormatTimeAgo(info.ModTime()))
 			}
 		}
 	}
 
 	// Config info
 	b.WriteString("\n" + RenderSectionHeader("Configuration") + "\n")
-	b.WriteString(fmt.Sprintf("  Scan depth:    %d\n", t.app.Config.DefaultDepth))
-	b.WriteString(fmt.Sprintf("  Max file size: %s\n", utils.FormatSize(t.app.Config.MaxFileSize)))
-	b.WriteString(fmt.Sprintf("  Config:        %s\n", config.GetGoingEnvDir()))
+	fmt.Fprintf(&b, "  Scan depth:    %d\n", t.app.Config.DefaultDepth)
+	fmt.Fprintf(&b, "  Max file size: %s\n", utils.FormatSize(t.app.Config.MaxFileSize))
+	fmt.Fprintf(&b, "  Config:        %s\n", config.GetGoingEnvDir())
 
 	return b.String()
 }

@@ -310,7 +310,7 @@ func (t *PackTab) renderReview(width, height int) string {
 	b.WriteString("\n")
 	b.WriteString(RenderSectionHeader(fmt.Sprintf("  Found %d environment files", len(t.scannedFiles))) + "\n\n")
 	for _, file := range t.scannedFiles {
-		b.WriteString(fmt.Sprintf("  %s  %s\n", file.RelativePath, MutedStyle.Render(utils.FormatSize(file.Size))))
+		fmt.Fprintf(&b, "  %s  %s\n", file.RelativePath, MutedStyle.Render(utils.FormatSize(file.Size)))
 	}
 	b.WriteString("\n  " + MutedStyle.Render("Press Enter to continue, Esc to cancel"))
 

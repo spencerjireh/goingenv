@@ -39,9 +39,13 @@ ci-test:
 	@echo -e "$(BLUE)Running unit tests with race detection...$(NC)"
 	go test -race -timeout=5m ./pkg/... ./internal/...
 	@echo -e "$(BLUE)Running integration tests...$(NC)"
-	go test -v -timeout=2m ./test/integration/...
+	go test -v -race -timeout=3m ./test/integration/...
+	@echo -e "$(BLUE)Running CLI tests...$(NC)"
+	go test -v -timeout=5m ./test/cli/...
 	@echo -e "$(BLUE)Running e2e tests...$(NC)"
 	go test -v -timeout=5m ./test/e2e/...
+	@echo -e "$(BLUE)Running install script tests...$(NC)"
+	bash test/install/test_install.sh
 	@echo -e "$(GREEN)All tests passed$(NC)"
 
 ci-lint:
@@ -89,105 +93,18 @@ release-local: clean
 	@printf "$(GREEN)Local release built in dist/ (version: $(VERSION))$(NC)\n"
 	@ls -la dist/
 
-# Automated functional testing workflow
-test-functional:
-	@echo -e "$(BLUE)Running functional test workflow...$(NC)"
-	@echo "Step 1: Building application..."
-	@rm -rf test_env_files_functional
-	@make build > /dev/null
-	@echo -e "$(GREEN)[OK]$(NC) Build completed"
-
-	@echo "Step 2: Creating test environment files..."
-	@mkdir -p test_env_files_functional
-	@echo "TEST=value" > test_env_files_functional/.env
-	@echo "LOCAL=test" > test_env_files_functional/.env.local
-	@echo "DEV=true" > test_env_files_functional/.env.development
-	@echo "CUSTOM=value" > test_env_files_functional/.env.custom
-	@echo "BACKUP=old" > test_env_files_functional/.env.backup
-	@echo "NEW=format" > test_env_files_functional/.env.new_format
-	@echo "IGNORED=value" > test_env_files_functional/regular.txt
-	@echo -e "$(GREEN)[OK]$(NC) Test files created (6 .env files + 1 regular file)"
-	
-	@echo "Step 3: Backing up existing config..."
-	@if [ -f ~/.goingenv.json ]; then \
-		cp ~/.goingenv.json ~/.goingenv.json.test-backup; \
-		echo -e "$(YELLOW)!$(NC) Existing config backed up"; \
-	else \
-		echo -e "$(GREEN)[OK]$(NC) No existing config to backup"; \
-	fi
-	
-	@echo "Step 4: Testing all-inclusive pattern (no config)..."
-	@rm -f ~/.goingenv.json
-	@cd test_env_files_functional && ../goingenv init > /dev/null 2>&1
-	@files_detected=$$(cd test_env_files_functional && ../goingenv status . | grep -c "\.env"); \
-	if [ "$$files_detected" -eq 6 ]; then \
-		echo -e "$(GREEN)[OK]$(NC) All-inclusive pattern working ($$files_detected/6 files detected)"; \
-	else \
-		echo -e "$(RED)[FAIL]$(NC) All-inclusive pattern failed ($$files_detected/6 files detected)"; \
-		exit 1; \
-	fi
-	
-	@echo "Step 5: Testing exclusion patterns..."
-	@echo '{"default_depth": 10, "env_patterns": ["\\\\.env.*"], "env_exclude_patterns": ["\\\\.env\\\\.backup$$"], "exclude_patterns": ["node_modules/", "\\\\.git/"], "max_file_size": 10485760}' > ~/.goingenv.json
-	@files_detected=$$(cd test_env_files_functional && ../goingenv status . | grep -c "\.env"); \
-	if [ "$$files_detected" -eq 5 ]; then \
-		echo -e "$(GREEN)[OK]$(NC) Exclusion patterns working ($$files_detected/5 files detected, .env.backup excluded)"; \
-	else \
-		echo -e "$(RED)[FAIL]$(NC) Exclusion patterns failed ($$files_detected/5 files detected)"; \
-		exit 1; \
-	fi
-	
-	@echo "Step 6: Testing pack/unpack functionality..."
-	@echo "Step 6a: Initializing goingenv in test directory..."
-	@cd test_env_files_functional && ../goingenv init > /dev/null 2>&1
-	@echo -e "$(GREEN)[OK]$(NC) goingenv initialized in test directory"
-	@cd test_env_files_functional && echo "test123" | ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null 2>&1 || TEST_PASSWORD="test123" ../goingenv pack --password-env TEST_PASSWORD -o functional-test.enc > /dev/null
-	@if [ -f test_env_files_functional/.goingenv/functional-test.enc ]; then \
-		echo -e "$(GREEN)[OK]$(NC) Pack functionality working"; \
-	else \
-		echo -e "$(RED)[FAIL]$(NC) Pack functionality failed"; \
-		exit 1; \
-	fi
-	@mkdir -p test_env_files_functional/unpacked
-	@cd test_env_files_functional && TEST_PASSWORD="test123" ../goingenv unpack -f .goingenv/functional-test.enc --password-env TEST_PASSWORD -t unpacked > /dev/null
-	@unpacked_files=$$(find test_env_files_functional/unpacked -name ".env*" | wc -l); \
-	if [ "$$unpacked_files" -eq 5 ]; then \
-		echo -e "$(GREEN)[OK]$(NC) Unpack functionality working ($$unpacked_files files restored)"; \
-	else \
-		echo -e "$(RED)[FAIL]$(NC) Unpack functionality failed ($$unpacked_files files restored)"; \
-		exit 1; \
-	fi
-	
-	@echo "Step 7: Cleaning up..."
-	@rm -rf test_env_files_functional
-	@rm -f ~/.goingenv.json
-	@if [ -f ~/.goingenv.json.test-backup ]; then \
-		mv ~/.goingenv.json.test-backup ~/.goingenv.json; \
-		echo -e "$(YELLOW)!$(NC) Original config restored"; \
-	else \
-		echo -e "$(GREEN)[OK]$(NC) Cleanup completed"; \
-	fi
-	
-	@echo ""
-	@echo -e "$(GREEN)All functional tests passed!$(NC)"
-	@echo "[OK] All-inclusive .env.* pattern detection"
-	@echo "[OK] Exclusion pattern functionality"
-	@echo "[OK] Pack/unpack workflow"
-	@echo "[OK] Configuration management"
-
-# Complete test suite including functional tests
+# Complete test suite
 test-complete: clean
 	@echo -e "$(BLUE)Running complete test suite...$(NC)"
 	@echo ""
 	@make ci-test
 	@echo ""
-	@make test-functional
-	@echo ""
 	@echo -e "$(GREEN)Complete test suite passed!$(NC)"
 	@echo "[OK] Unit tests with race detection"
 	@echo "[OK] Integration tests"
+	@echo "[OK] CLI tests"
 	@echo "[OK] E2E tests"
-	@echo "[OK] Functional workflow tests"
+	@echo "[OK] Install script tests"
 
 # Clean build artifacts
 clean:
@@ -531,8 +448,7 @@ help:
 	@echo " test-unit      - Run unit tests only"
 	@echo " test-integration - Run integration tests only"
 	@echo " test-e2e       - Run e2e tests only"
-	@echo " test-functional - Run automated functional workflow tests"
-	@echo " test-complete  - Run complete test suite (unit + integration + e2e + functional)"
+	@echo " test-complete  - Run complete test suite (unit + integration + cli + e2e + install)"
 	@echo " test-coverage  - Run tests with coverage report"
 	@echo " test-coverage-ci - Run tests with coverage for CI"
 	@echo " test-watch     - Run tests in watch mode (requires air)"
@@ -582,7 +498,7 @@ help:
 
 # Phony targets
 .PHONY: build dev tui tui-sandbox tui-watch tui-clean clean deps fmt vet lint test test-unit test-integration test-e2e \
-        test-functional test-complete test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
+        test-complete test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
         generate-mocks bench check check-full release-local \
         install uninstall run run-pack run-unpack run-list run-status \
         demo clean-demo demo-scenario dev-server dev-watch watch watch-run profile \

@@ -66,7 +66,7 @@ jobs:
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v9
       with:
-        version: v2.8
+        version: v2.13
         args: --config=.golangci.yml
 
   test:
@@ -107,11 +107,18 @@ jobs:
     - name: Run unit tests
       run: go test -v -race -timeout=5m ./pkg/... ./internal/...
 
+    # -race matters here: this package drives scanner/archive/crypto in
+    # process, so its concurrency tests are actually instrumented. The CLI and
+    # E2E packages spawn a separately built binary, so -race would only cover
+    # their harness -- not worth doubling their runtime for.
     - name: Run integration tests
-      run: go test -v -timeout=2m ./test/integration/...
+      run: go test -v -race -timeout=3m ./test/integration/...
 
-    - name: Run functional tests
-      run: make test-functional
+    - name: Run CLI tests
+      run: go test -v -timeout=5m ./test/cli/...
+
+    - name: Run E2E tests
+      run: go test -v -timeout=5m ./test/e2e/...
 
   security:
     name: Security Scan
