@@ -80,6 +80,11 @@ jobs:
     - name: Run golangci-lint
       run: golangci-lint run --config=.golangci.yml
 
+    # A workflow that fails to parse surfaces as a run with zero jobs and no
+    # usable error message, so catch it here instead.
+    - name: Lint workflows
+      run: actionlint
+
   test:
     name: Test (${{ matrix.os }}, Go ${{ matrix.go-version }})
     runs-on: ${{ matrix.os }}
@@ -248,7 +253,7 @@ jobs:
     steps:
     - name: Check job results
       run: |
-        results='${{ join(needs.*.result, " ") }}'
+        results='${{ join(needs.*.result, ' ') }}'
         echo "Job results: $results"
         for r in $results; do
           if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then

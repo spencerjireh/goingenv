@@ -19,5 +19,9 @@ golangci-lint = "2.13.2"
 goreleaser = "2.18.1"
 syft = "1.51.1"
 
+# Workflow linting. GitHub only reports an unparseable workflow as a failed run
+# with zero jobs and no usable error, so this needs to run before pushing.
+actionlint = "1.7.12"
+
 # Hot-reload for TUI development (make tui-watch).
 air = "1.67.4"

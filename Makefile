@@ -1,6 +1,7 @@
 # goingenv Makefile
 #
-# Tool versions (go, golangci-lint, gosec, govulncheck, goreleaser, air) are
+# Tool versions (go, golangci-lint, actionlint, gosec, govulncheck, goreleaser,
+# syft, air) are
 # pinned in mise.toml. Run `make bootstrap` once, then everything here uses
 # exactly the versions CI uses.
 
@@ -113,6 +114,8 @@ ci-lint:
 	go mod tidy -diff
 	@printf "$(BLUE)Running golangci-lint...$(NC)\n"
 	golangci-lint run --config=.golangci.yml
+	@printf "$(BLUE)Linting workflows...$(NC)\n"
+	actionlint
 	@printf "$(GREEN)Linting passed$(NC)\n"
 
 ci-security:
@@ -207,6 +210,7 @@ vet:
 
 lint:
 	golangci-lint run --config=.golangci.yml
+	actionlint
 
 vuln-check:
 	govulncheck ./...
