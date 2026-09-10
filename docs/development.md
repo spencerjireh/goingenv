@@ -118,7 +118,7 @@ goingenv/
 | `internal/archive/` | Tar compression, delegates encryption to crypto |
 | `internal/crypto/` | AES-256-GCM with PBKDF2 key derivation |
 | `internal/scanner/` | Regex pattern matching with depth-limited `filepath.Walk` |
-| `internal/config/` | Loads/saves `~/.goingenv.json` |
+| `internal/config/` | Resolves and loads project/user config, saves to `~/.goingenv.json` |
 | `pkg/types/` | Interfaces (`Scanner`, `Archiver`, `Cryptor`, `ConfigManager`) + func-field mocks |
 
 ## Building
@@ -154,6 +154,10 @@ Tests never touch your real `~/.goingenv.json`: every spawned binary runs with
 `HOME` pointed at a temp directory. If you add a test that drives the config
 manager in process, use `config.NewManagerWithPath()` rather than
 `config.NewManager()`.
+
+Config resolution is relative to the working directory, so a `.goingenv/config.json`
+in a test's temp project outranks the temp `HOME`. Tests that need to exercise
+user-level config must not leave a project config behind.
 
 ### Test Structure
 

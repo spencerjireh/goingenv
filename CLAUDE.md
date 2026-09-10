@@ -60,7 +60,7 @@ All major services are defined as interfaces enabling mock-based testing:
 - `Scanner` -- file detection via regex patterns with depth-limited `filepath.Walk`
 - `Archiver` -- tar-based pack/unpack, delegates encryption to Cryptor
 - `Cryptor` -- AES-256-GCM encrypt/decrypt (salt + nonce + ciphertext binary format)
-- `ConfigManager` -- loads/saves `~/.goingenv.json`, checks project initialization
+- `ConfigManager` -- loads from `.goingenv/config.json` or `~/.goingenv.json` (first wins), always saves to `~/.goingenv.json`, checks project initialization
 
 Mock implementations live in `pkg/types/mocks.go` (func-field based, not generated).
 
@@ -92,11 +92,24 @@ loop.
 
 ### Configuration
 
-Two config locations:
-- **Project-level**: `.goingenv/` directory (created by `goingenv init`), contains `.gitignore` and encrypted archives
-- **User-level**: `~/.goingenv.json` stores scan patterns, exclusions, max depth, max file size
+Three config locations:
+- **Project directory**: `.goingenv/` (created by `goingenv init`), contains `.gitignore` and encrypted archives
+- **Project-level config**: `.goingenv/config.json`, optional and committed. Written only by `goingenv init --project-config`. When present it wins.
+- **User-level config**: `~/.goingenv.json` stores scan patterns, exclusions, max depth, max file size
 
-`config.IsInitialized()` checks for `.goingenv/.gitignore` existence to determine if a project is set up.
+`config.ResolveConfigPath()` picks the first that exists, project before user.
+Precedence is whole-file, not per-key -- the two are never merged -- so a repo
+that ships a project config fully determines its own scan behaviour. Keys absent
+from the chosen file fall back to the built-in defaults (`Load` unmarshals over
+`GetDefault()`), so a partial config is valid.
+
+**Reads and writes target different files.** `Manager` holds a `loadPath` (the
+resolved winner) and a `savePath` (always `~/.goingenv.json`). Nothing writes to
+the committed project config implicitly -- `init --project-config` does it
+explicitly through `NewManagerWithPath`. This is why `init` never disturbs a
+repo's pinned rules.
+
+`config.IsInitialized()` checks for `.goingenv/.gitignore` existence to determine if a project is set up -- deliberately not `config.json`, which is optional.
 
 ## Testing
 
@@ -117,7 +130,8 @@ Two config locations:
 - **Every spawned binary runs with `HOME` pointed at a temp directory**
   (`testutils.TestHome`), so tests never read or write the real
   `~/.goingenv.json`. Pass an explicit `HOME` in the env map to override it --
-  `test/cli/config_test.go` does this to test user-level config behaviour.
+  `test/cli/config_test.go` does this to test user-level config behaviour. Note
+  a `.goingenv/config.json` in the test's working directory outranks that HOME.
   Anything driving `config.NewManager()` in process should use
   `config.NewManagerWithPath()` instead.
 - Run `make ci-full` before pushing
