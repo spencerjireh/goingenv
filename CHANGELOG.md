@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Project-local configuration** - a committed `.goingenv/config.json` now takes precedence over `~/.goingenv.json`, so a repository can pin how it is scanned regardless of each developer's personal config. Precedence is whole-file; the two are never merged
+- **`goingenv init --project-config`** - writes that project config. Opt-in, and never overwrites an existing one, since it is a committed file
+- **`goingenv pack --env-exclude`** - exclude env files by base filename, for example `--env-exclude '\.example$'`. Previously `EnvExcludePatterns` was reachable only by hand-editing the config file
+
+### Changed
+- A config file may now omit keys; anything absent falls back to the built-in default instead of failing validation as a zero value
+- `--exclude` help text now says it matches directory paths, not filenames, which is what it has always done
+- `status` and the TUI now show the config file actually in use, rather than the `.goingenv` directory path
+
+### Removed
+- `config.EnsureGoingEnvDir` - unused, and duplicated `InitializeProject`
+
 ## [1.2.0] - 2026-09-10
 
 ### Fixed

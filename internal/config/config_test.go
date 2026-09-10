@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -19,9 +20,8 @@ func TestManager_Load_NoConfigFile(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create manager with non-existent config path
-	manager := &Manager{
-		configPath: filepath.Join(tmpDir, ".goingenv.json"),
-	}
+	cfgPath := filepath.Join(tmpDir, ".goingenv.json")
+	manager := &Manager{loadPath: cfgPath, savePath: cfgPath}
 
 	config, err := manager.Load()
 	if err != nil {
@@ -70,7 +70,7 @@ func TestManager_Load_ValidConfig(t *testing.T) {
 		t.Fatalf("Failed to write config file: %v", writeErr)
 	}
 
-	manager := &Manager{configPath: configPath}
+	manager := &Manager{loadPath: configPath, savePath: configPath}
 	config, err := manager.Load()
 	if err != nil {
 		t.Errorf("Load() error = %v", err)
@@ -99,7 +99,7 @@ func TestManager_Load_InvalidJSON(t *testing.T) {
 		t.Fatalf("Failed to write config file: %v", writeErr)
 	}
 
-	manager := &Manager{configPath: configPath}
+	manager := &Manager{loadPath: configPath, savePath: configPath}
 	_, err = manager.Load()
 	if err == nil {
 		t.Error("Load() should fail for invalid JSON")
@@ -132,7 +132,7 @@ func TestManager_Load_InvalidConfig(t *testing.T) {
 		t.Fatalf("Failed to write config file: %v", writeErr)
 	}
 
-	manager := &Manager{configPath: configPath}
+	manager := &Manager{loadPath: configPath, savePath: configPath}
 	_, err = manager.Load()
 	if err == nil {
 		t.Error("Load() should fail for invalid config")
@@ -148,7 +148,7 @@ func TestManager_Save(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	configPath := filepath.Join(tmpDir, ".goingenv.json")
-	manager := &Manager{configPath: configPath}
+	manager := &Manager{loadPath: configPath, savePath: configPath}
 
 	config := &types.Config{
 		DefaultDepth:       3,
@@ -197,7 +197,7 @@ func TestManager_Save_InvalidConfig(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	configPath := filepath.Join(tmpDir, ".goingenv.json")
-	manager := &Manager{configPath: configPath}
+	manager := &Manager{loadPath: configPath, savePath: configPath}
 
 	invalidConfig := &types.Config{
 		DefaultDepth: 0, // Invalid
@@ -328,57 +328,6 @@ func TestGetGoingEnvDir(t *testing.T) {
 	dir := GetGoingEnvDir()
 	if dir != ".goingenv" {
 		t.Errorf("GetGoingEnvDir() = %s, want .goingenv", dir)
-	}
-}
-
-func TestEnsureGoingEnvDir(t *testing.T) {
-	// Save current directory
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-
-	// Create temp directory and change to it
-	tmpDir, err := os.MkdirTemp("", "goingenv-config-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(originalDir) //nolint:errcheck // cleanup in defer
-		_ = os.RemoveAll(tmpDir)
-	}()
-
-	if chdirErr := os.Chdir(tmpDir); chdirErr != nil {
-		t.Fatalf("Failed to change directory: %v", chdirErr)
-	}
-
-	err = EnsureGoingEnvDir()
-	if err != nil {
-		t.Errorf("EnsureGoingEnvDir() error = %v", err)
-	}
-
-	// Verify directory exists
-	goingenvDir := filepath.Join(tmpDir, ".goingenv")
-	info, err := os.Stat(goingenvDir)
-	if os.IsNotExist(err) {
-		t.Error(".goingenv directory was not created")
-	}
-
-	// Verify directory permissions are restrictive
-	if info.Mode().Perm() != 0o700 {
-		t.Errorf("Directory permissions = %v, want 0o700", info.Mode().Perm())
-	}
-
-	// Verify .gitignore was created
-	gitignorePath := filepath.Join(goingenvDir, ".gitignore")
-	info, err = os.Stat(gitignorePath)
-	if os.IsNotExist(err) {
-		t.Error(".gitignore was not created")
-	}
-
-	// Verify .gitignore permissions are restrictive
-	if info.Mode().Perm() != 0o600 {
-		t.Errorf(".gitignore permissions = %v, want 0o600", info.Mode().Perm())
 	}
 }
 
@@ -534,7 +483,140 @@ func TestNewManager(t *testing.T) {
 		t.Fatal("NewManager() returned nil")
 	}
 
-	if manager.configPath == "" {
-		t.Error("configPath should not be empty")
+	if manager.loadPath == "" {
+		t.Error("loadPath should not be empty")
+	}
+	if manager.savePath == "" {
+		t.Error("savePath should not be empty")
+	}
+}
+
+// writeConfigJSON marshals cfg to path, failing the test on any error.
+func writeConfigJSON(t *testing.T, path string, cfg *types.Config) {
+	t.Helper()
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal config: %v", err)
+	}
+	if mkErr := os.MkdirAll(filepath.Dir(path), 0o700); mkErr != nil {
+		t.Fatalf("Failed to create dir for %s: %v", path, mkErr)
+	}
+	if writeErr := os.WriteFile(path, data, 0o600); writeErr != nil {
+		t.Fatalf("Failed to write %s: %v", path, writeErr)
+	}
+}
+
+func TestResolveConfigPath_PrefersProjectConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Chdir(t.TempDir())
+
+	// With no project config, resolution falls back to the home file.
+	if got, want := ResolveConfigPath(), filepath.Join(home, ConfigFileName); got != want {
+		t.Errorf("ResolveConfigPath() = %s, want %s", got, want)
+	}
+
+	writeConfigJSON(t, ProjectConfigPath(), NewManager().GetDefault())
+
+	if got, want := ResolveConfigPath(), ProjectConfigPath(); got != want {
+		t.Errorf("ResolveConfigPath() = %s, want project config %s", got, want)
+	}
+}
+
+func TestNewManager_ProjectConfigWinsOverHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Chdir(t.TempDir())
+
+	homeCfg := NewManager().GetDefault()
+	homeCfg.DefaultDepth = 3
+	writeConfigJSON(t, filepath.Join(home, ConfigFileName), homeCfg)
+
+	projectCfg := NewManager().GetDefault()
+	projectCfg.DefaultDepth = 9
+	writeConfigJSON(t, ProjectConfigPath(), projectCfg)
+
+	loaded, err := NewManager().Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if loaded.DefaultDepth != 9 {
+		t.Errorf("DefaultDepth = %d, want 9 (the project config)", loaded.DefaultDepth)
+	}
+
+	// Removing the project config must fall back to the home config, proving
+	// the precedence is resolved per manager rather than cached globally.
+	if rmErr := os.Remove(ProjectConfigPath()); rmErr != nil {
+		t.Fatalf("Failed to remove project config: %v", rmErr)
+	}
+
+	loaded, err = NewManager().Load()
+	if err != nil {
+		t.Fatalf("Load() after removal error = %v", err)
+	}
+	if loaded.DefaultDepth != 3 {
+		t.Errorf("DefaultDepth = %d, want 3 (the home config)", loaded.DefaultDepth)
+	}
+}
+
+func TestNewManager_SaveTargetsHomeEvenWithProjectConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Chdir(t.TempDir())
+
+	projectCfg := NewManager().GetDefault()
+	projectCfg.DefaultDepth = 9
+	writeConfigJSON(t, ProjectConfigPath(), projectCfg)
+
+	before, err := os.ReadFile(ProjectConfigPath())
+	if err != nil {
+		t.Fatalf("Failed to read project config: %v", err)
+	}
+
+	toSave := NewManager().GetDefault()
+	toSave.DefaultDepth = 5
+	if saveErr := NewManager().Save(toSave); saveErr != nil {
+		t.Fatalf("Save() error = %v", saveErr)
+	}
+
+	// The committed project config must be untouched.
+	after, err := os.ReadFile(ProjectConfigPath())
+	if err != nil {
+		t.Fatalf("Failed to re-read project config: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Error("Save() modified the project config; it must only ever write the home config")
+	}
+
+	// And the home config must have been written.
+	if _, statErr := os.Stat(filepath.Join(home, ConfigFileName)); statErr != nil {
+		t.Errorf("Save() did not write the home config: %v", statErr)
+	}
+}
+
+func TestManager_Load_PartialConfigFallsBackToDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, ".goingenv.json")
+
+	// Only one key set. Every other field must keep its built-in default
+	// rather than unmarshalling to a zero value and failing validation.
+	if writeErr := os.WriteFile(cfgPath, []byte(`{"env_patterns": ["\\.env$"]}`), 0o600); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
+	}
+
+	manager := &Manager{loadPath: cfgPath, savePath: cfgPath}
+	cfg, err := manager.Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v, want a partial config to load cleanly", err)
+	}
+
+	if len(cfg.EnvPatterns) != 1 || cfg.EnvPatterns[0] != `\.env$` {
+		t.Errorf("EnvPatterns = %v, want the value from the file", cfg.EnvPatterns)
+	}
+	if cfg.DefaultDepth != 10 {
+		t.Errorf("DefaultDepth = %d, want the default 10", cfg.DefaultDepth)
+	}
+	if cfg.MaxFileSize != DefaultMaxFileSize {
+		t.Errorf("MaxFileSize = %d, want the default %d", cfg.MaxFileSize, DefaultMaxFileSize)
 	}
 }

@@ -28,7 +28,7 @@ Secure your `.env` files with AES-256-GCM encryption. No dependencies, no config
 
 | | |
 |---|---|
-| **Smart Scanning** | Auto-detects `.env`, `.env.local`, `.env.production`, and more |
+| **Smart Scanning** | Matches any filename containing `.env` by default, at any depth |
 | **AES-256-GCM** | Industry-standard encryption with PBKDF2 key derivation |
 | **Interactive TUI** | Beautiful terminal interface with real-time preview |
 | **CLI Mode** | Script-friendly commands for CI/CD and automation |
@@ -113,6 +113,7 @@ goingenv list -f backup      # View archive contents
 |---|---|
 | `goingenv` | Launch interactive TUI |
 | `goingenv init` | Initialize goingenv in project |
+| `goingenv init --project-config` | Also write a committed `.goingenv/config.json` |
 | `goingenv pack` | Encrypt and archive env files |
 | `goingenv unpack` | Decrypt and restore files |
 | `goingenv list` | View archive contents |
@@ -138,7 +139,29 @@ unset GOINGENV_PASSWORD
 
 ## File Patterns Detected
 
-`.env`, `.env.local`, `.env.development`, `.env.staging`, `.env.production`, `.env.test`, and custom patterns via `~/.goingenv.json`.
+Patterns are **regular expressions matched against the base filename**, not globs, and they are unanchored. The default is a single pattern, `\.env.*`, so anything containing `.env` matches -- `.env`, `.env.local`, `.env.production`, `.env.backup`, `.env.custom`, and also `myapp.environment`.
+
+That includes `.env.example`. Use `--env-exclude` to keep a file out of an archive by name:
+
+```bash
+goingenv pack --env-exclude '\.example$'
+```
+
+Note that `--exclude` is a different thing: it is matched against directory paths, so it can skip a whole tree but never an individual file.
+
+### Configuration
+
+Settings are read from the first of these that exists:
+
+| Location | Purpose |
+|---|---|
+| `.goingenv/config.json` | Project-local. Commit it to pin how this repository is scanned. |
+| `~/.goingenv.json` | Your personal default, used for projects that do not pin one. |
+| built-in defaults | Used when neither file exists. |
+
+The first file found wins outright -- the two are not merged -- so checking out a repository determines its file set regardless of personal configuration. Keys omitted from a file fall back to the built-in default, so a config may set only what it cares about.
+
+`goingenv init --project-config` writes a project config for you. Saves always go to `~/.goingenv.json`; nothing writes to the committed project file implicitly.
 
 ## Documentation
 

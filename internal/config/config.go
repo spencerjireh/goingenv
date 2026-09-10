@@ -11,53 +11,73 @@ import (
 )
 
 const (
-	ConfigFileName     = ".goingenv.json"
-	DefaultMaxFileSize = 10 * 1024 * 1024 // 10MB
+	ConfigFileName        = ".goingenv.json"
+	ProjectConfigFileName = "config.json"
+	DefaultMaxFileSize    = 10 * 1024 * 1024 // 10MB
 )
 
-// Manager implements the ConfigManager interface
+// Manager implements the ConfigManager interface.
+//
+// Reads and writes deliberately target different files. A project may ship its
+// own committed .goingenv/config.json to pin how this repository is scanned, and
+// that file wins on load — but it is checked in, so nothing may write to it
+// implicitly. Saves always go to the user's own ~/.goingenv.json.
 type Manager struct {
-	configPath string
+	loadPath string
+	savePath string
 }
 
 // NewManager creates a new configuration manager
 func NewManager() *Manager {
 	return &Manager{
-		configPath: getConfigPath(),
+		loadPath: ResolveConfigPath(),
+		savePath: homeConfigPath(),
 	}
 }
 
 // NewManagerWithPath creates a configuration manager backed by an explicit
-// path. Tests use this to avoid touching the real user home directory.
+// path, used for both loading and saving. Tests use this to avoid touching the
+// real user home directory, and 'init --project-config' uses it to write a
+// project config explicitly.
 func NewManagerWithPath(path string) *Manager {
-	return &Manager{configPath: path}
+	return &Manager{loadPath: path, savePath: path}
 }
 
-// Exists reports whether a configuration file is already present.
+// LoadPath reports the file this manager reads configuration from.
+func (m *Manager) LoadPath() string {
+	return m.loadPath
+}
+
+// Exists reports whether a configuration file is already present at the path
+// this manager would write to.
 func (m *Manager) Exists() bool {
-	_, err := os.Stat(m.configPath)
+	_, err := os.Stat(m.savePath)
 	return err == nil
 }
 
-// Load loads configuration from file or returns default if not found
+// Load loads configuration from file or returns default if not found.
+//
+// Keys absent from the file keep their built-in default, so a config may set
+// only what it cares about. Without that, a file containing just env_patterns
+// would unmarshal DefaultDepth as 0 and fail validation.
 func (m *Manager) Load() (*types.Config, error) {
-	if _, err := os.Stat(m.configPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(m.loadPath); os.IsNotExist(statErr) {
 		return m.GetDefault(), nil
 	}
 
-	data, err := os.ReadFile(m.configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+	data, readErr := os.ReadFile(m.loadPath)
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read config file %s: %w", m.loadPath, readErr)
 	}
 
-	var config types.Config
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	config := *m.GetDefault()
+	if parseErr := json.Unmarshal(data, &config); parseErr != nil {
+		return nil, fmt.Errorf("failed to parse config file %s: %w", m.loadPath, parseErr)
 	}
 
 	// Validate loaded config
-	if err := m.Validate(&config); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
+	if validateErr := m.Validate(&config); validateErr != nil {
+		return nil, fmt.Errorf("invalid configuration in %s: %w", m.loadPath, validateErr)
 	}
 
 	return &config, nil
@@ -72,7 +92,7 @@ func (m *Manager) Save(config *types.Config) error {
 	// Create the containing directory only when it is actually missing.
 	// MkdirAll would be a no-op on an existing directory, but being explicit
 	// keeps this from reading like it re-permissions the user's home.
-	dir := filepath.Dir(m.configPath)
+	dir := filepath.Dir(m.savePath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return fmt.Errorf("failed to create config directory: %w", err)
@@ -84,7 +104,7 @@ func (m *Manager) Save(config *types.Config) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(m.configPath, data, 0o600); err != nil {
+	if err := os.WriteFile(m.savePath, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -150,8 +170,8 @@ func GetGoingEnvDir() string {
 	return ".goingenv"
 }
 
-// GetConfigPath returns the configuration file path
-func getConfigPath() string {
+// homeConfigPath returns the per-user configuration file path.
+func homeConfigPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ConfigFileName
@@ -159,23 +179,24 @@ func getConfigPath() string {
 	return filepath.Join(home, ConfigFileName)
 }
 
-// EnsureGoingEnvDir ensures the .goingenv directory exists
-func EnsureGoingEnvDir() error {
-	dir := GetGoingEnvDir()
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("failed to create .goingenv directory: %w", err)
-	}
+// ProjectConfigPath returns the project-local configuration file path, relative
+// to the current working directory.
+func ProjectConfigPath() string {
+	return filepath.Join(GetGoingEnvDir(), ProjectConfigFileName)
+}
 
-	// Create .gitignore if it doesn't exist
-	gitignorePath := filepath.Join(dir, ".gitignore")
-	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
-		gitignoreContent := "# GoingEnv directory gitignore\n# Ignore temporary files\n*.tmp\n*.temp\n"
-		if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0o600); err != nil {
-			return fmt.Errorf("failed to create .gitignore: %w", err)
-		}
+// ResolveConfigPath returns the configuration file to read: the project-local
+// one when the current directory has it, otherwise the per-user one.
+//
+// Resolution happens once, against the working directory, and does not walk
+// upwards — consistent with GetGoingEnvDir, which is relative for the same
+// reason. Commands are expected to run from the project root.
+func ResolveConfigPath() string {
+	projectPath := ProjectConfigPath()
+	if _, statErr := os.Stat(projectPath); statErr == nil {
+		return projectPath
 	}
-
-	return nil
+	return homeConfigPath()
 }
 
 // GetDefaultArchivePath generates a default archive path with timestamp

@@ -88,7 +88,7 @@ func (t *SettingsTab) buildContent() string {
 	}
 
 	b.WriteString("\n" + RenderSectionHeader("Config Location") + "\n")
-	fmt.Fprintf(&b, "  %s\n", config.GetGoingEnvDir())
+	fmt.Fprintf(&b, "  %s\n", config.ResolveConfigPath())
 
 	return b.String()
 }

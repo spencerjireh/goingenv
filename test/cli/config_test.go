@@ -197,3 +197,85 @@ func TestConfig_ScanDepthFromHomeConfig(t *testing.T) {
 	testutils.AssertSuccess(t, full)
 	testutils.AssertStdoutContains(t, full, "Environment Files (2)")
 }
+
+// TestConfig_ProjectConfigShadowsHomeConfig checks the precedence order: a
+// committed .goingenv/config.json wins over the user's ~/.goingenv.json, so a
+// repository can pin how it is scanned regardless of personal configuration.
+//
+// The home config here excludes .env.backup (the 5-file case above); the
+// project config re-enables it. Getting 6 back proves the project file is the
+// one being read, and that precedence is whole-file rather than per-key.
+func TestConfig_ProjectConfigShadowsHomeConfig(t *testing.T) {
+	projectDir, homeDir := setupEnvFixture(t)
+
+	homeConfig := `{
+  "default_depth": 10,
+  "env_patterns": ["\\.env.*"],
+  "env_exclude_patterns": ["\\.env\\.backup$"],
+  "exclude_patterns": ["node_modules/", "\\.git/"],
+  "max_file_size": 10485760
+}`
+	if err := os.WriteFile(filepath.Join(homeDir, ".goingenv.json"), []byte(homeConfig), 0o600); err != nil {
+		t.Fatalf("Failed to write home config: %v", err)
+	}
+
+	projectConfig := `{
+  "default_depth": 10,
+  "env_patterns": ["\\.env.*"],
+  "env_exclude_patterns": [],
+  "exclude_patterns": ["node_modules/", "\\.git/"],
+  "max_file_size": 10485760
+}`
+	projectConfigPath := filepath.Join(projectDir, ".goingenv", "config.json")
+	if err := os.WriteFile(projectConfigPath, []byte(projectConfig), 0o600); err != nil {
+		t.Fatalf("Failed to write project config: %v", err)
+	}
+
+	result := testutils.RunCLIWithEnv(t, projectDir, map[string]string{"HOME": homeDir}, "status")
+
+	testutils.AssertSuccess(t, result)
+	testutils.AssertStdoutContains(t, result, "Environment Files (6)")
+	testutils.AssertStdoutContains(t, result, ".env.backup")
+}
+
+// TestConfig_InitWritesProjectConfigOnlyWhenAsked checks that the project
+// config is opt-in, and that once written it is never silently replaced --
+// it is a committed file, so --force must not discard the repository's rules.
+func TestConfig_InitWritesProjectConfigOnlyWhenAsked(t *testing.T) {
+	projectDir := t.TempDir()
+	homeDir := t.TempDir()
+	env := map[string]string{"HOME": homeDir}
+	projectConfigPath := filepath.Join(projectDir, ".goingenv", "config.json")
+
+	// Plain init must not create one.
+	testutils.AssertSuccess(t, testutils.RunCLIWithEnv(t, projectDir, env, "init"))
+	if _, err := os.Stat(projectConfigPath); !os.IsNotExist(err) {
+		t.Fatalf("init created a project config without --project-config (err=%v)", err)
+	}
+
+	// Opting in creates it.
+	testutils.AssertSuccess(t, testutils.RunCLIWithEnv(t, projectDir, env, "init", "--force", "--project-config"))
+	testutils.AssertFileExists(t, projectConfigPath)
+
+	// A subsequent init must leave a modified project config alone.
+	pinned := `{
+  "default_depth": 4,
+  "env_patterns": ["\\.env$"],
+  "env_exclude_patterns": [],
+  "exclude_patterns": [],
+  "max_file_size": 2048
+}`
+	if err := os.WriteFile(projectConfigPath, []byte(pinned), 0o600); err != nil {
+		t.Fatalf("Failed to overwrite project config: %v", err)
+	}
+
+	testutils.AssertSuccess(t, testutils.RunCLIWithEnv(t, projectDir, env, "init", "--force", "--project-config"))
+
+	after, err := os.ReadFile(projectConfigPath)
+	if err != nil {
+		t.Fatalf("Failed to read project config: %v", err)
+	}
+	if string(after) != pinned {
+		t.Errorf("init --force --project-config overwrote the committed project config:\n%s", after)
+	}
+}

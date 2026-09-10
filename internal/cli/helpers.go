@@ -29,14 +29,15 @@ type UnpackOpts struct {
 
 // PackOpts holds parsed pack command flags
 type PackOpts struct {
-	Dir     string
-	Output  string
-	PassEnv string
-	Depth   int
-	Include []string
-	Exclude []string
-	Verbose bool
-	DryRun  bool
+	Dir        string
+	Output     string
+	PassEnv    string
+	Depth      int
+	Include    []string
+	Exclude    []string
+	EnvExclude []string
+	Verbose    bool
+	DryRun     bool
 }
 
 // ListOpts holds parsed list command flags
@@ -179,6 +180,9 @@ func parsePackOpts(cmd *cobra.Command) (*PackOpts, error) {
 	if o.Exclude, err = cmd.Flags().GetStringSlice("exclude"); err != nil {
 		return nil, fmt.Errorf("failed to get exclude flag: %w", err)
 	}
+	if o.EnvExclude, err = cmd.Flags().GetStringSlice("env-exclude"); err != nil {
+		return nil, fmt.Errorf("failed to get env-exclude flag: %w", err)
+	}
 	if o.Verbose, err = cmd.Flags().GetBool("verbose"); err != nil {
 		return nil, fmt.Errorf("failed to get verbose flag: %w", err)
 	}
@@ -234,13 +238,23 @@ func parseListOpts(cmd *cobra.Command) (*ListOpts, error) {
 	return o, nil
 }
 
-// buildScanOpts creates ScanOptions from PackOpts and config
+// buildScanOpts creates ScanOptions from PackOpts and config.
+//
+// The two exclude fields are unions of flag and config: both narrow the scan, so
+// a flag must never be able to drop a configured exclusion. --include is the
+// exception and replaces cfg.EnvPatterns, because a union of includes could
+// never narrow to a single file.
+//
+// Every field is populated here rather than left empty, because Scanner.ScanFiles
+// calls applyDefaults, which fills empty fields from the same config. Merging in
+// both places would apply each config pattern twice.
 func buildScanOpts(p *PackOpts, cfg *types.Config) *types.ScanOptions {
 	opts := &types.ScanOptions{
-		RootPath:        p.Dir,
-		MaxDepth:        p.Depth,
-		Patterns:        p.Include,
-		ExcludePatterns: p.Exclude,
+		RootPath:           p.Dir,
+		MaxDepth:           p.Depth,
+		Patterns:           p.Include,
+		ExcludePatterns:    mergePatterns(p.Exclude, cfg.ExcludePatterns),
+		EnvExcludePatterns: mergePatterns(p.EnvExclude, cfg.EnvExcludePatterns),
 	}
 
 	if opts.MaxDepth == 0 {
@@ -249,11 +263,15 @@ func buildScanOpts(p *PackOpts, cfg *types.Config) *types.ScanOptions {
 	if len(opts.Patterns) == 0 {
 		opts.Patterns = cfg.EnvPatterns
 	}
-	if len(opts.ExcludePatterns) == 0 {
-		opts.ExcludePatterns = cfg.ExcludePatterns
-	} else {
-		opts.ExcludePatterns = append(opts.ExcludePatterns, cfg.ExcludePatterns...)
-	}
 
 	return opts
+}
+
+// mergePatterns returns the union of flag and config patterns in a fresh slice,
+// so appending to the result can never write into the config's backing array.
+func mergePatterns(flag, cfg []string) []string {
+	merged := make([]string, 0, len(flag)+len(cfg))
+	merged = append(merged, flag...)
+	merged = append(merged, cfg...)
+	return merged
 }
