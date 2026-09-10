@@ -124,7 +124,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.help.Width = msg.Width
 		m.debugLogger.Log("Window resized: %dx%d", msg.Width, msg.Height)
-		return m, nil
+		// Tabs need this too. The archive pickers on Unpack and List size
+		// themselves from it (bubbles filepicker AutoHeight), and until this
+		// was forwarded their height stayed 0, so they listed at most one
+		// archive however many existed.
+		return m.broadcast(msg)
 
 	case ToastExpiredMsg:
 		m.removeToast(msg.ID)

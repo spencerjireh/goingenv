@@ -44,13 +44,23 @@ func testApp() *types.App {
 	}
 }
 
-// newTestModel returns a model sized like a real terminal.
+// newTestModel returns a model sized like a real terminal, in an empty
+// working directory.
 func newTestModel(t *testing.T) *Model {
 	t.Helper()
 
 	// The tab constructors call filepicker.New(), which reads the working
 	// directory, and StatusTab.View calls config.IsInitialized() on it.
 	t.Chdir(t.TempDir())
+	return newModelHere(t)
+}
+
+// newModelHere is newTestModel without the chdir, for tests that have already
+// set up a working directory the tabs need to see. The size is delivered
+// through Model.Update rather than poked into the tabs, so anything relying on
+// that message being forwarded is genuinely exercised.
+func newModelHere(t *testing.T) *Model {
+	t.Helper()
 
 	// verbose must stay false: NewDebugLogger(true) writes a log file into the
 	// real os.UserHomeDir().
