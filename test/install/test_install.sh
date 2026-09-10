@@ -117,6 +117,19 @@ unit_tests() {
         bad "fetch_expected_checksum happy path (status=$status, got=$got)"
     fi
 
+    # Regression guard: debug output must not end up inside the returned
+    # digest. debug() used to write to stdout, so with DEBUG=1 the command
+    # substitution captured the log lines along with the hash and every
+    # verification failed with a garbled "Expected:" value.
+    printf '%s  goingenv-v1.2.3-linux-amd64.tar.gz\n' "$digest" > "$rel/checksums.txt"
+    local debug_got
+    debug_got=$(DEBUG=1 fetch_expected_checksum "$tmp" "v1.2.3" "goingenv-v1.2.3-linux-amd64.tar.gz" 2>/dev/null)
+    if [[ "$debug_got" == "$digest" ]]; then
+        ok "fetch_expected_checksum returns a clean digest with DEBUG=1"
+    else
+        bad "DEBUG=1 polluted the returned digest (got: $debug_got)"
+    fi
+
     # A different archive in the manifest must not satisfy the lookup.
     fetch_expected_checksum "$tmp" "v1.2.3" "goingenv-v1.2.3-darwin-arm64.tar.gz" >/dev/null 2>&1
     assert_status 1 $? "fetch_expected_checksum fails when the archive is absent from checksums.txt"
@@ -212,6 +225,19 @@ e2e_tests() {
     else
         bad "install should succeed with a matching checksum (status=$status)"
         sed 's/^/      /' "$tmp/happy.log" >&2
+    fi
+
+    # 1b. Same, with DEBUG=1: debug output on stdout would corrupt the digest.
+    rm -rf "$tmp/bin"
+    GOINGENV_DOWNLOAD_BASE="$base" DEBUG=1 bash "$INSTALL_SH" \
+        --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
+        >"$tmp/debug.log" 2>&1
+    status=$?
+    if [[ $status -eq 0 && -x "$tmp/bin/goingenv" ]]; then
+        ok "install succeeds with DEBUG=1"
+    else
+        bad "install should succeed with DEBUG=1 (status=$status)"
+        sed 's/^/      /' "$tmp/debug.log" >&2
     fi
 
     # 2. The one that matters: corrupt the archive, leave checksums.txt alone.

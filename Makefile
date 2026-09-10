@@ -79,19 +79,19 @@ ci-cross-compile:
 ci-full: deps ci-test ci-lint ci-security ci-cross-compile
 	@echo -e "$(GREEN)All CI checks passed locally!$(NC)"
 
-# Build release binaries locally (simulates what GitHub Actions builds)
-release-local: clean
-	@printf "$(BLUE)Building local release binaries (v$(VERSION))...$(NC)\n"
-	@mkdir -p dist
-	@for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do \
-		os=$${platform%%-*}; arch=$${platform##*-}; \
-		printf "$(BLUE)  Building $$platform...$(NC)\n"; \
-		GOOS=$$os GOARCH=$$arch go build $(LDFLAGS) -trimpath -o dist/$(BINARY_NAME) $(MAIN_PATH); \
-		cd dist && tar -czf $(BINARY_NAME)-v$(VERSION)-$$platform.tar.gz $(BINARY_NAME) && rm $(BINARY_NAME) && cd ..; \
-	done
-	@cd dist && shasum -a 256 *.tar.gz > checksums.txt
-	@printf "$(GREEN)Local release built in dist/ (version: $(VERSION))$(NC)\n"
+# Build release binaries locally, using the same goreleaser config CI uses.
+# Snapshot mode needs no tag and publishes nothing; note that snapshot archive
+# names carry a -SNAPSHOT- suffix, so they differ from a real release.
+release-local:
+	@printf "$(BLUE)Building local release artifacts...$(NC)\n"
+	@mkdir -p build && cp install.sh build/install.sh
+	goreleaser release --snapshot --clean
+	@printf "$(GREEN)Local release built in dist/$(NC)\n"
 	@ls -la dist/
+
+# Validate .goreleaser.yaml without building.
+release-check:
+	goreleaser check
 
 # Complete test suite
 test-complete: clean
@@ -426,7 +426,8 @@ help:
 	@echo "Build Commands:"
 	@echo " build          - Build binary for current platform"
 	@echo " dev            - Build development version with race detector"
-	@echo " release-local  - Build release binaries for all platforms locally"
+	@echo " release-local  - Build release artifacts locally via goreleaser"
+	@echo " release-check  - Validate .goreleaser.yaml"
 	@echo ""
 	@echo "Development Commands:"
 	@echo " tui            - Build and launch TUI in sandbox with sample .env files"
@@ -499,7 +500,7 @@ help:
 # Phony targets
 .PHONY: build dev tui tui-sandbox tui-watch tui-clean clean deps fmt vet lint test test-unit test-integration test-e2e \
         test-complete test-coverage test-coverage-ci test-watch test-verbose test-bench test-clean \
-        generate-mocks bench check check-full release-local \
+        generate-mocks bench check check-full release-local release-check \
         install uninstall run run-pack run-unpack run-list run-status \
         demo clean-demo demo-scenario dev-server dev-watch watch watch-run profile \
         profile-mem security-scan vuln-check docs stats help \

@@ -73,7 +73,10 @@ error() {
 
 debug() {
     if [[ "${DEBUG:-0}" == "1" ]]; then
-        echo -e "${BLUE}[DEBUG]${NC} $1"
+        # stderr, not stdout: several functions return a value by printing it
+        # to stdout and are read with $(...). Debug output on stdout would be
+        # captured as part of that value.
+        echo -e "${BLUE}[DEBUG]${NC} $1" >&2
     fi
 }
 
