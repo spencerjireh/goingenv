@@ -328,6 +328,33 @@ e2e_tests() {
         bad "piped --help produced no usage output (main did not run)"
     fi
 
+    # 6a. ...and that usage text must be runnable. $0 is literally "bash" when
+    # the script arrives on stdin, so the help used to read "USAGE: bash
+    # [OPTIONS]" and offer "bash --version v1.3.0" -- copy-pasteable, and inert.
+    if grep -q 'curl -fsSL .*install\.sh | bash -s -- \[OPTIONS\]' <<<"$help_out"; then
+        ok "piped --help prints a pipe-aware usage line"
+    else
+        bad "piped --help did not print a pipe-aware usage line"
+    fi
+
+    # The load-bearing half: this assertion FAILS on the old script, which is
+    # what the "produces the usage text" check above could never do.
+    if ! grep -qE '(^|[[:space:]])bash (\[OPTIONS\]|--[a-z])' <<<"$help_out"; then
+        ok "piped --help never presents bare 'bash' as the command"
+    else
+        bad "piped --help still presents bare 'bash' as the command"
+    fi
+
+    # 6b. File mode must name the script, not a curl pipeline.
+    local file_help_out
+    file_help_out=$(bash "$INSTALL_SH" --help 2>&1)
+    if grep -qF "$INSTALL_SH [OPTIONS]" <<<"$file_help_out" \
+       && ! grep -q 'curl -fsSL' <<<"$file_help_out"; then
+        ok "file-mode --help names the script path"
+    else
+        bad "file-mode --help did not name the script path"
+    fi
+
     # 7. A full install through the pipe.
     rm -rf "$tmp/bin"
     cat "$INSTALL_SH" | GOINGENV_DOWNLOAD_BASE="$base" bash -s -- \

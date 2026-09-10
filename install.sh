@@ -14,6 +14,38 @@ BINARY_NAME="goingenv"
 GITHUB_REPO="https://github.com/${REPO_OWNER}/${REPO_NAME}"
 GITHUB_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 
+# Canonical URL this script is served from, used to build the piped invocation
+# strings below and to keep the header comment above honest.
+INSTALL_SCRIPT_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/install.sh"
+
+# How to tell the user to re-invoke this script.
+#
+# $0 cannot be used for this. Under `curl ... | bash -s -- --help` bash reads
+# the script from stdin, so $0 is literally "bash" and the help text used to
+# read "USAGE: bash [OPTIONS]" and offer "bash --version v1.3.0" as an example
+# -- neither of which does anything if pasted.
+#
+# BASH_SOURCE is an empty array in exactly that case (the same signal the
+# run-unless-sourced guard at the bottom of this file relies on) and holds the
+# script path otherwise, including when the test suite sources this file.
+#
+#   SCRIPT_CMD       invocation taking no arguments
+#   SCRIPT_CMD_ARGS  invocation that arguments can be appended to
+#   SCRIPT_CMD_SUDO  the same, elevated. Kept separate because in the piped
+#                    form sudo has to wrap bash, not curl: "sudo curl ... |
+#                    bash" would elevate the download and not the install.
+#
+# Deliberately not readonly -- the test suite sources this file.
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+    SCRIPT_CMD="${BASH_SOURCE[0]}"
+    SCRIPT_CMD_ARGS="${BASH_SOURCE[0]}"
+    SCRIPT_CMD_SUDO="sudo ${BASH_SOURCE[0]}"
+else
+    SCRIPT_CMD="curl -fsSL ${INSTALL_SCRIPT_URL} | bash"
+    SCRIPT_CMD_ARGS="curl -fsSL ${INSTALL_SCRIPT_URL} | bash -s --"
+    SCRIPT_CMD_SUDO="curl -fsSL ${INSTALL_SCRIPT_URL} | sudo bash -s --"
+fi
+
 # Embedded version (set by CI/CD for release assets, empty for main branch)
 # When empty, defaults to "latest". When set, defaults to that version.
 SCRIPT_VERSION=""
@@ -714,7 +746,7 @@ install_binary() {
     if ! cp "$binary_path" "$install_dir/$BINARY_NAME"; then
         error "Failed to install binary to $install_dir"
         if [[ "$install_dir" == "$SYSTEM_INSTALL_DIR" ]]; then
-            warn "Try running with sudo: sudo $0"
+            warn "Try running with sudo: ${SCRIPT_CMD_SUDO}"
         fi
         rm -rf "$temp_dir"
         exit 1
@@ -926,7 +958,7 @@ show_help() {
 GoingEnv Installation Script
 
 USAGE:
-    $0 [OPTIONS]
+    ${SCRIPT_CMD_ARGS} [OPTIONS]
 
 OPTIONS:
     --help              Show this help message
@@ -946,7 +978,7 @@ CLEANUP OPTIONS (opt-in):
     --cleanup-all           Do both (cleanup backups and duplicates)
 
 ENVIRONMENT VARIABLES:
-    GOINGENV_VERSION    Version to install (e.g., v1.2.0)
+    GOINGENV_VERSION    Version to install (e.g., v1.2.3)
     INSTALL_DIR         Custom installation directory
     YES                 Skip prompts (1 to enable)
     NO_SUDO             Avoid system-wide installation (1 to enable)
@@ -962,28 +994,28 @@ VERSION BEHAVIOR:
 
 EXAMPLES:
     # Install latest version
-    $0
+    ${SCRIPT_CMD}
 
     # Install specific version
-    $0 --version v1.3.0
+    ${SCRIPT_CMD_ARGS} --version v1.2.3
 
     # Install to custom directory
-    $0 --dir /opt/bin
+    ${SCRIPT_CMD_ARGS} --dir /opt/bin
 
     # Non-interactive installation
-    $0 --yes
+    ${SCRIPT_CMD_ARGS} --yes
 
     # Upgrade and cleanup old backups
-    $0 --cleanup-backups
+    ${SCRIPT_CMD_ARGS} --cleanup-backups
 
     # Remove duplicate installations
-    $0 --cleanup-duplicates
+    ${SCRIPT_CMD_ARGS} --cleanup-duplicates
 
     # Full cleanup (backups + duplicates)
-    $0 --cleanup-all
+    ${SCRIPT_CMD_ARGS} --cleanup-all
 
     # Uninstall
-    $0 --uninstall
+    ${SCRIPT_CMD_ARGS} --uninstall
 
 EOF
 }
