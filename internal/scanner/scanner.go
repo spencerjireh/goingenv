@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"goingenv/pkg/types"
+	"goingenv/pkg/utils"
 )
 
 // Service implements the Scanner interface
@@ -197,8 +198,8 @@ func (s *Service) ValidateFile(path string) error {
 	if info.Size() > s.config.MaxFileSize {
 		return &types.ScanError{
 			Path: path,
-			Err: fmt.Errorf("file size %d exceeds maximum allowed size %d",
-				info.Size(), s.config.MaxFileSize),
+			Err: fmt.Errorf("file size %s exceeds the maximum of %s",
+				utils.FormatSize(info.Size()), utils.FormatSize(s.config.MaxFileSize)),
 		}
 	}
 

@@ -121,12 +121,12 @@ func TestJoinResults(t *testing.T) {
 		{
 			name:     "Single item",
 			input:    []string{"first"},
-			expected: "  • first",
+			expected: "  [-] first",
 		},
 		{
 			name:     "Multiple items",
 			input:    []string{"first", "second", "third"},
-			expected: "  • first\n  • second\n  • third",
+			expected: "  [-] first\n  [-] second\n  [-] third",
 		},
 	}
 

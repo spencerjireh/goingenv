@@ -26,17 +26,8 @@ public/
 
 ## Color Palette
 
-| Name       | Hex       | Usage                           |
-|------------|-----------|----------------------------------|
-| Base       | `#121417` | Primary background               |
-| Surface    | `#1c1f24` | Elevated surfaces                |
-| Signal     | `#22d3a7` | Brand color, CTAs, success       |
-| Text       | `#e9eaeb` | Primary text on dark             |
-| Text Muted | `#8b9099` | Secondary text                   |
-| Primary    | `#6b7a8f` | Borders, brackets                |
-| Error      | `#ff6b6b` | Error messages                   |
-| Warning    | `#ffd93d` | Warning messages                 |
-| Info       | `#7c9cbc` | Informational, links             |
+Colours are defined in [docs/design.md](../docs/design.md#color-palette). They
+are not repeated here so the two cannot drift.
 
 ## Logo Usage Guidelines
 
@@ -47,9 +38,7 @@ public/
 ```
 
 - No space between `]` and `g`
-- Brackets: `#6b7a8f`
-- Circle: `#22d3a7`
-- Wordmark: `#e9eaeb` (dark bg) or `#121417` (light bg)
+- Colours per [docs/design.md](../docs/design.md#logo-system)
 
 ### Icon Only
 

@@ -55,7 +55,7 @@ func ParseFormat(s string, allowCSV bool) (Format, error) {
 		if allowCSV {
 			return FormatCSV, nil
 		}
-		return "", fmt.Errorf("unsupported format %q for this command (csv is only available for `list`)", s)
+		return "", fmt.Errorf("unsupported format %q for this command (csv is only available for 'list')", s)
 	default:
 		valid := "text, json, porcelain"
 		if allowCSV {

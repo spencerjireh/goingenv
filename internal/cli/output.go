@@ -111,13 +111,17 @@ func NewOutputWithWriterFormat(stdout, stderr io.Writer, useColors bool, version
 func (o *Output) Format() Format { return o.format }
 
 // Header prints the branded header: [●] goingenv v{version}
+//
+// Release builds set main.Version from the git tag, which already carries a
+// "v", so prefixing one unconditionally printed "goingenv vv1.4.0".
 func (o *Output) Header() {
+	version := "v" + strings.TrimPrefix(o.version, "v")
 	if o.useColors {
-		fmt.Fprintf(o.humanW, "%s goingenv v%s\n",
+		fmt.Fprintf(o.humanW, "%s goingenv %s\n",
 			brandStyle.Render("[●]"),
-			o.version)
+			version)
 	} else {
-		fmt.Fprintf(o.humanW, "[*] goingenv v%s\n", o.version)
+		fmt.Fprintf(o.humanW, "[*] goingenv %s\n", version)
 	}
 }
 

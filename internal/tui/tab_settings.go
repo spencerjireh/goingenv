@@ -74,8 +74,8 @@ func (t *SettingsTab) buildContent() string {
 
 	b.WriteString(RenderSectionHeader("Settings") + "\n\n")
 
-	fmt.Fprintf(&b, "  Scan Depth        %d\n", t.app.Config.DefaultDepth)
-	fmt.Fprintf(&b, "  Max File Size     %s\n\n", utils.FormatSize(t.app.Config.MaxFileSize))
+	fmt.Fprintf(&b, "  Scan depth        %d\n", t.app.Config.DefaultDepth)
+	fmt.Fprintf(&b, "  Max file size     %s\n\n", utils.FormatSize(t.app.Config.MaxFileSize))
 
 	b.WriteString(RenderSectionHeader("Patterns") + "\n")
 	b.WriteString("  Include:\n")
@@ -87,7 +87,7 @@ func (t *SettingsTab) buildContent() string {
 		fmt.Fprintf(&b, "    %s\n", pattern)
 	}
 
-	b.WriteString("\n" + RenderSectionHeader("Config Location") + "\n")
+	b.WriteString("\n" + RenderSectionHeader("Config location") + "\n")
 	fmt.Fprintf(&b, "  %s\n", config.ResolveConfigPath())
 
 	return b.String()

@@ -21,5 +21,5 @@
   <!-- Wordmark -->
   <text x="440" y="312" font-family="JetBrains Mono, SF Mono, Menlo, Consolas, monospace" font-size="52" font-weight="500" fill="#e9eaeb">goingenv</text>
   <!-- Tagline -->
-  <text x="600" y="370" text-anchor="middle" font-family="JetBrains Mono, SF Mono, Menlo, Consolas, monospace" font-size="22" font-weight="400" fill="#8b9099">Share envs the easy way</text>
+  <text x="600" y="370" text-anchor="middle" font-family="JetBrains Mono, SF Mono, Menlo, Consolas, monospace" font-size="22" font-weight="400" fill="#8b9099">Encrypted .env archives you can commit</text>
 </svg>

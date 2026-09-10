@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# GoingEnv Installation Script
-# This script installs GoingEnv on Linux and macOS systems
+# goingenv Installation Script
+# This script installs goingenv on Linux and macOS systems
 # Usage: curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
 # Or: wget -qO- https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
 
@@ -75,7 +75,6 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
@@ -85,22 +84,21 @@ if [[ ! -t 1 ]]; then
     GREEN=''
     YELLOW=''
     BLUE=''
-    PURPLE=''
     CYAN=''
     NC=''
 fi
 
 # Logging functions
 log() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${GREEN}[+]${NC} $1"
 }
 
 warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[!]${NC} $1"
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $1" >&2
+    echo -e "${RED}[x]${NC} $1" >&2
 }
 
 debug() {
@@ -108,7 +106,7 @@ debug() {
         # stderr, not stdout: several functions return a value by printing it
         # to stdout and are read with $(...). Debug output on stdout would be
         # captured as part of that value.
-        echo -e "${BLUE}[DEBUG]${NC} $1" >&2
+        echo -e "${BLUE}[~]${NC} $1" >&2
     fi
 }
 
@@ -117,7 +115,7 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Extract version from GoingEnv version output
+# Extract version from goingenv version output
 extract_version() {
     local version_text="$1"
     # Extract version from formats like:
@@ -417,7 +415,7 @@ add_to_path() {
 
     {
         echo ""
-        echo "# Added by GoingEnv installer"
+        echo "# Added by goingenv installer"
         echo "$export_line"
     } >> "$shell_profile"
 
@@ -568,7 +566,7 @@ detect_duplicates() {
 
     if [[ ${#duplicates[@]} -gt 0 ]]; then
         echo ""
-        warn "Found GoingEnv installations in other locations:"
+        warn "Found goingenv installations in other locations:"
         for dup in "${duplicates[@]}"; do
             local dup_version
             dup_version=$("$dup" --version 2>/dev/null | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?' | head -1)
@@ -701,9 +699,9 @@ install_binary() {
     fi
 
     # Download the archive
-    log "Downloading GoingEnv $version for $platform..."
+    log "Downloading goingenv $version for $platform..."
     if ! download_file "$download_url" "$archive_path"; then
-        error "Failed to download GoingEnv"
+        error "Failed to download goingenv"
         error "URL: $download_url"
         rm -rf "$temp_dir"
         exit 1
@@ -754,7 +752,7 @@ install_binary() {
     fi
 
     # Install the binary
-    log "Installing GoingEnv to $install_dir..."
+    log "Installing goingenv to $install_dir..."
     if ! cp "$binary_path" "$install_dir/$BINARY_NAME"; then
         error "Failed to install binary to $install_dir"
         if [[ "$install_dir" == "$SYSTEM_INSTALL_DIR" ]]; then
@@ -770,7 +768,7 @@ install_binary() {
     # Cleanup
     rm -rf "$temp_dir"
 
-    log "GoingEnv $version installed successfully to $install_dir/$BINARY_NAME"
+    log "goingenv $version installed successfully to $install_dir/$BINARY_NAME"
 }
 
 # Setup shell integration
@@ -811,10 +809,10 @@ setup_shell_integration() {
         debug "$install_dir is already in PATH"
     fi
 
-    # Setup GoingEnv directory
+    # Setup goingenv directory
     local goingenv_dir="$HOME/.goingenv"
     if [[ ! -d "$goingenv_dir" ]]; then
-        log "Creating GoingEnv directory: $goingenv_dir"
+        log "Creating goingenv directory: $goingenv_dir"
         mkdir -p "$goingenv_dir"
     fi
 }
@@ -851,29 +849,26 @@ show_usage_instructions() {
     local install_dir="$1"
     local binary_path="$install_dir/$BINARY_NAME"
 
-    echo ""
-    echo -e "${GREEN}GoingEnv installation completed successfully!${NC}"
-    echo ""
-    echo -e "${CYAN}Usage:${NC}"
-    
-    if is_in_path "$install_dir"; then
-        echo "  $BINARY_NAME --help"
-        echo "  $BINARY_NAME --verbose  # Interactive mode with debug logging"
-        echo "  $BINARY_NAME status     # Show current status"
-    else
-        echo "  $binary_path --help"
-        echo "  $binary_path --verbose  # Interactive mode with debug logging"
-        echo "  $binary_path status     # Show current status"
+    local cmd="$BINARY_NAME"
+    if ! is_in_path "$install_dir"; then
+        cmd="$binary_path"
     fi
-    
+
+    echo ""
+    echo -e "${CYAN}First run:${NC}"
+    echo "  cd your-project"
+    echo "  $cmd init     # required once per project"
+    echo "  $cmd status   # see which files would be packed"
+    echo "  $cmd pack     # encrypt them into .goingenv/"
+    echo "  $cmd          # or launch the terminal UI"
     echo ""
     echo -e "${CYAN}Documentation:${NC}"
     echo "  GitHub: $GITHUB_REPO"
     echo "  Issues: $GITHUB_REPO/issues"
     echo ""
-    echo -e "${CYAN}Configuration:${NC}"
-    echo "  Config directory: ~/.goingenv/"
-    echo "  Debug logs: ~/.goingenv/debug/ (when using --verbose)"
+    echo -e "${CYAN}Files:${NC}"
+    echo "  Config:     ~/.goingenv.json (optional)"
+    echo "  Debug logs: ~/.goingenv/debug/ (with --verbose)"
     echo ""
 }
 
@@ -900,11 +895,11 @@ uninstall() {
     fi
 
     if [[ ${#found_installations[@]} -eq 0 ]]; then
-        log "No GoingEnv installations found"
+        log "No goingenv installations found"
         exit 0
     fi
 
-    echo -e "${YELLOW}Found GoingEnv installations:${NC}"
+    echo -e "${YELLOW}Found goingenv installations:${NC}"
     for installation in "${found_installations[@]}"; do
         local version version_output
         version_output=$("$installation" --version 2>/dev/null || echo "unknown")
@@ -967,14 +962,14 @@ uninstall() {
 show_help() {
     local default_version="${SCRIPT_VERSION:-latest}"
     cat << EOF
-GoingEnv Installation Script
+goingenv Installation Script
 
 USAGE:
     ${SCRIPT_CMD_ARGS} [OPTIONS]
 
 OPTIONS:
     --help              Show this help message
-    --uninstall         Uninstall GoingEnv
+    --uninstall         Uninstall goingenv
     --version VERSION   Install specific version (default: $default_version)
     --dir PATH          Custom installation directory
     --yes               Skip interactive prompts
@@ -1096,11 +1091,6 @@ main() {
                 ;;
         esac
     done
-
-    # Show header
-    echo -e "${PURPLE}GoingEnv Installer${NC}"
-    echo -e "${PURPLE}==================${NC}"
-    echo ""
 
     # Check dependencies
     check_dependencies

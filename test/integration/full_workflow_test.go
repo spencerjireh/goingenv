@@ -434,7 +434,7 @@ func TestLargeFileHandling(t *testing.T) {
 		if scanErr, ok := err.(*types.ScanError); !ok {
 			t.Errorf("Expected ScanError, got %T", err)
 		} else {
-			testutils.AssertStringContains(t, scanErr.Error(), "exceeds maximum")
+			testutils.AssertStringContains(t, scanErr.Error(), "exceeds the maximum")
 		}
 	})
 }

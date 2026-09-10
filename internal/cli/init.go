@@ -15,15 +15,14 @@ func newInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize goingenv in the current directory",
-		Long: `Initialize goingenv in the current directory by creating the .goingenv folder
-and generating configuration files.
+		Long: `Initialize goingenv in the current directory.
 
-This command will:
-- Create the .goingenv directory for storing encrypted archives
-- Create a default configuration file in your home directory if it doesn't exist
+The init command:
+- Creates the .goingenv directory, where encrypted archives are stored
+- Creates a default configuration file in your home directory if none exists
 
-Encrypted archives (.enc files) can be safely committed to git for sharing
-with team members.
+Encrypted archives (.enc files) are meant to be committed to git and shared
+with your team.
 
 With --project-config, a .goingenv/config.json is written as well. Commit it to
 pin how this repository is scanned: when present it takes precedence over
@@ -38,9 +37,9 @@ Examples:
 		RunE: runInitCommand,
 	}
 
-	cmd.Flags().BoolP("force", "f", false, "Force initialization even if already initialized")
+	cmd.Flags().BoolP("force", "f", false, "Reinitialize even if this directory is already set up")
 	cmd.Flags().Bool("project-config", false, "Also write a committed .goingenv/config.json pinning this project's scan rules")
-	cmd.Flags().BoolP("verbose", "v", false, "Show detailed information")
+	cmd.Flags().BoolP("verbose", "v", false, "Show detailed output")
 
 	return cmd
 }
@@ -141,7 +140,7 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 		out.Blank()
 		out.Hint("Next steps:")
 		out.Indent("Run 'goingenv status' to see detected files")
-		out.Indent("Run 'goingenv pack' to create encrypted archive")
+		out.Indent("Run 'goingenv pack' to create an archive")
 	} else {
 		out.Success("Initialized")
 		out.Blank()

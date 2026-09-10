@@ -19,14 +19,14 @@ import (
 func newStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status [directory]",
-		Short: "Show current status and available archives",
-		Long: `Display comprehensive status information about the current environment.
+		Short: "Show detected files and existing archives",
+		Long: `Show what goingenv sees in the current project.
 
-The status command shows:
-- Current directory information
-- Available archives in .goingenv directory
-- Detected environment files
-- Configuration settings (with --verbose)
+The status command:
+- Reports the directory being scanned
+- Lists the archives already in .goingenv
+- Lists the environment files it detects
+- Shows the configuration in force (with --verbose)
 
 Examples:
   goingenv status
@@ -35,7 +35,7 @@ Examples:
 		RunE: runStatusCommand,
 	}
 
-	cmd.Flags().BoolP("verbose", "v", false, "Show detailed information")
+	cmd.Flags().BoolP("verbose", "v", false, "Show detailed output")
 
 	return cmd
 }
@@ -116,7 +116,7 @@ func displayFiles(out *Output, app *types.App, directory string, verbose bool) [
 	files, err := app.Scanner.ScanFiles(&scanOpts)
 	switch {
 	case err != nil:
-		out.Warning(fmt.Sprintf("Could not scan files: %v", err))
+		out.Warning(fmt.Sprintf("Failed to scan files: %v", err))
 	case len(files) == 0:
 		out.Section("Environment Files (0)")
 		out.MutedPrint("  No environment files detected")
@@ -148,7 +148,7 @@ func displayArchives(out *Output, app *types.App, verbose bool) []string {
 	archives, err := app.Archiver.GetAvailableArchives("")
 	switch {
 	case err != nil:
-		out.Warning(fmt.Sprintf("Could not read archives: %v", err))
+		out.Warning(fmt.Sprintf("Failed to read archives: %v", err))
 	case len(archives) == 0:
 		out.Section("Archives (0)")
 		out.MutedPrint("  No archives found")

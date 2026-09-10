@@ -19,7 +19,7 @@ type GlobalKeyMap struct {
 var GlobalKeys = GlobalKeyMap{
 	Quit:    key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
 	NextTab: key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next tab")),
-	PrevTab: key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "prev tab")),
+	PrevTab: key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "previous tab")),
 	Tab1:    key.NewBinding(key.WithKeys("1"), key.WithHelp("1", "Pack")),
 	Tab2:    key.NewBinding(key.WithKeys("2"), key.WithHelp("2", "Unpack")),
 	Tab3:    key.NewBinding(key.WithKeys("3"), key.WithHelp("3", "List")),

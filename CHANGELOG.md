@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Minimum Go version is now 1.26** (was 1.24), required by `golang.org/x/crypto` v0.56.0. This affects building from source only; released binaries are unaffected
 - Dependencies updated: bubbletea 0.24 to 1.3, bubbles 0.16 to 0.21, lipgloss 0.8 to 1.1, cobra 1.7 to 1.10, termenv 0.15 to 0.16, x/crypto 0.41 to 0.56, x/term 0.34 to 0.45
 - `list` no longer declares its own `--format` flag, using the persistent one instead. `table` remains accepted as an alias for `text`, and `csv` is still available on `list`
-- Coverage now includes `test/cli` and `test/e2e`, which spawn a compiled binary and previously counted for nothing: 42.8% to 63.4%, with `cmd/goingenv` going from 0% to 100%. No tests were added, that work was simply never measured
+- Coverage now includes `test/cli` and `test/e2e`, which spawn a compiled binary and previously counted for nothing: 42.8% to 63.4%, with `cmd/goingenv` going from 0% to 100%. No tests were added; those suites were already running but uncounted
 - `shellcheck` runs over `install.sh` and its test suite in `make lint` and CI
 
 ### Removed
@@ -83,17 +83,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minimum Go version for building from source is now 1.24.
 
 
+## [1.1.0] - 2026-01-23
+
 ### Added
 - **`goingenv init` command** - Required initialization step for each project directory
 - **Brand design system** - `docs/design.md` documenting logo, colors, and UI specifications
 - **CLI output system** - Consistent branded output with prefix indicators (`[●]`, `[+]`, `[!]`, `[x]`, `[>]`, `[?]`, `[-]`, `[~]`)
 - **Relative timestamps** - New `FormatTimeAgo` utility showing "2 hours ago" style times
 - TTY-aware color detection for CLI output
-- Comprehensive CI/CD pipeline with GitHub Actions
+- CI/CD pipeline with GitHub Actions: lint, test matrix, security scanning and release
 - Automated release creation with cross-platform binaries
 - Install script for Linux and macOS with platform detection
 - Debug logging system for TUI mode with --verbose flag
-- Comprehensive documentation split into specialized guides
+- Documentation split into separate security, development and design guides
 - New TUI initialization screen for uninitialized projects
 - Initialization requirement verification tests
 
@@ -106,23 +108,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Archive operations no longer auto-create `.goingenv` directory
 - CLI commands now display branded header `[●] goingenv v{version}`
 - Encrypted archives (`.enc` files) are now shareable via git by default - no auto-gitignore modification
-- Restructured README.md for better user experience
-- Enhanced Makefile with CI and release targets
-- Improved TUI with debug mode indicators
+- README restructured around install, usage and the command table
+- Makefile gained CI and release targets
+- TUI shows a debug-mode indicator when `--verbose` is set
 - Updated documentation to reflect initialization requirement
 
 ### Security
 - Added security scanning with gosec and govulncheck
 - Implemented checksum verification for releases
-- Enhanced install script with security features
-- Improved initialization workflow prevents accidental directory creation
+- Install script verifies downloads against the release checksums
+- Archive operations no longer create `.goingenv/` implicitly, so a mistyped path cannot scatter directories
 
 ## [1.0.0] - 2025-08-19
 
 ### Added
-- Initial release of GoingEnv
+- Initial release of goingenv
 - Environment file scanning and detection
-- AES-256-GCM encryption for secure archiving
+- AES-256-GCM encryption with PBKDF2 key derivation
 - Interactive terminal UI with Bubbletea
 - Command-line interface with Cobra
 - Support for multiple environment file patterns
@@ -155,4 +157,5 @@ go, and promote them to a version section when cutting a release.
 [1.4.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.4.0
 [1.3.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.3.0
 [1.2.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.2.0
+[1.1.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.1.0
 [1.0.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.0.0
