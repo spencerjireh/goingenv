@@ -163,15 +163,23 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v7
 
-    - name: Test install script syntax
-      run: |
-        bash -n install.sh
-        echo "Install script syntax is valid"
+    # The install script test suite builds a real binary to serve from its
+    # local fixture release.
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version: 'stable'
+        check-latest: true
 
     - name: Test install script help
       run: |
         chmod +x install.sh
         ./install.sh --help
+
+    # Covers checksum verification end to end, including the case that
+    # matters: a corrupted archive must not be installed.
+    - name: Run install script test suite
+      run: bash test/install/test_install.sh
 
     - name: Test install script dry run
       run: |

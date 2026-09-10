@@ -9,6 +9,7 @@ This document outlines security considerations, best practices, and implementati
 ## Table of Contents
 
 - [Security Model](#security-model)
+- [Verifying Your Download](#verifying-your-download)
 - [Encryption Details](#encryption-details)
 - [Best Practices](#best-practices)
 - [Threat Model](#threat-model)
@@ -30,6 +31,42 @@ This document outlines security considerations, best practices, and implementati
 - **Physical Access**: Cannot protect against physical compromise of the system
 - **Weak Passwords**: Security depends on password strength
 - **Side-Channel Attacks**: No protection against timing attacks, etc.
+
+## Verifying Your Download
+
+Every release publishes a `checksums.txt` listing the SHA-256 of each archive.
+
+### Installing with the install script
+
+The install script verifies the archive against `checksums.txt` before
+extracting it. A mismatch aborts the install and no binary is written:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
+```
+
+Verification is not optional by default. If the checksum cannot be retrieved,
+the install fails rather than proceeding unverified. To install anyway -- for
+example from a release predating checksum publication -- pass
+`--skip-checksum`, which prints a warning:
+
+```bash
+curl -sSL .../install.sh | bash -s -- --skip-checksum
+```
+
+The script also requires `sha256sum` or `shasum` to be present, and checks for
+one before downloading anything.
+
+### Verifying a manual download
+
+```bash
+# Download the archive and the checksum manifest for your platform
+curl -sSLO https://github.com/spencerjireh/goingenv/releases/download/<tag>/goingenv-<tag>-<os>-<arch>.tar.gz
+curl -sSLO https://github.com/spencerjireh/goingenv/releases/download/<tag>/checksums.txt
+
+# Verify (use shasum -a 256 -c on macOS)
+sha256sum -c checksums.txt
+```
 
 ## Encryption Details
 

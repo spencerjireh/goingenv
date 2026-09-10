@@ -27,6 +27,11 @@ SKIP_SHELL_INTEGRATION="${SKIP_SHELL_INTEGRATION:-0}"
 NO_SUDO="${NO_SUDO:-0}"
 YES="${YES:-0}"
 FORCE="${FORCE:-0}"
+SKIP_CHECKSUM="${SKIP_CHECKSUM:-0}"
+
+# Base URL for release downloads. Overridable so the test suite can point the
+# installer at a local fixture server; not documented in --help.
+GOINGENV_DOWNLOAD_BASE="${GOINGENV_DOWNLOAD_BASE:-$GITHUB_REPO}"
 
 # Cleanup options (opt-in only)
 CLEANUP_BACKUPS="${CLEANUP_BACKUPS:-0}"
@@ -126,6 +131,12 @@ check_dependencies() {
         missing_deps+=("gzip")
     fi
 
+    # Checked up front so a missing hasher fails in the first second rather
+    # than after downloading the whole archive.
+    if [[ "$SKIP_CHECKSUM" != "1" ]] && ! command_exists sha256sum && ! command_exists shasum; then
+        missing_deps+=("sha256sum or shasum (or re-run with --skip-checksum)")
+    fi
+
     if [[ ${#missing_deps[@]} -gt 0 ]]; then
         error "Missing required dependencies: ${missing_deps[*]}"
         echo "Please install the missing dependencies and try again."
@@ -140,8 +151,10 @@ download_file() {
 
     debug "Downloading $url to $output"
 
+    # --fail matters: without it curl exits 0 on a 404 and writes the error
+    # body to $output, turning a missing asset into a corrupt download.
     if command_exists curl; then
-        curl -sSL -o "$output" "$url"
+        curl -sSL --fail -o "$output" "$url"
     elif command_exists wget; then
         wget -q -O "$output" "$url"
     else
@@ -201,8 +214,8 @@ verify_checksum() {
     local expected_checksum="$2"
 
     if [[ -z "$expected_checksum" ]]; then
-        debug "No checksum provided, skipping verification"
-        return 0
+        error "No expected checksum supplied; refusing to verify blindly"
+        return 1
     fi
 
     if command_exists sha256sum; then
@@ -230,9 +243,49 @@ verify_checksum() {
             return 1
         fi
     else
-        warn "No checksum utility available, skipping verification"
-        return 0
+        error "No checksum utility (sha256sum or shasum) available"
+        error "Re-run with --skip-checksum to install without verification"
+        return 1
     fi
+}
+
+# Fetch the expected SHA-256 for one archive from the release's checksums.txt.
+# Prints the digest on stdout; returns non-zero if it cannot be obtained.
+fetch_expected_checksum() {
+    local temp_dir="$1"
+    local version="$2"
+    local archive_name="$3"
+
+    local checksums_url="${GOINGENV_DOWNLOAD_BASE}/releases/download/${version}/checksums.txt"
+    local checksums_file="$temp_dir/checksums.txt"
+
+    debug "Fetching checksums from: $checksums_url"
+
+    # set -e is suspended inside `if ! fn`, so every step needs its own guard.
+    if ! download_file "$checksums_url" "$checksums_file"; then
+        debug "Could not download $checksums_url"
+        return 1
+    fi
+
+    local digest
+    # Exact field match, not a suffix grep: a filename ending in the same
+    # characters must not be able to satisfy the lookup. The "*" form covers
+    # checksum files written in sha256sum's binary mode.
+    digest=$(awk -v f="$archive_name" \
+        '$2 == f || $2 == "*"f { print $1; found = 1; exit } END { exit !found }' \
+        "$checksums_file") || {
+        debug "No checksum entry for $archive_name"
+        return 1
+    }
+
+    # A 200 response carrying HTML (captive portal, proxy error page) would
+    # otherwise become a "mismatch" with a confusing message.
+    if [[ ! "$digest" =~ ^[0-9a-fA-F]{64}$ ]]; then
+        debug "Malformed checksum entry for $archive_name: $digest"
+        return 1
+    fi
+
+    printf '%s' "$digest"
 }
 
 # Determine installation directory
@@ -540,7 +593,7 @@ install_binary() {
     local install_dir="$3"
     
     local archive_name="${BINARY_NAME}-${version}-${platform}.tar.gz"
-    local download_url="${GITHUB_REPO}/releases/download/${version}/${archive_name}"
+    local download_url="${GOINGENV_DOWNLOAD_BASE}/releases/download/${version}/${archive_name}"
     local temp_dir
     temp_dir=$(mktemp -d)
     local archive_path="$temp_dir/$archive_name"
@@ -568,6 +621,32 @@ install_binary() {
         error "URL: $download_url"
         rm -rf "$temp_dir"
         exit 1
+    fi
+
+    # Verify the archive before trusting its contents to tar.
+    if [[ "$SKIP_CHECKSUM" == "1" ]]; then
+        warn "Checksum verification skipped (--skip-checksum)"
+    else
+        log "Verifying checksum..."
+
+        # Declared on its own line: `local x=$(...)` would mask the exit status.
+        local expected_checksum
+        if ! expected_checksum=$(fetch_expected_checksum "$temp_dir" "$version" "$archive_name"); then
+            error "Could not obtain a checksum for $archive_name from release $version"
+            error "Refusing to install an unverified binary."
+            error "Re-run with --skip-checksum to bypass this check (not recommended)."
+            rm -rf "$temp_dir"
+            exit 1
+        fi
+
+        if ! verify_checksum "$archive_path" "$expected_checksum"; then
+            error "The downloaded archive does not match its published checksum."
+            error "This can mean a corrupted download or a tampered file. Not installing."
+            rm -rf "$temp_dir"
+            exit 1
+        fi
+
+        log "Checksum verified"
     fi
 
     # Extract the archive
@@ -801,6 +880,8 @@ OPTIONS:
     --yes               Skip interactive prompts
     --no-sudo           Don't attempt system-wide installation
     --skip-shell        Skip shell integration setup
+    --skip-checksum     Install without verifying the download's SHA-256
+                        (not recommended)
     --force, -f         Force installation without confirmation
 
 CLEANUP OPTIONS (opt-in):
@@ -815,6 +896,7 @@ ENVIRONMENT VARIABLES:
     NO_SUDO             Avoid system-wide installation (1 to enable)
     SKIP_SHELL_INTEGRATION  Skip PATH setup (1 to enable)
     FORCE               Force installation without confirmation (1 to enable)
+    SKIP_CHECKSUM       Skip SHA-256 verification (1 to enable)
     DEBUG               Enable debug output (1 to enable)
 
 VERSION BEHAVIOR:
@@ -884,6 +966,10 @@ main() {
                 ;;
             --skip-shell)
                 SKIP_SHELL_INTEGRATION=1
+                shift
+                ;;
+            --skip-checksum)
+                SKIP_CHECKSUM=1
                 shift
                 ;;
             --force|-f)
@@ -957,5 +1043,8 @@ main() {
 # Handle errors and cleanup
 trap 'error "Installation failed"; exit 1' ERR
 
-# Run main function
-main "$@"
+# Run main function, unless this file was sourced (the test suite sources it
+# to exercise individual functions).
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
