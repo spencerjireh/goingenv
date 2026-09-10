@@ -240,6 +240,9 @@ e2e_tests() {
         sed 's/^/      /' "$tmp/debug.log" >&2
     fi
 
+    # Keep a pristine copy so the corruption test can be undone.
+    cp "$rel/$archive_name" "$tmp/pristine.tar.gz"
+
     # 2. The one that matters: corrupt the archive, leave checksums.txt alone.
     rm -rf "$tmp/bin"
     printf 'corrupted' >> "$rel/$archive_name"
@@ -258,7 +261,29 @@ e2e_tests() {
         bad "a binary was installed despite a failed checksum"
     fi
 
-    # 3. --skip-checksum is a real escape hatch for the same corrupt archive.
+    # Restore the good archive. The next two cases tamper with the manifest
+    # instead, which isolates "the digest does not match" from "the archive is
+    # unusable" -- GNU tar rejects an archive with trailing garbage while
+    # bsdtar extracts it anyway, so reusing the corrupted one made the
+    # --skip-checksum case pass on macOS and fail on Linux.
+    cp "$tmp/pristine.tar.gz" "$rel/$archive_name"
+    printf '%s  %s\n' "0000000000000000000000000000000000000000000000000000000000000000" \
+        "$archive_name" > "$rel/checksums.txt"
+
+    # 3. A good archive whose published digest does not match must still be
+    #    refused: verification compares against the manifest, not the file.
+    rm -rf "$tmp/bin"
+    GOINGENV_DOWNLOAD_BASE="$base" bash "$INSTALL_SH" \
+        --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
+        >"$tmp/mismatch.log" 2>&1
+    status=$?
+    if [[ $status -ne 0 && ! -e "$tmp/bin/goingenv" ]]; then
+        ok "install refuses an archive whose published digest does not match"
+    else
+        bad "install accepted a digest mismatch (status=$status)"
+    fi
+
+    # 4. --skip-checksum bypasses that same mismatch and installs.
     rm -rf "$tmp/bin"
     GOINGENV_DOWNLOAD_BASE="$base" bash "$INSTALL_SH" \
         --version "$version" --dir "$tmp/bin" --no-sudo --skip-shell --yes --force \
