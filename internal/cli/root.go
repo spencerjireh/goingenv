@@ -42,6 +42,24 @@ func NewApp() (*types.App, error) {
 // appVersion stores the version for use in CLI output
 var appVersion string
 
+// buildTime and gitCommit hold build metadata injected via -ldflags -X in
+// cmd/goingenv. They are reported by --version; the short appVersion is what
+// the command output header uses.
+var (
+	buildTime = "unknown"
+	gitCommit = "unknown"
+)
+
+// SetBuildInfo records build metadata for the --version output.
+func SetBuildInfo(bt, commit string) {
+	if bt != "" {
+		buildTime = bt
+	}
+	if commit != "" {
+		gitCommit = commit
+	}
+}
+
 // NewRootCommand creates and returns the root command
 func NewRootCommand(version string) *cobra.Command {
 	appVersion = version
@@ -59,6 +77,9 @@ backup, transfer, and restore your environment configurations.`,
 			return runInteractiveMode(verbose, version)
 		},
 	}
+
+	rootCmd.SetVersionTemplate(fmt.Sprintf(
+		"goingenv {{.Version}}\ncommit: %s\nbuilt:  %s\n", gitCommit, buildTime))
 
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true

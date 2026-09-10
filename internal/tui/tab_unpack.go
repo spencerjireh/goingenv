@@ -100,86 +100,113 @@ func (t *UnpackTab) FullHelp() [][]key.Binding {
 func (t *UnpackTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	switch t.step {
 	case UnpackStepIdle:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if key.Matches(keyMsg, WizardKeys.Start) {
-				return t.startSelection()
-			}
-		}
-
+		return t.updateIdle(msg)
 	case UnpackStepSelect:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if key.Matches(keyMsg, WizardKeys.Cancel) {
-				t.reset()
-				return t, nil
-			}
-		}
-
-		var cmd tea.Cmd
-		t.filepicker, cmd = t.filepicker.Update(msg)
-
-		if didSelect, path := t.filepicker.DidSelectFile(msg); didSelect {
-			t.selectedArchive = path
-			t.step = UnpackStepPassword
-			t.textInput.Reset()
-			t.textInput.Focus()
-			t.debugLogger.LogOperation("unpack", fmt.Sprintf("selected: %s", path))
-			return t, textinput.Blink
-		}
-
-		return t, cmd
-
+		return t.updateSelect(msg)
 	case UnpackStepPassword:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			switch {
-			case key.Matches(keyMsg, WizardKeys.Confirm):
-				password := t.textInput.Value()
-				if password == "" {
-					t.errorMsg = "Password cannot be empty"
-					return t, nil
-				}
-				t.errorMsg = ""
-				t.step = UnpackStepUnpacking
-				t.debugLogger.LogOperation("unpack", "unpacking")
-				return t, tea.Batch(t.spinner.Tick, UnpackFilesCmd(t.app, password, t.selectedArchive))
-			case key.Matches(keyMsg, WizardKeys.Cancel):
-				t.step = UnpackStepSelect
-				t.textInput.Blur()
-				return t, nil
-			}
-		}
-		var cmd tea.Cmd
-		t.textInput, cmd = t.textInput.Update(msg)
-		return t, cmd
-
+		return t.updatePassword(msg)
 	case UnpackStepUnpacking:
-		switch msg := msg.(type) {
-		case UnpackCompleteMsg:
-			t.resultMsg = string(msg)
-			t.errorMsg = ""
-			t.step = UnpackStepResult
-			t.debugLogger.LogOperation("unpack", "complete")
-			return t, func() tea.Msg {
-				return ToastMsg{Message: "Unpack completed successfully", IsError: false}
-			}
-		case ErrorMsg:
-			t.errorMsg = string(msg)
-			t.resultMsg = ""
-			t.step = UnpackStepResult
-			return t, func() tea.Msg {
-				return ToastMsg{Message: string(msg), IsError: true}
-			}
-		case spinner.TickMsg:
-			var cmd tea.Cmd
-			t.spinner, cmd = t.spinner.Update(msg)
-			return t, cmd
-		}
-
+		return t.updateUnpacking(msg)
 	case UnpackStepResult:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if key.Matches(keyMsg, WizardKeys.Reset) || key.Matches(keyMsg, WizardKeys.Start) {
-				t.reset()
+		return t.updateResult(msg)
+	}
+
+	return t, nil
+}
+
+// updateIdle moves to archive selection on Enter.
+func (t *UnpackTab) updateIdle(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, WizardKeys.Start) {
+			return t.startSelection()
+		}
+	}
+
+	return t, nil
+}
+
+// updateSelect drives the file picker until an archive is chosen.
+func (t *UnpackTab) updateSelect(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, WizardKeys.Cancel) {
+			t.reset()
+			return t, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	t.filepicker, cmd = t.filepicker.Update(msg)
+
+	if didSelect, path := t.filepicker.DidSelectFile(msg); didSelect {
+		t.selectedArchive = path
+		t.step = UnpackStepPassword
+		t.textInput.Reset()
+		t.textInput.Focus()
+		t.debugLogger.LogOperation("unpack", fmt.Sprintf("selected: %s", path))
+		return t, textinput.Blink
+	}
+
+	return t, cmd
+}
+
+// updatePassword collects the archive password and kicks off the unpack.
+func (t *UnpackTab) updatePassword(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case key.Matches(keyMsg, WizardKeys.Confirm):
+			password := t.textInput.Value()
+			if password == "" {
+				t.errorMsg = "Password cannot be empty"
 				return t, nil
 			}
+			t.errorMsg = ""
+			t.step = UnpackStepUnpacking
+			t.debugLogger.LogOperation("unpack", "unpacking")
+			return t, tea.Batch(t.spinner.Tick, UnpackFilesCmd(t.app, password, t.selectedArchive))
+		case key.Matches(keyMsg, WizardKeys.Cancel):
+			t.step = UnpackStepSelect
+			t.textInput.Blur()
+			return t, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	t.textInput, cmd = t.textInput.Update(msg)
+	return t, cmd
+}
+
+// updateUnpacking waits for the unpack to finish and reports it as a toast.
+func (t *UnpackTab) updateUnpacking(msg tea.Msg) (Tab, tea.Cmd) {
+	switch msg := msg.(type) {
+	case UnpackCompleteMsg:
+		t.resultMsg = string(msg)
+		t.errorMsg = ""
+		t.step = UnpackStepResult
+		t.debugLogger.LogOperation("unpack", "complete")
+		return t, func() tea.Msg {
+			return ToastMsg{Message: "Unpack completed successfully", IsError: false}
+		}
+	case ErrorMsg:
+		t.errorMsg = string(msg)
+		t.resultMsg = ""
+		t.step = UnpackStepResult
+		return t, func() tea.Msg {
+			return ToastMsg{Message: string(msg), IsError: true}
+		}
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		t.spinner, cmd = t.spinner.Update(msg)
+		return t, cmd
+	}
+
+	return t, nil
+}
+
+// updateResult returns the tab to idle so another unpack can be started.
+func (t *UnpackTab) updateResult(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, WizardKeys.Reset) || key.Matches(keyMsg, WizardKeys.Start) {
+			t.reset()
 		}
 	}
 
@@ -219,7 +246,11 @@ func (t *UnpackTab) View(width, height int) string {
 	var content string
 	switch t.step {
 	case UnpackStepIdle:
-		archives, _ := t.app.Archiver.GetAvailableArchives("")
+		archives, err := t.app.Archiver.GetAvailableArchives("")
+		if err != nil {
+			// Rendering cannot surface an error; show the empty state instead.
+			archives = nil
+		}
 		if len(archives) == 0 {
 			content = renderEmptyState(
 				"No Archives Found",
@@ -265,7 +296,7 @@ func (t *UnpackTab) renderPasswordEntry() string {
 	var b strings.Builder
 	b.WriteString("\n")
 	b.WriteString(RenderSectionHeader("  Unpacking archive") + "\n\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", t.selectedArchive))
+	fmt.Fprintf(&b, "  %s\n\n", t.selectedArchive)
 	b.WriteString("  Password: " + t.textInput.View() + "\n")
 
 	if t.errorMsg != "" {

@@ -1,0 +1,120 @@
+# GoReleaser configuration for goingenv.
+#
+# install.sh depends on the exact shape of what this produces. Three things are
+# a contract, not preferences -- changing any of them breaks every install:
+#
+#   1. Archive name: goingenv-<tag>-<os>-<arch>.tar.gz, tag keeping its "v".
+#      Built by install.sh:install_binary from detect_platform's <goos>-<goarch>.
+#   2. Each archive contains exactly one file, named goingenv, at the root.
+#      install.sh locates it with `find -name goingenv -type f`.
+#   3. A checksums.txt asset in `<64-hex><two spaces><archive name>` format,
+#      which install.sh's fetch_expected_checksum parses by exact field match.
+#
+# Verify with:
+#   goreleaser check
+#   goreleaser release --snapshot --clean
+#   tar -tzf dist/goingenv-*-darwin-arm64.tar.gz   # must print only: goingenv
+
+version: 2
+
+project_name: goingenv
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - id: goingenv
+    main: ./cmd/goingenv
+    binary: goingenv
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    # .CommitDate rather than .Date, paired with mod_timestamp, so the build is
+    # reproducible. Provenance attestation over a reproducible artifact is worth
+    # considerably more than over one that changes every run.
+    ldflags:
+      - -s -w
+      - -X main.Version={{ .Tag }}
+      - -X main.BuildTime={{ .CommitDate }}
+      - -X main.GitCommit={{ .FullCommit }}
+    mod_timestamp: '{{ .CommitTimestamp }}'
+
+archives:
+  - id: goingenv
+    ids: [goingenv]
+    formats: [tar.gz]
+    # {{ .Tag }} keeps the leading v. {{ .Version }} would strip it and every
+    # install would 404.
+    name_template: '{{ .ProjectName }}-{{ .Tag }}-{{ .Os }}-{{ .Arch }}'
+    # GoReleaser bundles README/LICENSE/CHANGELOG by default, and `files: []`
+    # does NOT disable that -- an empty list reads as "unset", so the defaults
+    # come back. A glob that matches nothing is the documented way to get an
+    # archive containing only the binary. Verified by the tar -tzf check below.
+    files:
+      - none*
+    wrap_in_directory: false
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+sboms:
+  - id: archive-sbom
+    artifacts: archive
+
+changelog:
+  use: github-native
+
+release:
+  draft: false
+  # Marks any tag containing a hyphen (v1.2.3-rc.1) as a prerelease, matching
+  # the regex the hand-rolled workflow used.
+  prerelease: auto
+  name_template: 'GoingEnv {{ .Tag }}'
+  # The version-stamped install script, written by a workflow step before this
+  # runs. Extra files are deliberately not in checksums.txt, matching previous
+  # behaviour (only archives were listed).
+  extra_files:
+    - glob: ./build/install.sh
+  header: |
+    ## Installation
+
+    **Quick Install (Always Latest):**
+    ```bash
+    curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
+    ```
+
+    **Install This Exact Version:**
+    ```bash
+    curl -sSL https://github.com/spencerjireh/goingenv/releases/download/{{ .Tag }}/install.sh | bash
+    ```
+
+    **Install Specific Version:**
+    ```bash
+    curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version {{ .Tag }}
+    ```
+
+    The install script verifies the archive against `checksums.txt` before
+    installing, and refuses to install if verification fails.
+
+    ## Verification
+
+    Checksums:
+    ```bash
+    sha256sum -c checksums.txt
+    ```
+
+    Build provenance (proves these artifacts were built by this repo's CI):
+    ```bash
+    gh attestation verify goingenv-{{ .Tag }}-<os>-<arch>.tar.gz --repo spencerjireh/goingenv
+    ```
+
+    ---

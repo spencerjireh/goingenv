@@ -74,21 +74,21 @@ func (t *SettingsTab) buildContent() string {
 
 	b.WriteString(RenderSectionHeader("Settings") + "\n\n")
 
-	b.WriteString(fmt.Sprintf("  Scan Depth        %d\n", t.app.Config.DefaultDepth))
-	b.WriteString(fmt.Sprintf("  Max File Size     %s\n\n", utils.FormatSize(t.app.Config.MaxFileSize)))
+	fmt.Fprintf(&b, "  Scan Depth        %d\n", t.app.Config.DefaultDepth)
+	fmt.Fprintf(&b, "  Max File Size     %s\n\n", utils.FormatSize(t.app.Config.MaxFileSize))
 
 	b.WriteString(RenderSectionHeader("Patterns") + "\n")
 	b.WriteString("  Include:\n")
 	for _, pattern := range t.app.Config.EnvPatterns {
-		b.WriteString(fmt.Sprintf("    %s\n", pattern))
+		fmt.Fprintf(&b, "    %s\n", pattern)
 	}
 	b.WriteString("  Exclude:\n")
 	for _, pattern := range t.app.Config.ExcludePatterns {
-		b.WriteString(fmt.Sprintf("    %s\n", pattern))
+		fmt.Fprintf(&b, "    %s\n", pattern)
 	}
 
 	b.WriteString("\n" + RenderSectionHeader("Config Location") + "\n")
-	b.WriteString(fmt.Sprintf("  %s\n", config.GetGoingEnvDir()))
+	fmt.Fprintf(&b, "  %s\n", config.GetGoingEnvDir())
 
 	return b.String()
 }

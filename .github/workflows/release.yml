@@ -5,212 +5,104 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  build-release:
-    name: Build (${{ matrix.goos }}-${{ matrix.goarch }})
+  # Gate the release on the full CI suite. A tag push previously went straight
+  # to building and publishing, so a tag cut from a branch with failing tests
+  # would ship. A called workflow's permissions must be a subset of the
+  # caller's, hence security-events here.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      security-events: write
+
+  release:
+    name: Build and publish
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
+    needs: [ci]
+    permissions:
+      contents: write
+      # Both required by attest-build-provenance: OIDC to prove the workflow
+      # identity, attestations to record the result.
+      id-token: write
+      attestations: write
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
-        clean: true
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
-        check-latest: true
-        cache: false
-
-    - name: Build binary
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-        VERSION: ${{ github.ref_name }}
-        GIT_COMMIT: ${{ github.sha }}
-      run: |
-        BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-        go build \
-          -trimpath \
-          -ldflags="-s -w -X main.Version=$VERSION -X main.BuildTime=$BUILD_TIME -X main.GitCommit=$GIT_COMMIT" \
-          -o goingenv-$GOOS-$GOARCH \
-          ./cmd/goingenv
-
-        chmod +x goingenv-$GOOS-$GOARCH
-
-        if [[ "$GOOS" == "linux" && "$GOARCH" == "amd64" ]]; then
-          ./goingenv-$GOOS-$GOARCH --version
-        fi
-
-    - name: Create archive
-      run: |
-        ARCHIVE_NAME="goingenv-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
-
-        cp goingenv-${{ matrix.goos }}-${{ matrix.goarch }} goingenv
-        tar -czf "$ARCHIVE_NAME" goingenv
-        sha256sum "$ARCHIVE_NAME" > "$ARCHIVE_NAME.sha256"
-
-        echo "Archive: $ARCHIVE_NAME"
-        echo "Size: $(du -h $ARCHIVE_NAME | cut -f1)"
-        echo "SHA256: $(cat $ARCHIVE_NAME.sha256)"
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: goingenv-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: |
-          goingenv-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
-          goingenv-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz.sha256
-
-  create-release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    needs: build-release
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
+        # GoReleaser needs full history and tags to build the changelog.
         fetch-depth: 0
 
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
+    # goreleaser and syft (which the sboms block shells out to) are both pinned
+    # in mise.toml, so `make release-local` and this job run the same versions.
+    - name: Set up toolchain
+      uses: jdx/mise-action@v4
       with:
-        path: dist/
+        cache: true
 
-    - name: Prepare release assets
-      run: |
-        mkdir -p release-assets
-
-        find dist/ -name "*.tar.gz" -exec mv {} release-assets/ \;
-        find dist/ -name "*.sha256" -exec mv {} release-assets/ \;
-
-        cd release-assets
-        cat *.sha256 > checksums.txt
-        rm *.sha256
-
-        echo "Release assets:"
-        ls -la
-        echo "Checksums:"
-        cat checksums.txt
-
+    # Stamp the version into the copy of install.sh published as a release
+    # asset, so `curl .../<tag>/install.sh | bash` installs that exact version.
+    # Written outside dist/, which `goreleaser --clean` wipes.
     - name: Create versioned install script
       run: |
-        VERSION="${{ github.ref_name }}"
-        cp install.sh release-assets/install.sh
+        mkdir -p build
+        cp install.sh build/install.sh
+        sed -i 's/^SCRIPT_VERSION=""$/SCRIPT_VERSION="'"$GITHUB_REF_NAME"'"/' build/install.sh
 
-        sed -i 's/^SCRIPT_VERSION=""$/SCRIPT_VERSION="'"$VERSION"'"/' release-assets/install.sh
-
-        if grep -q "SCRIPT_VERSION=\"$VERSION\"" release-assets/install.sh; then
-          echo "Embedded version $VERSION in install.sh"
-        else
-          echo "ERROR: Failed to embed version in install.sh"
-          grep "SCRIPT_VERSION=" release-assets/install.sh
+        # A silent sed miss would publish an installer that defaults to
+        # "latest" instead of this tag, so verify rather than assume.
+        if ! grep -q "SCRIPT_VERSION=\"$GITHUB_REF_NAME\"" build/install.sh; then
+          echo "ERROR: failed to embed version in install.sh"
+          grep "SCRIPT_VERSION=" build/install.sh
           exit 1
         fi
+        chmod +x build/install.sh
+        echo "Embedded version $GITHUB_REF_NAME in install.sh"
 
-        chmod +x release-assets/install.sh
-
-    - name: Get previous tag
-      id: prev_tag
-      run: |
-        PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | grep -v "^${{ github.ref_name }}$" | head -1)
-        echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
-        echo "Previous tag: ${PREVIOUS_TAG:-none}"
-
-    - name: Generate release notes
-      run: |
-        VERSION="${{ github.ref_name }}"
-        PREVIOUS_TAG="${{ steps.prev_tag.outputs.tag }}"
-
-        if [[ -n "$PREVIOUS_TAG" ]]; then
-          RELEASE_NOTES=$(curl -s -H "Authorization: token ${{ github.token }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/generate-notes" \
-            -d "{\"tag_name\":\"$VERSION\",\"previous_tag_name\":\"$PREVIOUS_TAG\"}" \
-            | jq -r '.body' || echo "See commit history for details.")
-        else
-          RELEASE_NOTES="**Initial Release**"
-        fi
-
-        {
-          echo "## Installation"
-          echo ""
-          echo "**Quick Install (Always Latest):**"
-          echo '```bash'
-          echo "curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash"
-          echo '```'
-          echo ""
-          echo "**Install This Exact Version:**"
-          echo '```bash'
-          echo "curl -sSL https://github.com/${{ github.repository }}/releases/download/$VERSION/install.sh | bash"
-          echo '```'
-          echo ""
-          echo "**Install Specific Version:**"
-          echo '```bash'
-          echo "curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --version $VERSION"
-          echo '```'
-          echo ""
-          echo "**Upgrade with Cleanup:**"
-          echo '```bash'
-          echo "curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash -s -- --cleanup-all"
-          echo '```'
-          echo ""
-          echo "**Manual Download:**"
-          echo "Download the appropriate binary for your platform from the assets below."
-          echo ""
-          echo "## Verification"
-          echo ""
-          echo '```bash'
-          echo "sha256sum -c checksums.txt"
-          echo '```'
-          echo ""
-          echo "---"
-          echo ""
-        } > release_notes.md
-
-        echo "$RELEASE_NOTES" >> release_notes.md
-
-        echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-        cat release_notes.md >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
-
-    - name: Check if prerelease
-      id: prerelease
-      run: |
-        if [[ "${{ github.ref_name }}" =~ -.*$ ]]; then
-          echo "value=true" >> $GITHUB_OUTPUT
-        else
-          echo "value=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ github.ref_name }}
-        name: GoingEnv ${{ github.ref_name }}
-        body: ${{ env.RELEASE_BODY }}
-        draft: false
-        prerelease: ${{ steps.prerelease.outputs.value }}
-        files: release-assets/*
-        generate_release_notes: false
-        make_latest: ${{ steps.prerelease.outputs.value == 'false' }}
+    - name: Run GoReleaser
+      run: goreleaser release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Lets anyone verify the archives were built by this workflow from this
+    # repo: gh attestation verify <archive> --repo spencerjireh/goingenv
+    - name: Attest build provenance
+      uses: actions/attest-build-provenance@v4
+      with:
+        subject-path: dist/*.tar.gz
+
+    # Guards the contract install.sh depends on. Cheap, and failing here is far
+    # better than publishing an artifact nobody can install.
+    - name: Verify release artifact contract
+      run: |
+        set -euo pipefail
+        fail=0
+
+        for f in dist/*.tar.gz; do
+          contents=$(tar -tzf "$f")
+          if [ "$contents" != "goingenv" ]; then
+            echo "FAIL: $f should contain exactly 'goingenv', got: $contents"
+            fail=1
+          fi
+
+          name=$(basename "$f")
+          case "$name" in
+            goingenv-${GITHUB_REF_NAME}-*.tar.gz) ;;
+            *) echo "FAIL: $name does not match goingenv-<tag>-<os>-<arch>.tar.gz"; fail=1 ;;
+          esac
+
+          # The exact lookup install.sh performs.
+          if ! awk -v n="$name" '$2 == n { found=1 } END { exit !found }' dist/checksums.txt; then
+            echo "FAIL: no checksums.txt entry for $name"
+            fail=1
+          fi
+        done
+
+        exit $fail

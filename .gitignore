@@ -30,6 +30,7 @@ goingenv.exe
 
 # Release artifacts
 dist/
+build/
 *.tar.gz
 *.zip
 checksums.txt

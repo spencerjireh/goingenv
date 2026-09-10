@@ -52,12 +52,11 @@ func (t *StatusTab) FullHelp() [][]key.Binding {
 }
 
 func (t *StatusTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
-		case key.Matches(msg, StatusKeys.Pack):
+		case key.Matches(keyMsg, StatusKeys.Pack):
 			return t, func() tea.Msg { return SwitchTabMsg{Tab: TabPack} }
-		case key.Matches(msg, StatusKeys.Unpack):
+		case key.Matches(keyMsg, StatusKeys.Unpack):
 			return t, func() tea.Msg { return SwitchTabMsg{Tab: TabUnpack} }
 		}
 	}
@@ -81,8 +80,8 @@ func (t *StatusTab) View(width, height int) string {
 	}
 
 	// Build content for the two-column layout
-	leftContent := t.buildLeftColumn(width)
-	rightContent := t.buildRightColumn(width)
+	leftContent := t.buildLeftColumn()
+	rightContent := t.buildRightColumn()
 
 	// Two-column split
 	halfWidth := (width - 3) / 2 // 3 for divider + padding
@@ -116,13 +115,13 @@ func (t *StatusTab) ensureViewport(width, height int, content string) {
 	t.viewport.SetContent(content)
 }
 
-func (t *StatusTab) buildLeftColumn(width int) string {
+func (t *StatusTab) buildLeftColumn() string {
 	var b strings.Builder
 
 	// Directory
 	cwd, _ := os.Getwd() //nolint:errcheck
 	b.WriteString(RenderSectionHeader("Directory") + "\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", cwd))
+	fmt.Fprintf(&b, "  %s\n\n", cwd)
 
 	// Environment files
 	scanOpts := types.ScanOptions{
@@ -134,15 +133,15 @@ func (t *StatusTab) buildLeftColumn(width int) string {
 		b.WriteString(RenderSectionHeader(fmt.Sprintf("Environment Files (%d)", len(files))) + "\n")
 		for i, file := range files {
 			if i < 15 {
-				b.WriteString(fmt.Sprintf("  %s\n", file.RelativePath))
+				fmt.Fprintf(&b, "  %s\n", file.RelativePath)
 			} else if i == 15 {
-				b.WriteString(fmt.Sprintf("  ... and %d more\n", len(files)-15))
+				fmt.Fprintf(&b, "  ... and %d more\n", len(files)-15)
 				break
 			}
 		}
 
 		stats := scanner.GetFileStats(files)
-		b.WriteString(fmt.Sprintf("\n  Total: %s\n", utils.FormatSize(stats.TotalSize)))
+		fmt.Fprintf(&b, "\n  Total: %s\n", utils.FormatSize(stats.TotalSize))
 	} else {
 		b.WriteString(RenderSectionHeader("Environment Files") + "\n")
 		b.WriteString(MutedStyle.Render("  No environment files detected") + "\n")
@@ -151,7 +150,7 @@ func (t *StatusTab) buildLeftColumn(width int) string {
 	return b.String()
 }
 
-func (t *StatusTab) buildRightColumn(width int) string {
+func (t *StatusTab) buildRightColumn() string {
 	var b strings.Builder
 
 	// Archives
@@ -168,19 +167,19 @@ func (t *StatusTab) buildRightColumn(width int) string {
 		for _, archive := range archives {
 			info, statErr := os.Stat(archive)
 			if statErr == nil {
-				b.WriteString(fmt.Sprintf("  %s  %s  %s\n",
+				fmt.Fprintf(&b, "  %s  %s  %s\n",
 					filepath.Base(archive),
 					utils.FormatSize(info.Size()),
-					utils.FormatTimeAgo(info.ModTime())))
+					utils.FormatTimeAgo(info.ModTime()))
 			}
 		}
 	}
 
 	// Config info
 	b.WriteString("\n" + RenderSectionHeader("Configuration") + "\n")
-	b.WriteString(fmt.Sprintf("  Scan depth:    %d\n", t.app.Config.DefaultDepth))
-	b.WriteString(fmt.Sprintf("  Max file size: %s\n", utils.FormatSize(t.app.Config.MaxFileSize)))
-	b.WriteString(fmt.Sprintf("  Config:        %s\n", config.GetGoingEnvDir()))
+	fmt.Fprintf(&b, "  Scan depth:    %d\n", t.app.Config.DefaultDepth)
+	fmt.Fprintf(&b, "  Max file size: %s\n", utils.FormatSize(t.app.Config.MaxFileSize))
+	fmt.Fprintf(&b, "  Config:        %s\n", config.GetGoingEnvDir())
 
 	return b.String()
 }

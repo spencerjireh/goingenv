@@ -9,51 +9,13 @@ import (
 	"goingenv/test/testutils"
 )
 
-var binaryPath string
-
 func TestMain(m *testing.M) {
-	// Build binary once for all E2E tests
-	// This is done outside of individual tests to avoid repeated compilation
-	tmpDir, err := os.MkdirTemp("", "goingenv-e2e-binary-*")
-	if err != nil {
-		panic("Failed to create temp directory for binary: " + err.Error())
-	}
-
-	binaryPath = filepath.Join(tmpDir, "goingenv")
-
-	// Build using go build
-	projectRoot := findProjectRoot()
-	if projectRoot == "" {
-		panic("Could not find project root (go.mod)")
-	}
-
-	// We'll build the binary in TestMain setup
-	// For now, use the BuildBinary helper in tests
+	// The binary is built lazily and cached by testutils.BuildBinary; this
+	// only needs to clean up after the whole package has run. CleanupBinary
+	// does not reset the sync.Once guards, so it is only safe after m.Run().
 	code := m.Run()
-
-	// Cleanup
-	os.RemoveAll(tmpDir)
 	testutils.CleanupBinary()
-
 	os.Exit(code)
-}
-
-func findProjectRoot() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return ""
-		}
-		dir = parent
-	}
 }
 
 func TestE2E_FullWorkflow(t *testing.T) {

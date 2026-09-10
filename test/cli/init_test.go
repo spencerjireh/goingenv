@@ -16,7 +16,7 @@ func TestInit_FreshDirectory(t *testing.T) {
 	result := testutils.RunCLI(t, tmpDir, "init")
 
 	testutils.AssertSuccess(t, result)
-	testutils.AssertOutputContains(t, result, "initialized")
+	testutils.AssertOutputContains(t, result, "Initialized")
 
 	// Verify .goingenv directory was created
 	goingenvDir := filepath.Join(tmpDir, ".goingenv")
@@ -103,8 +103,9 @@ func TestInit_OutputMessages(t *testing.T) {
 	result := testutils.RunCLI(t, tmpDir, "init")
 
 	testutils.AssertSuccess(t, result)
-	// Verify informative output
-	testutils.AssertOutputContains(t, result, ".goingenv")
+	// Verify informative output: confirmation plus a pointer to the next step.
+	testutils.AssertOutputContains(t, result, "Initialized")
+	testutils.AssertOutputContains(t, result, "goingenv status")
 }
 
 func TestInit_DirectoryPermissions(t *testing.T) {

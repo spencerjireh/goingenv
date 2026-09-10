@@ -116,7 +116,7 @@ func TestUnpack_WithBackup(t *testing.T) {
 	}
 
 	// Unpack with backup flag
-	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--backup")
+	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--backup", "--overwrite")
 
 	testutils.AssertSuccess(t, result)
 
@@ -200,7 +200,7 @@ func TestUnpack_VerboseMode(t *testing.T) {
 	os.Remove(filepath.Join(tmpDir, ".env"))
 
 	// Verbose unpack
-	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--verbose")
+	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--verbose", "--overwrite")
 
 	testutils.AssertSuccess(t, result)
 	// Verbose mode should show detailed output
@@ -219,7 +219,7 @@ func TestUnpack_WithVerify(t *testing.T) {
 	os.Remove(filepath.Join(tmpDir, ".env"))
 
 	// Unpack with verify flag
-	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--verify")
+	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--verify", "--overwrite")
 
 	testutils.AssertSuccess(t, result)
 }
@@ -262,7 +262,7 @@ func TestUnpack_WithExcludePattern(t *testing.T) {
 	os.Remove(filepath.Join(tmpDir, ".env.production"))
 
 	// Unpack excluding local files
-	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--exclude", "*.local")
+	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--exclude", "*.local", "--overwrite")
 
 	testutils.AssertSuccess(t, result)
 }

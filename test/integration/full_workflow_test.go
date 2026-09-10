@@ -282,7 +282,12 @@ func TestConfigIntegration(t *testing.T) {
 	tmpDir := testutils.CreateTempDir(t, "config-test-*")
 	defer os.RemoveAll(tmpDir)
 
-	configManager := config.NewManager()
+	// Bind the manager to a temp path. This used to be config.NewManager(),
+	// which resolves to $HOME/.goingenv.json -- so the test silently
+	// overwrote the developer's real config on every run, and CI ran it on
+	// every push.
+	configPath := filepath.Join(tmpDir, ".goingenv.json")
+	configManager := config.NewManagerWithPath(configPath)
 
 	t.Run("Save and Load Configuration", func(t *testing.T) {
 		// Create test config
@@ -304,8 +309,10 @@ func TestConfigIntegration(t *testing.T) {
 		err := configManager.Save(testConfig)
 		testutils.AssertNoError(t, err)
 
-		// Note: config is saved to user home directory by default
-		// For integration tests, we just verify the save/load cycle works
+		// Assert the isolation rather than leaving it as an invisible
+		// property: if this ever escapes back to the real home directory,
+		// this line fails instead of quietly clobbering a user's config.
+		testutils.AssertFileExists(t, configPath)
 
 		// Load config
 		loadedConfig, err := configManager.Load()

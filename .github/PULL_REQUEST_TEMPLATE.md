@@ -23,7 +23,7 @@ Or run individual checks:
 - [ ] Linting passes (`make ci-lint`)
 - [ ] All tests pass (`make ci-test`)
 - [ ] Security checks pass (`make ci-security`)
-- [ ] Cross-compilation works (`make ci-cross-compile`)
+- [ ] Release build works (`make release-local`)
 - [ ] Manual testing completed (describe below)
 
 **Manual Testing:**

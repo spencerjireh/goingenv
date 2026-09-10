@@ -65,7 +65,7 @@ func (d *DebugLogger) LogScreen(from, to string) {
 }
 
 // LogKeypress logs key press events
-func (d *DebugLogger) LogKeypress(key string, screen string) {
+func (d *DebugLogger) LogKeypress(key, screen string) {
 	d.Log("Keypress: %s (screen: %s)", key, screen)
 }
 

@@ -21,7 +21,7 @@ func TestPack_BasicWorkflow(t *testing.T) {
 	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "pack")
 
 	testutils.AssertSuccess(t, result)
-	testutils.AssertOutputContains(t, result, "pack")
+	testutils.AssertOutputContains(t, result, "Packing")
 
 	// Verify archive was created
 	goingenvDir := filepath.Join(tmpDir, ".goingenv")

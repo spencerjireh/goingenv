@@ -106,11 +106,12 @@ func renderEmptyState(title, description, hint string, width, height int) string
 func renderStepIndicator(steps []string, current int) string {
 	var parts []string
 	for i, name := range steps {
-		if i == current {
+		switch {
+		case i == current:
 			parts = append(parts, StepActiveStyle.Render(fmt.Sprintf("[*] %s", name)))
-		} else if i < current {
+		case i < current:
 			parts = append(parts, StepDoneStyle.Render(fmt.Sprintf("[+] %s", name)))
-		} else {
+		default:
 			parts = append(parts, StepInactiveStyle.Render(fmt.Sprintf("[o] %s", name)))
 		}
 	}

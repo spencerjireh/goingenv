@@ -1,0 +1,27 @@
+# Development toolchain for goingenv.
+# Run `mise install` (or `make bootstrap`) to get every tool at the pinned version.
+# CI installs from this same file via jdx/mise-action, so local and CI never drift.
+
+[tools]
+# Build toolchain. go.mod declares 1.24 as the minimum supported version;
+# this is the version we actually build and test with. Keep it on a current
+# patch release -- govulncheck gates on stdlib CVEs (archive/tar matters here).
+go = "1.27.1"
+
+# Linting and security. golangci-lint is pinned to the version CI used before
+# this file existed -- bump deliberately, since new minor versions add linters.
+golangci-lint = "2.13.2"
+"go:github.com/securego/gosec/v2/cmd/gosec" = "2.29.0"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
+
+# Release tooling. syft generates the SBOMs declared in .goreleaser.yaml, so
+# `make release-local` exercises the same path CI does.
+goreleaser = "2.18.1"
+syft = "1.51.1"
+
+# Workflow linting. GitHub only reports an unparseable workflow as a failed run
+# with zero jobs and no usable error, so this needs to run before pushing.
+actionlint = "1.7.12"
+
+# Hot-reload for TUI development (make tui-watch).
+air = "1.67.4"

@@ -12,6 +12,9 @@ updates:
       time: "09:00"
       timezone: "UTC"
     open-pull-requests-limit: 5
+    groups:
+      go-dependencies:
+        patterns: ["*"]
     reviewers:
       - "spencerjireh"
     assignees:
@@ -36,6 +39,9 @@ updates:
       time: "09:30"
       timezone: "UTC"
     open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        patterns: ["*"]
     reviewers:
       - "spencerjireh"
     assignees:
@@ -47,28 +53,3 @@ updates:
       - "dependencies"
       - "github-actions"
       - "ci"
-
-  # NPM dependencies (for documentation tools)
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 3
-    reviewers:
-      - "spencerjireh"
-    assignees:
-      - "spencerjireh"
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "npm"
-      - "docs"
-    # Only create PRs for security updates and minor/patch versions
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]

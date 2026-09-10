@@ -17,9 +17,10 @@ func TestStatus_InitializedProject(t *testing.T) {
 	result := testutils.RunCLI(t, tmpDir, "status")
 
 	testutils.AssertSuccess(t, result)
-	// Should show project is initialized (shows ".goingenv (exists)" in output)
-	testutils.AssertOutputContains(t, result, ".goingenv")
-	testutils.AssertOutputContains(t, result, "exists")
+	// status only succeeds in an initialized project, and reports both
+	// sections. In an uninitialized directory it exits 1 instead.
+	testutils.AssertOutputContains(t, result, "Environment Files")
+	testutils.AssertOutputContains(t, result, "Archives")
 }
 
 func TestStatus_NotInitialized(t *testing.T) {
@@ -130,7 +131,7 @@ func TestStatus_AfterUnpack(t *testing.T) {
 	os.Remove(filepath.Join(tmpDir, ".env"))
 
 	// Unpack
-	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath)
+	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--overwrite")
 	testutils.AssertSuccess(t, result)
 
 	// Check status
@@ -263,10 +264,11 @@ func TestStatus_OutputFormatting(t *testing.T) {
 	result := testutils.RunCLI(t, tmpDir, "status", "--verbose")
 
 	testutils.AssertSuccess(t, result)
-	// Output should be well-formatted and readable
-	// Verify it contains expected sections
-	testutils.AssertOutputContains(t, result, "Status Report")
+	// Verify the verbose report renders each of its sections.
+	testutils.AssertOutputContains(t, result, "Directory")
+	testutils.AssertOutputContains(t, result, "Configuration")
 	testutils.AssertOutputContains(t, result, "Environment Files")
+	testutils.AssertOutputContains(t, result, "Archives")
 }
 
 func TestStatus_EmptyGoingenvDirectory(t *testing.T) {
