@@ -30,6 +30,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # ci.yml gates the merge, but this workflow triggers directly on push to
+      # main and is not gated on ci-ok, so a push that bypasses a PR would
+      # otherwise deploy unchecked. Same assertions, ~10 seconds.
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: 'stable'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Check the website before deploying
+        run: make test-site
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 

@@ -99,6 +99,8 @@ ci-test:
 	go test -timeout=5m ./test/cli/...
 	@printf "$(BLUE)Running e2e tests...$(NC)\n"
 	go test -timeout=5m ./test/e2e/...
+	@printf "$(BLUE)Running website tests...$(NC)\n"
+	go test -timeout=1m ./test/site/...
 	@printf "$(BLUE)Running install script tests...$(NC)\n"
 	bash test/install/test_install.sh
 	@printf "$(GREEN)All tests passed$(NC)\n"
@@ -170,6 +172,11 @@ test-e2e:
 
 test-install:
 	bash test/install/test_install.sh
+
+# public/ has no build step -- pages.yml uploads it as it is -- so these
+# assertions are the only thing standing between an edit and production.
+test-site:
+	go test -timeout=1m ./test/site/...
 
 test-complete: ci-test
 
@@ -248,8 +255,21 @@ vet:
 # arguments reads stdin and hangs.
 SHELL_SOURCES := install.sh test/install/test_install.sh
 
+# Enumerated for the same reason. lychee follows relative links between files,
+# which a single-document HTML parse cannot: the README's LICENSE link pointed
+# at a path that did not exist for several releases before anyone noticed.
+#
+# Deliberately not part of `lint` or `ci-lint`. It needs the network, so a
+# failure would usually mean a host was slow rather than that the change under
+# review was wrong. It runs on a schedule instead -- see
+# .github/workflows/link-check.yml.
+LINK_SOURCES := README.md SECURITY.md CHANGELOG.md docs/*.md public/index.html
+
 shellcheck:
 	shellcheck $(SHELL_SOURCES)
+
+link-check:
+	lychee --no-progress $(LINK_SOURCES)
 
 lint:
 	golangci-lint run --config=.golangci.yml
@@ -370,6 +390,7 @@ help:
 	@printf "  test-cli          CLI tests (spawns the built binary)\n"
 	@printf "  test-e2e          End-to-end tests\n"
 	@printf "  test-install      install.sh checksum verification tests\n"
+	@printf "  test-site         public/index.html structure and accessibility\n"
 	@printf "  test-complete     Everything CI runs\n"
 	@printf "  test-coverage     Coverage report incl. CLI/E2E (writes coverage.html)\n"
 	@printf "  test-bench        Benchmarks\n"
@@ -379,6 +400,7 @@ help:
 	@printf "  vet               go vet\n"
 	@printf "  lint              golangci-lint, actionlint and shellcheck\n"
 	@printf "  shellcheck        install.sh and its test suite only\n"
+	@printf "  link-check        lychee over the docs and the website (needs network)\n"
 	@printf "  vuln-check        govulncheck\n"
 	@printf "  check             fmt + vet + lint + test\n"
 	@printf "\n"
@@ -407,8 +429,8 @@ help:
 .PHONY: bootstrap build dev install uninstall clean \
         ci-test ci-lint ci-security ci-full \
         release-local release-check \
-        test test-unit test-integration test-cli test-e2e test-install \
+        test test-unit test-integration test-cli test-e2e test-install test-site \
         test-complete test-coverage test-coverage-ci coverage-collect test-bench test-clean \
-        fmt vet lint shellcheck vuln-check deps check \
+        fmt vet lint shellcheck link-check vuln-check deps check \
         run tui tui-sandbox tui-watch tui-clean \
         stats help

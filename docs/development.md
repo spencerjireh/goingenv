@@ -341,11 +341,14 @@ go get -u [vulnerable-package] && go mod tidy
 changes ──┬──> lint ───────────────┐
           ├──> test (matrix) ──────┤
           ├──> security ───────────┼──> ci-ok
-          └──> test-install-script ┘
+          ├──> test-install-script ┤
+          └──> web ────────────────┘
 ```
 
-- **changes** -- path filter. Non-code changes skip the jobs below, but `ci-ok`
-  still reports.
+- **changes** -- path filter, with two outputs. `code` excludes markdown,
+  `docs/`, `public/` and `assets/`; `web` selects `public/`, `assets/`,
+  `test/site/` and `pages.yml`. A change can set both, either or neither, and
+  `ci-ok` reports either way.
 - **lint** -- gofmt, go vet, `go mod tidy -diff`, golangci-lint.
 - **test** -- Ubuntu/macOS x Go minimum/stable. Unit (race), integration
   (race), CLI, and E2E tests. The minimum-version leg sets `GOTOOLCHAIN=local`,
@@ -354,11 +357,25 @@ changes ──┬──> lint ───────────────┐
 - **security** -- govulncheck, gosec, SARIF upload to the Security tab.
 - **test-install-script** -- install.sh checksum verification on Ubuntu and
   macOS. Runs in parallel; it does not depend on the other jobs.
+- **web** -- `make test-site` over `public/index.html`. The site has no build
+  step and was excluded from the filter, so before this job a website change
+  ran no checks and deployed on merge. `pages.yml` runs the same target before
+  uploading, because it triggers on push rather than through `ci-ok`.
 - **ci-ok** -- always runs and aggregates the rest.
 
 **Branch protection should require `ci-ok` and nothing else.** The other jobs
 are skipped for docs-only changes, so requiring them directly would block such
 PRs on checks that never report.
+
+### Link Check (`link-check.yml`)
+
+Weekly, plus `workflow_dispatch`. Runs `make link-check`, which is lychee over
+the markdown files and the website.
+
+Deliberately not a pull request check: a dead external link has nothing to do
+with the change under review, and a slow or rate-limiting host would block a
+merge for a reason the author cannot fix. Run it locally with `make link-check`
+when editing links.
 
 ### Release Workflow (`release.yml`)
 

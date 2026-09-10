@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.decide.outputs.code }}
+      web: ${{ steps.decide.outputs.web }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
@@ -43,6 +44,11 @@ jobs:
             - '!docs/**'
             - '!public/**'
             - '!assets/**'
+          web:
+            - 'public/**'
+            - 'assets/**'
+            - 'test/site/**'
+            - '.github/workflows/pages.yml'
 
     # Note: github.event_name inside a called workflow is the CALLER's event
     # ('push' for a tag), never 'workflow_call' -- so the tag check has to be
@@ -52,17 +58,20 @@ jobs:
     # Values come through env rather than ${{ }} interpolated into the script:
     # it keeps shellcheck able to reason about the comparison, and avoids
     # interpolating context data straight into a shell command.
-    - name: Decide whether to run code jobs
+    - name: Decide which jobs to run
       id: decide
       env:
         REF: ${{ github.ref }}
         FILTER_CODE: ${{ steps.filter.outputs.code }}
+        FILTER_WEB: ${{ steps.filter.outputs.web }}
       run: |
         if [[ "$REF" == refs/tags/* ]]; then
           echo "Tag build: running all jobs."
           echo "code=true" >> "$GITHUB_OUTPUT"
+          echo "web=true" >> "$GITHUB_OUTPUT"
         else
           echo "code=$FILTER_CODE" >> "$GITHUB_OUTPUT"
+          echo "web=$FILTER_WEB" >> "$GITHUB_OUTPUT"
         fi
 
   lint:
@@ -275,12 +284,41 @@ jobs:
       run: |
         DEBUG=1 NO_SUDO=1 SKIP_SHELL_INTEGRATION=1 ./install.sh --version v99.99.99 || echo "Expected failure for non-existent version"
 
+  # public/ has no build step -- pages.yml uploads the directory as it is --
+  # and it is excluded from the `code` filter above, so before this job a
+  # website-only change ran no checks at all and deployed on merge.
+  #
+  # Its own job rather than a step in `test`: that matrix is four legs plus the
+  # install-script suite, which is a lot of machinery for one HTML file. This
+  # way a website-only change runs one short job, and a code change still runs
+  # these assertions through `make ci-test`.
+  web:
+    name: Website
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version: 'stable'
+        cache: true
+        cache-dependency-path: go.sum
+
+    # Structure, accessibility and the claims the page makes. Link rot is
+    # deliberately not checked here -- see link-check.yml.
+    - name: Check the website
+      run: make test-site
+
   # The single required status check. Reports on every run, including
   # docs-only ones where the jobs above are skipped.
   ci-ok:
     name: CI
     runs-on: ubuntu-latest
-    needs: [changes, lint, test, security, test-install-script]
+    needs: [changes, lint, test, security, test-install-script, web]
     if: always()
     steps:
     - name: Check job results

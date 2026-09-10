@@ -27,5 +27,10 @@ actionlint = "1.7.12"
 # over install.sh and its test suite.
 shellcheck = "0.11.0"
 
+# Link checking for the docs and the website (make link-check). Not part of
+# `make lint`: it needs the network, so it runs on a schedule rather than
+# blocking a review. A single static binary, so it costs nothing to pin.
+lychee = "0.24.2"
+
 # Hot-reload for TUI development (make tui-watch).
 air = "1.67.4"
