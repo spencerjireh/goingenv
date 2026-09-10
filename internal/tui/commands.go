@@ -207,7 +207,7 @@ type SwitchTabMsg struct {
 
 // Helper function to format archive contents for display
 func formatArchiveContents(archive *types.Archive) string {
-	result := "Simple string"
+	result := "Archive contents\n\n"
 	result += fmt.Sprintf("  Created: %s\n", archive.CreatedAt.Format("2006-01-02 15:04:05"))
 	result += fmt.Sprintf("  Version: %s\n", archive.Version)
 	result += fmt.Sprintf("  Total Files: %d\n", len(archive.Files))

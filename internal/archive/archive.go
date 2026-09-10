@@ -190,7 +190,8 @@ func handleExisting(path string, overwrite, backup bool) (skip bool, err error) 
 	}
 
 	if !overwrite {
-		fmt.Printf("Skipping existing file: %s\n", path)
+		// The caller decides how to report a skip. Printing here would go to
+		// stdout and corrupt --format json and --format porcelain.
 		return true, nil
 	}
 

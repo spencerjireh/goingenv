@@ -136,6 +136,9 @@ type ArchiveError struct {
 }
 
 func (e *ArchiveError) Error() string {
+	if e.Path == "" {
+		return e.Operation + " error: " + e.Err.Error()
+	}
 	return e.Operation + " error for " + e.Path + ": " + e.Err.Error()
 }
 
