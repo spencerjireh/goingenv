@@ -226,7 +226,7 @@ var DarkTheme = ColorPalette{
 Every screen follows this structure:
 
 ```
-[●]goingenv v1.1.0                        <- Header (always)
+[●]goingenv vX.Y.Z                        <- Header (always)
                                           <- Blank line
 {Content Area}                            <- Screen-specific content
                                           <- Flexible space
@@ -243,14 +243,14 @@ Every screen follows this structure:
 ### Header Specification
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 ```
 
 **Styling:**
 - `[` and `]` - Muted color (`#6b7a8f`)
 - `●` - Brand teal (`#22d3a7`)
 - `goingenv` - Primary text (`#e9eaeb`)
-- `v1.1.0` - Muted color (`#6b7a8f`)
+- `vX.Y.Z` - Muted color (`#6b7a8f`)
 
 **Implementation:**
 ```go
@@ -333,7 +333,7 @@ func renderMenuItem(item string, selected bool) string {
 #### Main Menu
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 > [P] Pack Environment Files
   [U] Unpack Archive
@@ -348,7 +348,7 @@ func renderMenuItem(item string, selected bool) string {
 #### Status Screen
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 Directory
   ~/projects/myapp
@@ -372,7 +372,7 @@ Archives
 #### Pack Screen (Password Entry)
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 Packing 3 environment files
 
@@ -394,7 +394,7 @@ Password: ••••••••_
 #### Progress Screen
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 Packing environment files...
 
@@ -415,7 +415,7 @@ Packing environment files...
 #### Success Screen
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 Packed successfully
 
@@ -432,7 +432,7 @@ Packed successfully
 #### Error Screen
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 Error
 
@@ -452,7 +452,7 @@ Error
 #### List Archive Screen
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 Archive: envs.goingenv
 
@@ -469,7 +469,7 @@ Archive: envs.goingenv
 #### Help Screen
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 Keyboard Shortcuts
 
@@ -496,7 +496,7 @@ Keyboard Shortcuts
 #### File Picker Screen
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 Select archive to unpack
 
@@ -516,7 +516,7 @@ Select archive to unpack
 #### Settings Screen
 
 ```
-[●]goingenv v1.1.0
+[●]goingenv vX.Y.Z
 
 Settings
 
@@ -662,7 +662,7 @@ All output lines use bracketed prefixes for visual consistency with the `[●]` 
 #### Header (all commands)
 
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 ```
 
 Shown once at the start of output. Version from build info.
@@ -670,7 +670,7 @@ Shown once at the start of output. Version from build info.
 #### Standard Output Template
 
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 [>] {action description}
 
@@ -689,7 +689,7 @@ No separator lines. Blank lines separate logical sections.
 
 **Standard:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 [+] Initialized
 
@@ -698,7 +698,7 @@ No separator lines. Blank lines separate logical sections.
 
 **Verbose:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 [>] Initializing goingenv...
 
@@ -715,7 +715,7 @@ No separator lines. Blank lines separate logical sections.
 
 **Standard:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 Directory
   ~/projects/myapp
@@ -731,7 +731,7 @@ Archives (1)
 
 **Verbose:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 Directory
   ~/projects/myapp
@@ -758,7 +758,7 @@ Archives (1)
 
 **Standard:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 [>] Packing 3 files...
 
@@ -767,7 +767,7 @@ Archives (1)
 
 **Verbose:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 [>] Packing 3 environment files...
 
@@ -787,7 +787,7 @@ Archives (1)
 
 **With warnings:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 [>] Packing 3 files...
 
@@ -802,7 +802,7 @@ Archives (1)
 
 **Standard:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 [>] Unpacking envs.goingenv...
 
@@ -811,7 +811,7 @@ Archives (1)
 
 **With conflicts:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 [>] Unpacking envs.goingenv...
 
@@ -824,7 +824,7 @@ Archives (1)
 
 **Verbose:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 [>] Unpacking envs.goingenv...
 
@@ -845,7 +845,7 @@ Archives (1)
 
 **Standard:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 envs.goingenv
 
@@ -858,7 +858,7 @@ envs.goingenv
 
 **Verbose:**
 ```
-[●] goingenv v1.1.0
+[●] goingenv vX.Y.Z
 
 envs.goingenv
   Created: 2025-01-23 14:30:45

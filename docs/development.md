@@ -132,7 +132,7 @@ make release-local    # All platforms into dist/
 GOOS=linux GOARCH=amd64 go build -o goingenv-linux-amd64 ./cmd/goingenv
 
 # Custom version
-go build -ldflags="-X main.Version=1.0.0 -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o goingenv ./cmd/goingenv
+go build -ldflags="-X main.Version=v1.2.3 -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o goingenv ./cmd/goingenv
 ```
 
 ## Testing
