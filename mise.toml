@@ -3,7 +3,7 @@
 # CI installs from this same file via jdx/mise-action, so local and CI never drift.
 
 [tools]
-# Build toolchain. go.mod declares 1.24 as the minimum supported version;
+# Build toolchain. go.mod declares 1.26 as the minimum supported version;
 # this is the version we actually build and test with. Keep it on a current
 # patch release -- govulncheck gates on stdlib CVEs (archive/tar matters here).
 go = "1.27.1"
@@ -22,9 +22,9 @@ syft = "1.51.1"
 # Workflow linting. GitHub only reports an unparseable workflow as a failed run
 # with zero jobs and no usable error, so this needs to run before pushing.
 actionlint = "1.7.12"
-# actionlint shells out to shellcheck for `run:` blocks and SILENTLY SKIPS
-# those checks when it is absent -- so without this, local linting is weaker
-# than CI's and passes things CI rejects.
+# Used two ways: actionlint shells out to it for `run:` blocks and SILENTLY
+# SKIPS those checks when it is absent, and `make shellcheck` runs it directly
+# over install.sh and its test suite.
 shellcheck = "0.11.0"
 
 # Hot-reload for TUI development (make tui-watch).

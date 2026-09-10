@@ -119,6 +119,31 @@ goingenv list -f backup      # View archive contents
 | `goingenv list` | View archive contents |
 | `goingenv status` | Show detected files and archives |
 | `goingenv --verbose` | Enable debug logging |
+| `goingenv --format json` | Machine-readable output, on any command |
+
+### Scripting
+
+Every command takes `--format`. In `json` and `porcelain`, stdout carries only
+the payload and all human output moves to stderr, so the result pipes cleanly:
+
+```bash
+# Which env files would be packed, and how big are they?
+goingenv status --format json | jq -r '.env_files[] | "\(.size)\t\(.path)"'
+
+# Fail a CI job if an archive is missing
+test "$(goingenv status --format json | jq '.archives | length')" -gt 0
+
+# Which config is in force -- the committed one, or the developer's?
+goingenv status --format json | jq -r '.config.source'   # "project" or "user"
+
+# Tab-separated, for cut and awk, no jq required
+goingenv status --format porcelain | awk -F'\t' '$1 == "env" { print $2 }'
+```
+
+`json` field names and `porcelain` column order are a contract. `text` is the
+default and is **not** stable -- do not parse it. Errors are reported on
+stderr, as a JSON object under `--format json`, and the exit code remains the
+primary signal.
 
 ### Password via Environment Variable
 

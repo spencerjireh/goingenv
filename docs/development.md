@@ -62,7 +62,8 @@ make dev              # Build with race detection
 make tui-watch        # Hot-reload the TUI with Air
 make run ARGS="status ."        # Run a subcommand
 make fmt              # Format code
-make lint             # Lint code
+make lint             # Lint code (golangci-lint, actionlint, shellcheck)
+make shellcheck       # Shell scripts only
 make ci-full          # Run all CI checks locally
 ```
 
@@ -146,9 +147,20 @@ make test-integration # Integration tests (in process, race enabled)
 make test-cli         # CLI tests (spawns the built binary)
 make test-e2e         # End-to-end tests
 make test-install     # install.sh checksum verification tests
-make test-coverage    # With coverage report
+make test-coverage    # With coverage report, including CLI and E2E
 make test-bench       # Benchmarks
 ```
+
+`make test-coverage` counts the CLI and E2E suites, which spawn a compiled
+binary. It builds that binary with `go build -cover`, points `GOCOVERDIR` at
+`coverage-data/`, and merges the result into the in-process profile with
+`go tool covdata textfmt`. Both sides use `-covermode=atomic`, which they must
+for the profiles to combine.
+
+Coverage is opt-in via `GOINGENV_TEST_COVERDIR`, so a plain `go test ./...`
+behaves exactly as it would without it. `coverage-collect` fails if the spawned
+binary emitted no data, which is what stops a dropped `-cover` flag from
+quietly halving the reported number.
 
 Tests never touch your real `~/.goingenv.json`: every spawned binary runs with
 `HOME` pointed at a temp directory. If you add a test that drives the config

@@ -117,8 +117,11 @@ repo's pinned rules.
 - Integration tests in `test/integration/` -- drives the services in process, so
   this is the suite where `-race` is meaningful
 - CLI tests in `test/cli/` and E2E tests in `test/e2e/` -- both spawn the
-  compiled binary as a subprocess, so they contribute no coverage and `-race`
-  would only instrument the harness
+  compiled binary as a subprocess, so `-race` would only instrument the
+  harness. They *do* contribute coverage: see the Coverage section below
+- TUI tests in `internal/tui/` -- smoke tests only, driving the root model the
+  way the runtime does. Deliberately no golden files or exact-layout
+  assertions: those break on every lipgloss release rather than surviving one
 - Install script tests in `test/install/test_install.sh` -- covers checksum
   verification against a local fixture release
 - Shared helpers in `test/testutils/`:
@@ -136,6 +139,55 @@ repo's pinned rules.
   `config.NewManagerWithPath()` instead.
 - Run `make ci-full` before pushing
 
+### Coverage
+
+`make test-coverage` merges two mechanisms:
+
+1. In-process packages (`pkg`, `internal`, `test/integration`) produce a text
+   profile from `go test -coverprofile`.
+2. `test/cli` and `test/e2e` spawn a binary built with `go build -cover`, which
+   writes binary-format data into `$GOINGENV_TEST_COVERDIR`.
+   `go tool covdata textfmt` converts it and the two profiles are concatenated.
+
+Both sides must use `-covermode=atomic` or the concatenation is rejected.
+
+Coverage is **opt-in** via `GOINGENV_TEST_COVERDIR`. Unset -- which is the case
+for every plain `go test` run -- the harness builds and runs exactly as it
+would without coverage. Instrumentation and the output directory are gated on
+the same variable on purpose, so an instrumented binary can never run without
+somewhere to write.
+
+`coverage-collect` fails the build if the spawned binary emitted nothing.
+Do not remove that check: without it, dropping `-cover` silently halves the
+reported number while CI stays green.
+
+## Output formats
+
+Every command takes a persistent `--format`:
+
+| Format | Contract |
+|---|---|
+| `text` (default) | Human-readable. **Not stable, do not parse.** |
+| `json` | One JSON object on stdout. Field names are a contract |
+| `porcelain` | Tab-separated records, no header, stable column order |
+| `csv` | `list` only, predating the flag |
+
+`table` is accepted as an alias for `text`.
+
+The rule that makes this work: **in a machine format every human message goes
+to stderr and stdout carries only the payload.** `Output` holds two writers for
+this -- `humanW` and `stdout` -- which are the same stream in text mode. Add
+new human output via the existing `Output` methods and it lands on the right
+stream automatically.
+
+Errors are reported once, by `cli.ReportError`, in the requested format, always
+on stderr. Commands must not print their own errors. An unrecognised `--format`
+is rejected rather than falling back to text, since a silent fallback hands a
+script unparseable output with a zero exit code.
+
+Payload schemas live in `internal/cli/machine.go`. Renaming or removing a field
+is a breaking change; adding one is not.
+
 ## Linting
 
 golangci-lint is configured with:
@@ -145,12 +197,19 @@ golangci-lint is configured with:
   `ci.yml` passes the same list and must be kept in sync
 - gofmt, goimports, errcheck, staticcheck enabled
 
+Shell scripts are linted too: `make shellcheck` covers `install.sh` and
+`test/install/test_install.sh`, and `make lint` / `make ci-lint` include it.
+The file list is enumerated in `SHELL_SOURCES` rather than globbed, so the
+gitignored `build/install.sh` copy is not double-reported.
+
 Tool versions are pinned in `mise.toml`, so `make lint` runs exactly the
-golangci-lint version CI runs.
+golangci-lint and shellcheck versions CI runs.
 
 ## CI
 
-`ci.yml` runs `lint`, `test` (Ubuntu/macOS x minimum/stable Go), `security` and
+`ci.yml` runs `lint`, `test` (Ubuntu/macOS x minimum/stable Go -- the minimum
+leg is pinned to the version `go.mod` declares, with `GOTOOLCHAIN=local` so it
+genuinely tests that floor), `security` and
 `test-install-script` in parallel, gated on a `changes` path filter, with a
 final `ci-ok` job that always reports. **`ci-ok` is the job branch protection
 should require** -- the others are skipped on docs-only changes and would never
