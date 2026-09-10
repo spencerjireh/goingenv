@@ -28,12 +28,12 @@ jobs:
             goarch: arm64
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         clean: true
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         go-version: 'stable'
         check-latest: true
@@ -73,7 +73,7 @@ jobs:
         echo "SHA256: $(cat $ARCHIVE_NAME.sha256)"
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: goingenv-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
         path: |
@@ -86,12 +86,12 @@ jobs:
     needs: build-release
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: dist/
 
@@ -202,7 +202,7 @@ jobs:
         fi
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: ${{ github.ref_name }}
         name: GoingEnv ${{ github.ref_name }}

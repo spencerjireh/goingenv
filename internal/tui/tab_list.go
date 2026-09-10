@@ -102,95 +102,123 @@ func (t *ListTab) FullHelp() [][]key.Binding {
 func (t *ListTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	switch t.step {
 	case ListStepIdle:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if key.Matches(keyMsg, WizardKeys.Start) {
-				return t.startSelection()
-			}
-		}
-
+		return t.updateIdle(msg)
 	case ListStepSelect:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if key.Matches(keyMsg, WizardKeys.Cancel) {
-				t.reset()
-				return t, nil
-			}
-		}
-
-		var cmd tea.Cmd
-		t.filepicker, cmd = t.filepicker.Update(msg)
-
-		if didSelect, path := t.filepicker.DidSelectFile(msg); didSelect {
-			t.selectedArchive = path
-			t.step = ListStepPassword
-			t.textInput.Reset()
-			t.textInput.Focus()
-			t.debugLogger.LogOperation("list", fmt.Sprintf("selected: %s", path))
-			return t, textinput.Blink
-		}
-
-		return t, cmd
-
+		return t.updateSelect(msg)
 	case ListStepPassword:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			switch {
-			case key.Matches(keyMsg, WizardKeys.Confirm):
-				password := t.textInput.Value()
-				if password == "" {
-					t.errorMsg = "Password cannot be empty"
-					return t, nil
-				}
-				t.errorMsg = ""
-				t.step = ListStepListing
-				t.debugLogger.LogOperation("list", "listing archive")
-				return t, tea.Batch(t.spinner.Tick, ListFilesCmd(t.app, password, t.selectedArchive))
-			case key.Matches(keyMsg, WizardKeys.Cancel):
-				t.step = ListStepSelect
-				t.textInput.Blur()
-				return t, nil
-			}
-		}
-		var cmd tea.Cmd
-		t.textInput, cmd = t.textInput.Update(msg)
-		return t, cmd
-
+		return t.updatePassword(msg)
 	case ListStepListing:
-		switch msg := msg.(type) {
-		case ListCompleteMsg:
-			t.resultMsg = string(msg)
-			t.errorMsg = ""
-			t.step = ListStepResult
-			t.vpReady = false
-			t.debugLogger.LogOperation("list", "listing complete")
-			return t, nil
-		case ErrorMsg:
-			t.errorMsg = string(msg)
-			t.resultMsg = ""
-			t.step = ListStepResult
-			return t, func() tea.Msg {
-				return ToastMsg{Message: string(msg), IsError: true}
-			}
-		case spinner.TickMsg:
-			var cmd tea.Cmd
-			t.spinner, cmd = t.spinner.Update(msg)
-			return t, cmd
-		}
-
+		return t.updateListing(msg)
 	case ListStepResult:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			switch {
-			case key.Matches(keyMsg, WizardKeys.Reset), key.Matches(keyMsg, WizardKeys.Start):
-				t.reset()
-				return t, nil
-			case key.Matches(keyMsg, WizardKeys.Back):
-				t.reset()
+		return t.updateResult(msg)
+	}
+
+	return t, nil
+}
+
+// updateIdle moves to archive selection on Enter.
+func (t *ListTab) updateIdle(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, WizardKeys.Start) {
+			return t.startSelection()
+		}
+	}
+
+	return t, nil
+}
+
+// updateSelect drives the file picker until an archive is chosen.
+func (t *ListTab) updateSelect(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, WizardKeys.Cancel) {
+			t.reset()
+			return t, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	t.filepicker, cmd = t.filepicker.Update(msg)
+
+	if didSelect, path := t.filepicker.DidSelectFile(msg); didSelect {
+		t.selectedArchive = path
+		t.step = ListStepPassword
+		t.textInput.Reset()
+		t.textInput.Focus()
+		t.debugLogger.LogOperation("list", fmt.Sprintf("selected: %s", path))
+		return t, textinput.Blink
+	}
+
+	return t, cmd
+}
+
+// updatePassword collects the archive password and kicks off the listing.
+func (t *ListTab) updatePassword(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case key.Matches(keyMsg, WizardKeys.Confirm):
+			password := t.textInput.Value()
+			if password == "" {
+				t.errorMsg = "Password cannot be empty"
 				return t, nil
 			}
+			t.errorMsg = ""
+			t.step = ListStepListing
+			t.debugLogger.LogOperation("list", "listing archive")
+			return t, tea.Batch(t.spinner.Tick, ListFilesCmd(t.app, password, t.selectedArchive))
+		case key.Matches(keyMsg, WizardKeys.Cancel):
+			t.step = ListStepSelect
+			t.textInput.Blur()
+			return t, nil
 		}
-		if t.vpReady {
-			var cmd tea.Cmd
-			t.viewport, cmd = t.viewport.Update(msg)
-			return t, cmd
+	}
+
+	var cmd tea.Cmd
+	t.textInput, cmd = t.textInput.Update(msg)
+	return t, cmd
+}
+
+// updateListing waits for the archive contents to be decrypted and rendered.
+func (t *ListTab) updateListing(msg tea.Msg) (Tab, tea.Cmd) {
+	switch msg := msg.(type) {
+	case ListCompleteMsg:
+		t.resultMsg = string(msg)
+		t.errorMsg = ""
+		t.step = ListStepResult
+		t.vpReady = false
+		t.debugLogger.LogOperation("list", "listing complete")
+		return t, nil
+	case ErrorMsg:
+		t.errorMsg = string(msg)
+		t.resultMsg = ""
+		t.step = ListStepResult
+		return t, func() tea.Msg {
+			return ToastMsg{Message: string(msg), IsError: true}
 		}
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		t.spinner, cmd = t.spinner.Update(msg)
+		return t, cmd
+	}
+
+	return t, nil
+}
+
+// updateResult lets the user scroll the listing or start over.
+func (t *ListTab) updateResult(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case key.Matches(keyMsg, WizardKeys.Reset),
+			key.Matches(keyMsg, WizardKeys.Start),
+			key.Matches(keyMsg, WizardKeys.Back):
+			t.reset()
+			return t, nil
+		}
+	}
+
+	if t.vpReady {
+		var cmd tea.Cmd
+		t.viewport, cmd = t.viewport.Update(msg)
+		return t, cmd
 	}
 
 	return t, nil
@@ -227,7 +255,11 @@ func (t *ListTab) View(width, height int) string {
 	var content string
 	switch t.step {
 	case ListStepIdle:
-		archives, _ := t.app.Archiver.GetAvailableArchives("")
+		archives, err := t.app.Archiver.GetAvailableArchives("")
+		if err != nil {
+			// Rendering cannot surface an error; show the empty state instead.
+			archives = nil
+		}
 		if len(archives) == 0 {
 			content = renderEmptyState(
 				"No Archives Found",

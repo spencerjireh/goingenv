@@ -139,35 +139,26 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ToastMsg:
-		return m, m.addToast(msg.Message, msg.IsError)
+		cmd := m.addToast(msg.Message, msg.IsError)
+		return m, cmd
 
 	case SwitchTabMsg:
-		if msg.Tab >= 0 && msg.Tab < tabCount {
-			m.activeTab = msg.Tab
-		}
+		m.switchTab(msg.Tab)
 		return m, nil
 
 	// Route async completion messages to their owning tab, not the active tab.
 	case ScanCompleteMsg, PackCompleteMsg:
-		updated, cmd := m.tabs[TabPack].Update(msg)
-		m.tabs[TabPack] = updated
-		return m, cmd
+		return m.routeTo(TabPack, msg)
 
 	case UnpackCompleteMsg:
-		updated, cmd := m.tabs[TabUnpack].Update(msg)
-		m.tabs[TabUnpack] = updated
-		return m, cmd
+		return m.routeTo(TabUnpack, msg)
 
 	case ListCompleteMsg:
-		updated, cmd := m.tabs[TabList].Update(msg)
-		m.tabs[TabList] = updated
-		return m, cmd
+		return m.routeTo(TabList, msg)
 
 	// ErrorMsg: route to the active tab (the tab that initiated the operation).
 	case ErrorMsg:
-		updated, cmd := m.tabs[m.activeTab].Update(msg)
-		m.tabs[m.activeTab] = updated
-		return m, cmd
+		return m.routeTo(m.activeTab, msg)
 
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
@@ -177,21 +168,38 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Spinner ticks route to all tabs that might have spinners.
 	case spinner.TickMsg:
-		var cmds []tea.Cmd
-		for i := range m.tabs {
-			updated, cmd := m.tabs[i].Update(msg)
-			m.tabs[i] = updated
-			if cmd != nil {
-				cmds = append(cmds, cmd)
-			}
-		}
-		return m, tea.Batch(cmds...)
+		return m.broadcast(msg)
 	}
 
 	// Default: dispatch to active tab
-	updated, cmd := m.tabs[m.activeTab].Update(msg)
-	m.tabs[m.activeTab] = updated
+	return m.routeTo(m.activeTab, msg)
+}
+
+// routeTo dispatches msg to a single tab and stores the updated tab back.
+func (m *Model) routeTo(tab TabID, msg tea.Msg) (tea.Model, tea.Cmd) {
+	updated, cmd := m.tabs[tab].Update(msg)
+	m.tabs[tab] = updated
 	return m, cmd
+}
+
+// broadcast dispatches msg to every tab, batching the commands they return.
+func (m *Model) broadcast(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+	for i := range m.tabs {
+		updated, cmd := m.tabs[i].Update(msg)
+		m.tabs[i] = updated
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+	return m, tea.Batch(cmds...)
+}
+
+// switchTab activates tab when it is in range, ignoring out-of-range requests.
+func (m *Model) switchTab(tab TabID) {
+	if tab >= 0 && tab < tabCount {
+		m.activeTab = tab
+	}
 }
 
 func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

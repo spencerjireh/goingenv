@@ -95,113 +95,148 @@ func (t *PackTab) FullHelp() [][]key.Binding {
 func (t *PackTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 	switch t.step {
 	case PackStepIdle:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if key.Matches(keyMsg, WizardKeys.Start) {
-				if !config.IsInitialized() {
-					// Initialize first
-					t.step = PackStepScanning
-					t.debugLogger.LogOperation("pack", "initializing project")
-					return t, tea.Batch(t.spinner.Tick, InitProjectCmd())
-				}
-				t.step = PackStepScanning
-				t.debugLogger.LogOperation("pack", "scanning files")
-				return t, tea.Batch(t.spinner.Tick, ScanFilesCmd(t.app))
-			}
-		}
-
+		return t.updateIdle(msg)
 	case PackStepScanning:
-		switch msg := msg.(type) {
-		case ScanCompleteMsg:
-			t.scannedFiles = []types.EnvFile(msg)
-			t.step = PackStepReview
-			t.vpReady = false
-			t.debugLogger.LogOperation("pack", fmt.Sprintf("scan complete: %d files", len(t.scannedFiles)))
-			return t, nil
-		case InitCompleteMsg:
-			// After init, scan files
-			t.debugLogger.LogOperation("pack", "init complete, scanning")
-			return t, ScanFilesCmd(t.app)
-		case ErrorMsg:
-			t.errorMsg = string(msg)
-			t.step = PackStepResult
-			return t, nil
-		case spinner.TickMsg:
-			var cmd tea.Cmd
-			t.spinner, cmd = t.spinner.Update(msg)
-			return t, cmd
-		}
-
+		return t.updateScanning(msg)
 	case PackStepReview:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			switch {
-			case key.Matches(keyMsg, WizardKeys.Confirm):
-				t.step = PackStepPassword
-				t.textInput.Reset()
-				t.textInput.Focus()
-				return t, textinput.Blink
-			case key.Matches(keyMsg, WizardKeys.Cancel):
-				t.reset()
-				return t, nil
-			}
-		}
-		if t.vpReady {
-			var cmd tea.Cmd
-			t.viewport, cmd = t.viewport.Update(msg)
-			return t, cmd
-		}
-
+		return t.updateReview(msg)
 	case PackStepPassword:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			switch {
-			case key.Matches(keyMsg, WizardKeys.Confirm):
-				password := t.textInput.Value()
-				if password == "" {
-					t.errorMsg = "Password cannot be empty"
-					return t, nil
-				}
-				t.errorMsg = ""
-				t.step = PackStepPacking
-				t.debugLogger.LogOperation("pack", "packing files")
-				return t, tea.Batch(t.spinner.Tick, PackFilesCmd(t.app, t.scannedFiles, password))
-			case key.Matches(keyMsg, WizardKeys.Cancel):
-				t.step = PackStepReview
-				t.textInput.Blur()
-				return t, nil
-			}
-		}
-		var cmd tea.Cmd
-		t.textInput, cmd = t.textInput.Update(msg)
-		return t, cmd
-
+		return t.updatePassword(msg)
 	case PackStepPacking:
-		switch msg := msg.(type) {
-		case PackCompleteMsg:
-			t.resultMsg = string(msg)
-			t.errorMsg = ""
-			t.step = PackStepResult
-			t.debugLogger.LogOperation("pack", "pack complete")
-			return t, func() tea.Msg {
-				return ToastMsg{Message: "Pack completed successfully", IsError: false}
-			}
-		case ErrorMsg:
-			t.errorMsg = string(msg)
-			t.resultMsg = ""
-			t.step = PackStepResult
-			return t, func() tea.Msg {
-				return ToastMsg{Message: string(msg), IsError: true}
-			}
-		case spinner.TickMsg:
-			var cmd tea.Cmd
-			t.spinner, cmd = t.spinner.Update(msg)
-			return t, cmd
-		}
-
+		return t.updatePacking(msg)
 	case PackStepResult:
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if key.Matches(keyMsg, WizardKeys.Reset) || key.Matches(keyMsg, WizardKeys.Start) {
-				t.reset()
+		return t.updateResult(msg)
+	}
+
+	return t, nil
+}
+
+// updateIdle starts a scan on Enter, initializing the project first when
+// goingenv has not been set up in this directory yet.
+func (t *PackTab) updateIdle(msg tea.Msg) (Tab, tea.Cmd) {
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok || !key.Matches(keyMsg, WizardKeys.Start) {
+		return t, nil
+	}
+
+	t.step = PackStepScanning
+	if !config.IsInitialized() {
+		t.debugLogger.LogOperation("pack", "initializing project")
+		return t, tea.Batch(t.spinner.Tick, InitProjectCmd())
+	}
+
+	t.debugLogger.LogOperation("pack", "scanning files")
+	return t, tea.Batch(t.spinner.Tick, ScanFilesCmd(t.app))
+}
+
+// updateScanning waits for the scan (or the init that precedes it) to finish.
+func (t *PackTab) updateScanning(msg tea.Msg) (Tab, tea.Cmd) {
+	switch msg := msg.(type) {
+	case ScanCompleteMsg:
+		t.scannedFiles = []types.EnvFile(msg)
+		t.step = PackStepReview
+		t.vpReady = false
+		t.debugLogger.LogOperation("pack", fmt.Sprintf("scan complete: %d files", len(t.scannedFiles)))
+		return t, nil
+	case InitCompleteMsg:
+		// After init, scan files
+		t.debugLogger.LogOperation("pack", "init complete, scanning")
+		return t, ScanFilesCmd(t.app)
+	case ErrorMsg:
+		t.errorMsg = string(msg)
+		t.step = PackStepResult
+		return t, nil
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		t.spinner, cmd = t.spinner.Update(msg)
+		return t, cmd
+	}
+
+	return t, nil
+}
+
+// updateReview lets the user confirm the scanned file list or scroll through it.
+func (t *PackTab) updateReview(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case key.Matches(keyMsg, WizardKeys.Confirm):
+			t.step = PackStepPassword
+			t.textInput.Reset()
+			t.textInput.Focus()
+			return t, textinput.Blink
+		case key.Matches(keyMsg, WizardKeys.Cancel):
+			t.reset()
+			return t, nil
+		}
+	}
+
+	if t.vpReady {
+		var cmd tea.Cmd
+		t.viewport, cmd = t.viewport.Update(msg)
+		return t, cmd
+	}
+
+	return t, nil
+}
+
+// updatePassword collects the archive password and kicks off the pack.
+func (t *PackTab) updatePassword(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case key.Matches(keyMsg, WizardKeys.Confirm):
+			password := t.textInput.Value()
+			if password == "" {
+				t.errorMsg = "Password cannot be empty"
 				return t, nil
 			}
+			t.errorMsg = ""
+			t.step = PackStepPacking
+			t.debugLogger.LogOperation("pack", "packing files")
+			return t, tea.Batch(t.spinner.Tick, PackFilesCmd(t.app, t.scannedFiles, password))
+		case key.Matches(keyMsg, WizardKeys.Cancel):
+			t.step = PackStepReview
+			t.textInput.Blur()
+			return t, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	t.textInput, cmd = t.textInput.Update(msg)
+	return t, cmd
+}
+
+// updatePacking waits for the pack to finish and reports the outcome as a toast.
+func (t *PackTab) updatePacking(msg tea.Msg) (Tab, tea.Cmd) {
+	switch msg := msg.(type) {
+	case PackCompleteMsg:
+		t.resultMsg = string(msg)
+		t.errorMsg = ""
+		t.step = PackStepResult
+		t.debugLogger.LogOperation("pack", "pack complete")
+		return t, func() tea.Msg {
+			return ToastMsg{Message: "Pack completed successfully", IsError: false}
+		}
+	case ErrorMsg:
+		t.errorMsg = string(msg)
+		t.resultMsg = ""
+		t.step = PackStepResult
+		return t, func() tea.Msg {
+			return ToastMsg{Message: string(msg), IsError: true}
+		}
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		t.spinner, cmd = t.spinner.Update(msg)
+		return t, cmd
+	}
+
+	return t, nil
+}
+
+// updateResult returns the tab to idle so another pack can be started.
+func (t *PackTab) updateResult(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, WizardKeys.Reset) || key.Matches(keyMsg, WizardKeys.Start) {
+			t.reset()
 		}
 	}
 

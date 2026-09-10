@@ -52,12 +52,11 @@ func (t *StatusTab) FullHelp() [][]key.Binding {
 }
 
 func (t *StatusTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
-		case key.Matches(msg, StatusKeys.Pack):
+		case key.Matches(keyMsg, StatusKeys.Pack):
 			return t, func() tea.Msg { return SwitchTabMsg{Tab: TabPack} }
-		case key.Matches(msg, StatusKeys.Unpack):
+		case key.Matches(keyMsg, StatusKeys.Unpack):
 			return t, func() tea.Msg { return SwitchTabMsg{Tab: TabUnpack} }
 		}
 	}
@@ -81,8 +80,8 @@ func (t *StatusTab) View(width, height int) string {
 	}
 
 	// Build content for the two-column layout
-	leftContent := t.buildLeftColumn(width)
-	rightContent := t.buildRightColumn(width)
+	leftContent := t.buildLeftColumn()
+	rightContent := t.buildRightColumn()
 
 	// Two-column split
 	halfWidth := (width - 3) / 2 // 3 for divider + padding
@@ -116,7 +115,7 @@ func (t *StatusTab) ensureViewport(width, height int, content string) {
 	t.viewport.SetContent(content)
 }
 
-func (t *StatusTab) buildLeftColumn(width int) string {
+func (t *StatusTab) buildLeftColumn() string {
 	var b strings.Builder
 
 	// Directory
@@ -151,7 +150,7 @@ func (t *StatusTab) buildLeftColumn(width int) string {
 	return b.String()
 }
 
-func (t *StatusTab) buildRightColumn(width int) string {
+func (t *StatusTab) buildRightColumn() string {
 	var b strings.Builder
 
 	// Archives
