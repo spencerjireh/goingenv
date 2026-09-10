@@ -284,7 +284,25 @@ run:
 
 TUI_SANDBOX := /tmp/goingenv-sandbox
 
-tui-sandbox:
+# The sandbox is seeded with archives as well as env files. Without them the
+# Unpack and List tabs both land on their empty state, so the archive picker --
+# the most intricate widget in the TUI, and the one that broke silently when
+# bubbles was upgraded -- is never reached by whoever is testing by hand.
+#
+# Three, because the picker's failure mode was listing exactly one. Named
+# explicitly rather than packed in a loop: archive names are timestamped to the
+# second, so three quick packs overwrite each other and leave a single file,
+# which is precisely the state that hides the bug.
+#
+# Each pack's stderr is held until it is known to have failed. Passing the
+# password by environment variable warns, correctly, and printing that warning
+# three times during setup reads like something went wrong.
+TUI_SANDBOX_PASSWORD := test1234
+TUI_SANDBOX_ARCHIVES := archive-20260901-091500.enc \
+                        archive-20260903-142230.enc \
+                        archive-20260908-231045.enc
+
+tui-sandbox: build
 	@if [ ! -d "$(TUI_SANDBOX)/.goingenv" ]; then \
 		mkdir -p "$(TUI_SANDBOX)"; \
 		printf "DB_HOST=localhost\nDB_PORT=5432\n" > "$(TUI_SANDBOX)/.env"; \
@@ -292,13 +310,23 @@ tui-sandbox:
 		printf "API_KEY=prod-key-456\nSTRIPE_KEY=sk_live_xxx\n" > "$(TUI_SANDBOX)/.env.production"; \
 		printf "DEBUG=true\nLOG_LEVEL=verbose\n" > "$(TUI_SANDBOX)/.env.development"; \
 		printf "REDIS_URL=redis://localhost:6379\n" > "$(TUI_SANDBOX)/.env.staging"; \
-		cd "$(TUI_SANDBOX)" && "$(CURDIR)/$(BINARY_NAME)" init > /dev/null 2>&1; \
-		printf "$(GREEN)Sandbox created: $(TUI_SANDBOX) (5 env files)$(NC)\n"; \
+		cd "$(TUI_SANDBOX)" && "$(CURDIR)/$(BINARY_NAME)" init > /dev/null; \
+		for a in $(TUI_SANDBOX_ARCHIVES); do \
+			cd "$(TUI_SANDBOX)" && GOINGENV_PASSWORD="$(TUI_SANDBOX_PASSWORD)" \
+				"$(CURDIR)/$(BINARY_NAME)" pack -o "$$a" \
+				--password-env GOINGENV_PASSWORD \
+				> /dev/null 2> "$(TUI_SANDBOX)/.pack-err" \
+				|| { cat "$(TUI_SANDBOX)/.pack-err" >&2; exit 1; }; \
+		done; \
+		rm -f "$(TUI_SANDBOX)/.pack-err"; \
+		printf "$(GREEN)Sandbox created: $(TUI_SANDBOX)$(NC)\n"; \
 	else \
 		printf "$(BLUE)Sandbox ready: $(TUI_SANDBOX)$(NC)\n"; \
 	fi
+	@printf "  5 env files, %s archives. Password: $(GREEN)$(TUI_SANDBOX_PASSWORD)$(NC)\n" \
+		"$$(ls "$(TUI_SANDBOX)"/.goingenv/*.enc 2>/dev/null | wc -l | tr -d ' ')"
 
-tui: build tui-sandbox
+tui: tui-sandbox
 	@cd "$(TUI_SANDBOX)" && "$(CURDIR)/$(BINARY_NAME)"
 
 # Hot-reload. .air.toml already runs the binary inside the sandbox, which is
