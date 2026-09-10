@@ -18,18 +18,22 @@ Everything you need to contribute to goingenv.
 
 ### Prerequisites
 
-- **Go 1.23+**: [Download Go](https://golang.org/dl/)
-- **Git**: Version control
-- **Make**: Build automation (optional but recommended)
+- **[mise](https://mise.jdx.dev/)**: installs the pinned toolchain. Everything
+  else -- Go, golangci-lint, gosec, govulncheck, goreleaser, syft, air -- comes
+  from `mise.toml`, so your versions match CI exactly.
+- **Git** and **Make**
+
+Building from source without mise needs Go 1.24+ (the minimum `go.mod`
+declares).
 
 ### Quick Setup
 
 ```bash
 git clone https://github.com/spencerjireh/goingenv.git
 cd goingenv
-go mod tidy
+mise install       # or: make bootstrap
 make build
-make test
+make ci-test
 ./goingenv --help
 ```
 
@@ -44,21 +48,19 @@ make test
 ### Environment Setup
 
 ```bash
-export GOPATH=$HOME/go
-export GO111MODULE=on
-
-# Install development tools
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-go install golang.org/x/tools/cmd/goimports@latest
-go install github.com/air-verse/air@latest
+make bootstrap
 ```
+
+That installs everything pinned in `mise.toml` and warms the module cache.
+Installing these tools with `go install ...@latest` instead will drift from the
+versions CI uses, which is what `mise.toml` exists to prevent.
 
 ### Development Commands
 
 ```bash
 make dev              # Build with race detection
-make watch            # Hot-reload with Air
-make watch-run ARGS="status ."  # Hot-reload with specific args
+make tui-watch        # Hot-reload the TUI with Air
+make run ARGS="status ."        # Run a subcommand
 make fmt              # Format code
 make lint             # Lint code
 make ci-full          # Run all CI checks locally
@@ -76,12 +78,12 @@ make tui-clean        # Remove the sandbox directory
 
 ### Hot-Reload with Air
 
-Air automatically rebuilds on file changes. Config is in `.air.toml`.
+Air rebuilds on file changes. Config is in `.air.toml`, which already runs the
+rebuilt binary inside the sandbox -- so `make tui-watch` is the only target
+needed. (There used to be three more, all identical to it.)
 
 ```bash
-make watch            # Rebuilds on change (doesn't run)
-make dev-watch        # Rebuilds and runs the TUI
-make watch-run ARGS="status ."  # Rebuilds and runs with args
+make tui-watch        # Rebuild and relaunch the TUI on every save
 ```
 
 ## Project Structure
@@ -138,14 +140,20 @@ go build -ldflags="-X main.Version=1.0.0 -X main.BuildTime=$(date -u +%Y-%m-%dT%
 ### Running Tests
 
 ```bash
-make test-complete    # Full suite (unit + integration + e2e + functional)
-make test             # Unit + integration
-make test-functional  # Automated workflow tests
+make ci-test          # Everything CI runs
 make test-unit        # Unit tests only
-make test-integration # Integration tests only
+make test-integration # Integration tests (in process, race enabled)
+make test-cli         # CLI tests (spawns the built binary)
+make test-e2e         # End-to-end tests
+make test-install     # install.sh checksum verification tests
 make test-coverage    # With coverage report
 make test-bench       # Benchmarks
 ```
+
+Tests never touch your real `~/.goingenv.json`: every spawned binary runs with
+`HOME` pointed at a temp directory. If you add a test that drives the config
+manager in process, use `config.NewManagerWithPath()` rather than
+`config.NewManager()`.
 
 ### Test Structure
 
@@ -199,18 +207,22 @@ func newNewCommand() *cobra.Command {
 }
 ```
 
-### Adding TUI Screens
+### Adding a TUI Tab
+
+The TUI is a tabbed layout; there is no screen state machine. Each tab lives in
+its own `internal/tui/tab_*.go` and implements the `Tab` interface.
 
 ```go
-// Add screen constant in model.go
-const ScreenNewFeature Screen = "new_feature"
+// tab_newfeature.go -- implement the Tab interface
+func (t *NewFeatureTab) Update(msg tea.Msg) (Tab, tea.Cmd) { ... }
+func (t *NewFeatureTab) View(width, height int) string     { ... }
 
-// Add render in view.go
-func (m *Model) renderNewFeature() string { ... }
-
-// Add key handling in update.go
-func (m *Model) handleNewFeatureKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) { ... }
+// Register the TabID and construct it in model.go
 ```
+
+For a multi-step (wizard) tab, give each step its own `update<Step>` method and
+keep `Update` as a dispatch switch over `t.step`. `tab_pack.go` is the model to
+follow -- one large switch here is how the linter's complexity limit gets hit.
 
 ## CI/CD Pipeline
 
@@ -228,67 +240,79 @@ func (m *Model) handleNewFeatureKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) { ... 
 make ci-full
 ```
 
-This runs: dependency updates, unit tests with race detection, linting, security scanning, and cross-compilation tests.
+Runs linting, the full test suite, security scanning, and a snapshot release
+build. Tools come from `mise.toml`, so a missing tool is now an error rather
+than a warning -- this target used to report success while silently skipping
+checks whose tools were not installed.
 
 ### Common Fixes
 
 ```bash
-# Lint failure
+# Formatting or tidy failure
 make fmt && go mod tidy
 
 # Test failure
-make test-complete
+make ci-test
 
-# Security scan failure
+# Vulnerability found
 make vuln-check
-go get -u [vulnerable-package]
-go mod tidy
+go get -u [vulnerable-package] && go mod tidy
 ```
 
 ### Workflows
 
-The pipeline is split into three workflow files:
-
-- **`ci.yml`** -- Runs on PRs and pushes to `main`/`develop`. Validates code quality.
-- **`release.yml`** -- Runs on `v*` tag pushes. Builds binaries and publishes a GitHub Release.
-- **`pages.yml`** -- Deploys `public/` to GitHub Pages on changes.
+- **`ci.yml`** -- PRs and pushes to `main`/`develop`, plus `workflow_call` from
+  the release workflow.
+- **`release.yml`** -- `v*` tag pushes. Calls `ci.yml` first, then GoReleaser.
+- **`pages.yml`** -- deploys `public/` to GitHub Pages.
 
 ### CI Workflow (`ci.yml`)
 
-Jobs:
-
-- **lint** -- gofmt, go vet, go mod tidy, golangci-lint
-- **test** -- Matrix: Ubuntu/macOS x Go 1.23/stable. Unit, integration, and functional tests with race detection.
-- **security** -- govulncheck, gosec, SARIF upload to GitHub Security tab
-- **test-install-script** -- Depends on lint, test, security. Validates install.sh on Ubuntu and macOS.
-
 ```
-lint ──────────┐
-               │
-test ──────────┼──> test-install-script
-               │
-security ──────┘
+changes ──┬──> lint ───────────────┐
+          ├──> test (matrix) ──────┤
+          ├──> security ───────────┼──> ci-ok
+          └──> test-install-script ┘
 ```
+
+- **changes** -- path filter. Non-code changes skip the jobs below, but `ci-ok`
+  still reports.
+- **lint** -- gofmt, go vet, `go mod tidy -diff`, golangci-lint.
+- **test** -- Ubuntu/macOS x Go minimum/stable. Unit (race), integration
+  (race), CLI, and E2E tests. The minimum-version leg sets `GOTOOLCHAIN=local`,
+  without which Go silently downloads a newer toolchain and the leg tests
+  nothing.
+- **security** -- govulncheck, gosec, SARIF upload to the Security tab.
+- **test-install-script** -- install.sh checksum verification on Ubuntu and
+  macOS. Runs in parallel; it does not depend on the other jobs.
+- **ci-ok** -- always runs and aggregates the rest.
+
+**Branch protection should require `ci-ok` and nothing else.** The other jobs
+are skipped for docs-only changes, so requiring them directly would block such
+PRs on checks that never report.
 
 ### Release Workflow (`release.yml`)
 
-Triggered by pushing a tag matching `v*`.
-
-- **build-release** -- Matrix: Linux/macOS x AMD64/ARM64. Builds optimized binaries with `-trimpath` and embedded version info. Creates tar.gz archives with SHA256 checksums.
-- **create-release** -- Downloads artifacts, generates release notes, creates versioned install.sh, publishes GitHub Release.
-
 ```
-build-release (4 platforms) ──> create-release
+ci (calls ci.yml) ──> release (goreleaser + provenance)
 ```
+
+A tag cannot publish without CI passing first. GoReleaser builds all four
+platforms in one job, writes `checksums.txt`, generates SBOMs, and publishes a
+version-stamped `install.sh` alongside the archives. A provenance attestation
+is recorded via OIDC.
+
+The final step re-checks the artifact contract `install.sh` depends on --
+archive naming, single-binary contents, and a matching `checksums.txt` entry --
+before anything is published.
 
 ### Running CI Locally
 
 ```bash
-make ci-full          # All checks
-make ci-lint          # Lint only
-make ci-test          # Tests only
-make ci-security      # Security only
-make ci-cross-compile # Cross-compilation
+make ci-full          # everything
+make ci-lint          # lint only
+make ci-test          # tests only
+make ci-security      # security only
 ```
 
 ## Release Process
@@ -305,17 +329,27 @@ git push origin v1.2.3
 
 ### Build Variables
 
-| Variable | Source |
-|---|---|
-| `VERSION` | Git tag (e.g., `v1.2.3`) |
-| `BUILD_TIME` | UTC build timestamp |
-| `GIT_COMMIT` | Full commit SHA |
+All three are injected with `-ldflags -X` and reported by `goingenv --version`.
+
+| Variable | Release source | Local build source |
+|---|---|---|
+| `main.Version` | Git tag (e.g. `v1.2.3`) | `git describe --tags --dirty --always` |
+| `main.BuildTime` | Commit date (reproducible builds) | Build timestamp |
+| `main.GitCommit` | Full commit SHA | Short SHA |
 
 ### Local Release Test
 
 ```bash
-make release-local    # Builds all platforms into dist/
+make release-local    # goreleaser snapshot; builds all platforms, publishes nothing
 ls -la dist/
+```
+
+Snapshot archive names carry a `-SNAPSHOT-` suffix, so they differ from a real
+release. To check the artifact contract by hand:
+
+```bash
+tar -tzf dist/goingenv-*-darwin-arm64.tar.gz   # must print only: goingenv
+cat dist/checksums.txt
 ```
 
 ## Development Tools

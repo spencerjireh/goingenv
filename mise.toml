@@ -14,8 +14,10 @@ golangci-lint = "2.13.2"
 "go:github.com/securego/gosec/v2/cmd/gosec" = "2.29.0"
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
 
-# Release tooling.
+# Release tooling. syft generates the SBOMs declared in .goreleaser.yaml, so
+# `make release-local` exercises the same path CI does.
 goreleaser = "2.18.1"
+syft = "1.51.1"
 
 # Hot-reload for TUI development (make tui-watch).
 air = "1.67.4"

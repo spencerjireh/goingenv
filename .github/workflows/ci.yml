@@ -133,6 +133,28 @@ jobs:
     - name: Run E2E tests
       run: go test -v -timeout=5m ./test/e2e/...
 
+    # One leg only, to avoid four conflicting profiles. Reported to the run
+    # summary rather than committed back as a badge, which would need
+    # contents: write -- not worth trading write access for an SVG.
+    #
+    # Only the in-process packages are measured: test/cli and test/e2e spawn a
+    # separately built binary, so they contribute nothing to a coverage profile
+    # however much they exercise.
+    - name: Report coverage
+      if: matrix.os == 'ubuntu-latest' && matrix.go-version == 'stable'
+      run: |
+        go test -race -covermode=atomic \
+          -coverpkg=./pkg/...,./internal/... \
+          -coverprofile=coverage.out \
+          ./pkg/... ./internal/... ./test/integration/...
+        {
+          echo "## Coverage"
+          echo ""
+          echo '```'
+          go tool cover -func=coverage.out | tail -20
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
   security:
     name: Security Scan
     runs-on: ubuntu-latest
