@@ -23,9 +23,10 @@ import (
 //   - no golden files.
 //   - no assertions that depend on ANSI escapes. CI is not a TTY, so Lipgloss
 //     degrades to the Ascii profile and emits none.
-//   - no filepicker coverage. It cannot be driven meaningfully headless, and
-//     pretending otherwise would give false confidence -- it is exercised by
-//     hand via `make tui`.
+//
+// Interaction beyond this file lives alongside it: filepicker_test.go,
+// interaction_test.go and password_test.go cover the manual checklist in
+// docs/development.md.
 
 // testApp builds an App from the existing func-field mocks in pkg/types.
 // Every mock returns zero values unless a Func field is set, which is all the
@@ -237,9 +238,11 @@ func TestModel_ViewAtExtremeSizes(t *testing.T) {
 	sizes := []struct{ w, h int }{
 		{0, 0},
 		{1, 1},
+		{30, 8},
 		{40, 10},
 		{80, 24},
 		{200, 60},
+		{300, 100},
 	}
 
 	for _, size := range sizes {

@@ -184,7 +184,51 @@ user-level config must not leave a project config behind.
 
 - **Unit tests**: Alongside source (`*_test.go`), table-driven
 - **Integration tests**: `test/integration/` -- multi-phase workflows with real services
+- **TUI tests**: `internal/tui/` -- smoke tests driving the root model. See the checklist below
+- **Website tests**: `test/site/` -- structural and accessibility assertions over `public/index.html`
 - **Test utilities**: `test/testutils/` -- `CreateTempGoingEnvDir()`, `CreateTempEnvFiles()`, `BuildBinary()`, `RunCLI()`
+
+### TUI Verification Checklist
+
+`internal/tui` is exercised by smoke tests that drive the root model exactly as
+the runtime does -- messages in, model state and rendered substrings out. They
+deliberately carry no golden files and no layout arithmetic, so a lipgloss or
+bubbletea release changes the output without breaking the suite.
+
+Eleven of the twelve checks below now run on every push. Item 12 is terminal
+state rather than model state, so it still needs a human at `make tui`.
+
+| # | Check | Covered by |
+|---|---|---|
+| 1 | Header, footer and tab bar render; all five tab names visible | `TestModel_ViewRendersAllTabs` |
+| 2 | `1`-`5` select tabs; `tab`/`shift+tab` cycle and wrap | `TestModel_TabNavigation` |
+| 3 | Clicking a tab selects it; dragging across the bar with the button held does not | `TestModel_MouseTabClick`, `TestModel_DragAcrossTabBarKeepsTheSelection` |
+| 4 | The wheel does not switch tabs | `TestModel_WheelDoesNotSelectTabs` |
+| 5 | Unpack picker: opens in `.goingenv`, lists every archive, selection advances | `TestUnpackTab_*` in `filepicker_test.go` |
+| 6 | List picker: the same, as a separate instance | `TestListTab_*` in `filepicker_test.go` |
+| 7 | Password fields mask what is typed | `TestPasswordFieldsAreMasked`, `TestEveryPasswordInputUsesEchoPassword` |
+| 8 | `?` toggles help; any key closes it; suppressed while typing | `TestModel_HelpOverlay` |
+| 9 | Confirmation modal: `y` confirms, `n`/`esc` cancel, other keys are swallowed | `TestModel_ConfirmModal` |
+| 10 | A toast appears and is removed when it expires | `TestModel_Toast` |
+| 11 | No panic from 0x0 up to 300x100 | `TestModel_ViewAtExtremeSizes` |
+| 12 | **`q` quits and the alt-screen is restored** | `TestModel_Quit` covers the quit; **alt-screen restore is manual** |
+
+Item 12 is the whole manual pass. `tea.WithAltScreen()` is applied in
+`internal/cli/root.go`, outside the model, so nothing a headless test can reach
+observes it. Run `make tui`, press `q`, and confirm the shell comes back with
+its scrollback intact. Testing it properly needs a pseudo-terminal and a
+dependency the project does not carry.
+
+Two things the table records rather than verifies:
+
+- **Nothing emits `ShowModalMsg`.** The modal renders and responds correctly,
+  but no code path in `internal/tui` opens one, and `UnpackFilesCmd` hardcodes
+  `Overwrite: false`. Item 9 injects the message directly. The confirm-before-
+  overwrite flow is a feature gap, not a test gap.
+- **The wheel is inert.** `handleMouseMsg` returns early on anything that is not
+  a left press on the tab bar row, so mouse messages never reach a viewport and
+  `tea.WithMouseCellMotion()` currently buys nothing. Item 4 pins that, so
+  wiring scrolling up later fails the test instead of drifting past review.
 
 ### Initialization in Tests
 
