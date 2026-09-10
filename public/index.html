@@ -1,1062 +1,877 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>goingenv — encrypted .env archives you can commit</title>
     <meta
       name="description"
-      content="goingenv - Share envs the easy way. Secure, fast solution for teams without complex third-party services."
+      content="Bundle .env files into one AES-256-GCM encrypted archive, commit it with your code, and restore it with a shared password. A CLI and terminal UI for Linux and macOS."
     />
+    <link rel="canonical" href="https://spencerjireh.github.io/goingenv/" />
+
+    <!-- Dark-only by design; declaring it stops the browser painting light
+         form controls and scrollbars against the dark page. -->
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#121417" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://spencerjireh.github.io/goingenv/" />
+    <meta property="og:title" content="goingenv — encrypted .env archives you can commit" />
     <meta
-      name="keywords"
-      content="environment files, team sharing, encryption, CLI, TUI, .env files, vault alternative"
+      property="og:description"
+      content="Bundle .env files into one AES-256-GCM encrypted archive, commit it with your code, and restore it with a shared password."
     />
-    <title>goingenv - Share Envs The Easy Way</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              base: "#121417",
-              surface: "#1c1f24",
-              primary: "#6b7a8f",
-              text: "#e9eaeb",
-              "text-muted": "#8b9099",
-              accent: "#7c9cbc",
-              signal: "#22d3a7",
-            },
-            fontFamily: {
-              sans: [
-                "Inter",
-                "-apple-system",
-                "BlinkMacSystemFont",
-                "system-ui",
-                "sans-serif",
-              ],
-              mono: [
-                "JetBrains Mono",
-                "IBM Plex Mono",
-                "SF Mono",
-                "monospace",
-              ],
-            },
-            maxWidth: {
-              prose: "70ch",
-            },
-          },
-        },
-      };
-    </script>
+    <meta property="og:image" content="https://spencerjireh.github.io/goingenv/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://spencerjireh.github.io/goingenv/og-image.png" />
+
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+
     <style>
-      * {
+      /* ---------------------------------------------------------------
+         Design tokens, from docs/design.md so the site, the TUI and the
+         CLI share one palette.
+
+         --slate is used for BORDERS ONLY: at 4.22:1 on --base it does not
+         meet WCAG AA for text. --dim (6.4:1) is the readable equivalent and
+         is what every small or secondary text style uses.
+         --------------------------------------------------------------- */
+      :root {
+        --base: #121417;
+        --surface: #1c1f24;
+        --border: #2a2e35;
+        --slate: #6b7a8f;
+        --dim: #8f99a4;
+        --muted: #8b9099;
+        --text: #e9eaeb;
+        --link: #7c9cbc;
+        --signal: #22d3a7;
+
+        --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+        --measure: 70ch;
+        --radius: 3px;
+      }
+
+      *,
+      *::before,
+      *::after {
         box-sizing: border-box;
       }
 
       html {
         scroll-behavior: smooth;
-        scroll-padding-top: 60px;
+        scroll-padding-top: 5rem;
       }
 
       body {
-        background-color: #121417;
-        color: #e9eaeb;
+        margin: 0;
+        background-color: var(--base);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 16px;
         line-height: 1.65;
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui,
-          sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
 
       code,
-      pre {
-        font-family: "JetBrains Mono", "IBM Plex Mono", monospace;
+      pre,
+      kbd {
+        font-family: var(--font-mono);
         line-height: 1.5;
       }
 
-      /* Code blocks */
-      .code-block {
-        background-color: #1c1f24;
-        border-left: 2px solid #6b7a8f;
-        border-radius: 2px;
-        padding: 16px 20px;
-        position: relative;
-        cursor: pointer;
-        transition: border-color 150ms ease;
-      }
-
-      .code-block:hover {
-        border-left-color: #7c9cbc;
-      }
-
-      .code-block.copied {
-        border-left-color: #22d3a7;
-      }
-
-      .code-block .copy-icon {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        color: #6b7a8f;
-        opacity: 0;
-        transition: opacity 120ms ease;
-      }
-
-      .code-block:hover .copy-icon {
-        opacity: 1;
-      }
-
-      .code-block .copy-icon .icon-copy {
-        display: block;
-      }
-
-      .code-block .copy-icon .icon-check {
-        display: none;
-      }
-
-      .code-block.copied .copy-icon {
-        color: #22d3a7;
-        opacity: 1;
-      }
-
-      .code-block.copied .copy-icon .icon-copy {
-        display: none;
-      }
-
-      .code-block.copied .copy-icon .icon-check {
-        display: block;
-      }
-
-      code:not(pre code) {
-        background-color: #1c1f24;
-        padding: 2px 6px;
-        border-radius: 2px;
-        font-size: 0.9em;
+      h1,
+      h2,
+      h3 {
+        line-height: 1.25;
+        font-weight: 500;
       }
 
       a {
-        color: #7c9cbc;
+        color: var(--link);
         text-decoration: none;
-        transition: opacity 120ms ease;
       }
 
       a:hover {
-        opacity: 0.8;
+        text-decoration: underline;
       }
 
-      .nav-link {
-        color: #8b9099;
-        transition: opacity 120ms ease;
-      }
-
-      .nav-link:hover {
-        opacity: 0.8;
-      }
-
-      .step-number {
-        color: #6b7a8f;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.875rem;
-        display: inline-block;
-        width: 2ch;
+      /* A single visible focus treatment for everything interactive. The
+         previous stylesheet had no :focus rule at all. */
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--signal);
+        outline-offset: 3px;
+        border-radius: 2px;
       }
 
       ::selection {
-        background-color: rgba(124, 156, 188, 0.2);
-        color: #e9eaeb;
+        background-color: rgba(124, 156, 188, 0.25);
+        color: var(--text);
       }
 
-      /* Signal color CTA */
-      .cta-primary {
-        color: #22d3a7;
-        transition: opacity 120ms ease, text-shadow 120ms ease;
+      .wrap {
+        width: 100%;
+        max-width: var(--measure);
+        margin-inline: auto;
+        padding-inline: 1.5rem;
       }
 
-      .cta-primary:hover {
-        opacity: 1;
-        text-shadow: 0 0 20px rgba(34, 211, 167, 0.3);
-      }
-
-      /* Cursor blink animation */
-      @keyframes blink {
-        0%, 50% { opacity: 1; }
-        51%, 100% { opacity: 0; }
-      }
-
-      .cursor {
-        display: inline-block;
-        width: 8px;
-        height: 1.1em;
-        background-color: #e9eaeb;
-        margin-left: 1px;
-        vertical-align: text-bottom;
-        animation: blink 1.06s step-end infinite;
-      }
-
-      /* Hero background layers */
-      .hero-bg {
-        position: relative;
-        overflow: hidden;
-      }
-
-      /* Dot grid pattern */
-      .dot-grid {
+      .skip-link {
         position: absolute;
-        inset: 0;
-        background-image: radial-gradient(circle, #6b7a8f 1px, transparent 1px);
-        background-size: 24px 24px;
-        opacity: 0.04;
-        pointer-events: none;
+        left: -9999px;
+        top: 0;
+        background: var(--surface);
+        color: var(--text);
+        padding: 0.75rem 1rem;
+        z-index: 100;
       }
 
-      /* Scan lines overlay */
-      .scan-lines {
-        position: absolute;
-        inset: 0;
-        background: repeating-linear-gradient(
-          0deg,
-          transparent,
-          transparent 1px,
-          rgba(233, 234, 235, 0.015) 1px,
-          rgba(233, 234, 235, 0.015) 2px
-        );
-        pointer-events: none;
+      .skip-link:focus {
+        left: 1rem;
+        top: 1rem;
       }
 
-      /* Aurora gradient blur */
-      @keyframes aurora {
-        0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.03; }
-        50% { transform: translate(20px, -20px) scale(1.1); opacity: 0.05; }
+      /* --- Header ---------------------------------------------------- */
+
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background-color: rgba(18, 20, 23, 0.85);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
       }
 
-      .aurora {
-        position: absolute;
-        width: 600px;
-        height: 400px;
-        top: -100px;
-        right: -200px;
-        background: radial-gradient(ellipse, #22d3a7 0%, #7c9cbc 50%, transparent 70%);
-        filter: blur(100px);
-        opacity: 0.04;
-        animation: aurora 60s ease-in-out infinite;
-        pointer-events: none;
-      }
-
-      /* Terminal styling */
-      .terminal {
-        background-color: #1c1f24;
-        border: 1px solid #2a2e35;
-        border-radius: 4px;
-        overflow: hidden;
-        font-family: "JetBrains Mono", monospace;
-      }
-
-      .terminal-header {
-        background-color: #1c1f24;
-        border-bottom: 1px solid #2a2e35;
-        padding: 8px 12px;
+      .site-header .wrap {
         display: flex;
         align-items: center;
-        gap: 8px;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-block: 0.75rem;
       }
 
-      .terminal-dot {
+      .site-header nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+        font-size: 0.9375rem;
+      }
+
+      .site-header nav a {
+        color: var(--muted);
+      }
+
+      .site-header nav a:hover {
+        color: var(--text);
+        text-decoration: none;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 0.9375rem;
+      }
+
+      .brand:hover {
+        text-decoration: none;
+      }
+
+      .brand svg {
+        width: 20px;
+        height: 20px;
+        flex: none;
+      }
+
+      /* --- Hero ------------------------------------------------------ */
+
+      .hero {
+        padding-block: 4.5rem 3rem;
+      }
+
+      .hero h1 {
+        font-size: clamp(1.75rem, 5vw, 2.5rem);
+        margin: 0 0 1rem;
+        letter-spacing: -0.01em;
+      }
+
+      .hero .lede {
+        color: var(--muted);
+        font-size: 1.0625rem;
+        margin: 0 0 2rem;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        align-items: center;
+        margin-top: 2rem;
+      }
+
+      .cta {
+        color: var(--signal);
+        font-weight: 500;
+      }
+
+      /* --- Sections -------------------------------------------------- */
+
+      main section {
+        padding-block: 2.5rem;
+        border-top: 1px solid var(--border);
+      }
+
+      h2 {
+        font-size: 1.375rem;
+        margin: 0 0 0.5rem;
+      }
+
+      h2 .prompt {
+        color: var(--dim);
+        font-family: var(--font-mono);
+        margin-right: 0.5rem;
+      }
+
+      h3 {
+        font-size: 1.0625rem;
+        margin: 2rem 0 0.75rem;
+      }
+
+      p {
+        margin: 0 0 1rem;
+        color: var(--muted);
+      }
+
+      .section-intro {
+        margin-bottom: 1.5rem;
+      }
+
+      ul {
+        color: var(--muted);
+        padding-left: 1.25rem;
+      }
+
+      li {
+        margin-bottom: 0.375rem;
+      }
+
+      li code,
+      p code,
+      td code {
+        background-color: var(--surface);
+        padding: 0.1em 0.35em;
+        border-radius: 2px;
+        font-size: 0.9em;
+        color: var(--text);
+      }
+
+      .note {
+        font-size: 0.9375rem;
+        margin-top: 0.5rem;
+      }
+
+      /* --- Code blocks ----------------------------------------------- */
+
+      .code {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        background-color: var(--surface);
+        border-left: 2px solid var(--slate);
+        border-radius: var(--radius);
+        padding: 0.875rem 1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .code pre {
+        margin: 0;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow-x: auto;
+        font-size: 0.875rem;
+        color: var(--text);
+      }
+
+      .copy {
+        flex: none;
+        background: none;
+        border: 0;
+        padding: 0.25rem;
+        margin: -0.25rem;
+        color: var(--dim);
+        cursor: pointer;
+        border-radius: 2px;
+      }
+
+      .copy:hover {
+        color: var(--text);
+      }
+
+      .copy svg {
+        display: block;
+        width: 16px;
+        height: 16px;
+      }
+
+      .copy .icon-check,
+      .copy[data-copied="true"] .icon-copy {
+        display: none;
+      }
+
+      .copy[data-copied="true"] .icon-check {
+        display: block;
+      }
+
+      .copy[data-copied="true"] {
+        color: var(--signal);
+      }
+
+      /* --- Terminal -------------------------------------------------- */
+
+      .terminal {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        margin-bottom: 2rem;
+      }
+
+      .terminal-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.6rem 0.875rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .terminal-bar span {
         width: 10px;
         height: 10px;
         border-radius: 50%;
         background-color: #3a3f47;
       }
 
-      .terminal-title {
-        flex: 1;
-        text-align: center;
-        color: #6b7a8f;
-        font-size: 0.75rem;
+      .terminal pre {
+        margin: 0;
+        padding: 1rem;
+        font-size: 0.8125rem;
+        overflow-x: auto;
+        color: var(--muted);
       }
 
-      .terminal-body {
-        padding: 16px;
-        height: 400px;
+      .terminal .u {
+        color: var(--text);
+      }
+
+      .terminal .ok {
+        color: var(--signal);
+      }
+
+      .terminal .p {
+        color: var(--dim);
+      }
+
+      /* --- Tables ---------------------------------------------------- */
+
+      .table-scroll {
+        overflow-x: auto;
+        margin-bottom: 1rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9375rem;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 0.5rem 0.75rem 0.5rem 0;
+        border-bottom: 1px solid var(--border);
+        color: var(--muted);
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--text);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      /* --- Steps ----------------------------------------------------- */
+
+      .step {
+        margin-bottom: 1.75rem;
+      }
+
+      .step > p:first-child {
+        margin-bottom: 0.5rem;
+      }
+
+      .step-n {
+        color: var(--dim);
+        font-family: var(--font-mono);
         font-size: 0.875rem;
-        line-height: 1.6;
-        overflow: hidden;
+        margin-right: 0.5rem;
       }
 
-      .terminal-line {
-        white-space: pre;
+      /* --- Footer ---------------------------------------------------- */
+
+      footer {
+        border-top: 1px solid var(--border);
+        padding-block: 2rem 3rem;
+        font-size: 0.9375rem;
       }
 
-      .terminal-prompt {
-        color: #6b7a8f;
-      }
-
-      .terminal-command {
-        color: #e9eaeb;
-      }
-
-      .terminal-output {
-        color: #8b9099;
-      }
-
-      .terminal-success {
-        color: #22d3a7;
-      }
-
-      .terminal-file {
-        color: #7c9cbc;
-      }
-
-      /* Platform toggle */
-      .platform-tabs {
+      footer .wrap {
         display: flex;
-        gap: 4px;
-        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 1rem 1.5rem;
+        align-items: center;
+        justify-content: space-between;
       }
 
-      .platform-tab {
-        padding: 6px 12px;
-        font-size: 0.75rem;
-        font-family: "JetBrains Mono", monospace;
-        color: #6b7a8f;
-        background: transparent;
-        border: 1px solid #2a2e35;
-        border-radius: 2px;
-        cursor: pointer;
-        transition: all 120ms ease;
+      footer nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.25rem;
       }
 
-      .platform-tab:hover {
-        border-color: #6b7a8f;
-      }
-
-      .platform-tab.active {
-        color: #e9eaeb;
-        border-color: #6b7a8f;
-        background-color: #1c1f24;
-      }
-
-      .platform-content {
-        display: none;
-      }
-
-      .platform-content.active {
-        display: block;
-      }
-
-      /* Prompt symbol */
-      .prompt-symbol {
-        color: #6b7a8f;
-        font-family: "JetBrains Mono", monospace;
-        margin-right: 8px;
-      }
-
-      /* Feature list with line numbers */
-      .feature-list {
-        font-family: "JetBrains Mono", monospace;
+      footer p {
+        margin: 0;
         font-size: 0.875rem;
       }
 
-      .feature-list li {
-        display: flex;
-        gap: 16px;
-        padding: 4px 0;
+      /* --- Responsive ------------------------------------------------
+         The previous stylesheet had no media queries at all, and a
+         fixed-width hero graphic that overflowed any viewport under
+         408px. Everything here is fluid; these only tighten spacing.
+         --------------------------------------------------------------- */
+
+      @media (max-width: 40rem) {
+        body {
+          font-size: 15px;
+        }
+
+        .wrap {
+          padding-inline: 1.125rem;
+        }
+
+        .hero {
+          padding-block: 2.5rem 2rem;
+        }
+
+        main section {
+          padding-block: 2rem;
+        }
+
+        .actions {
+          gap: 1rem;
+        }
+
+        .site-header nav {
+          gap: 0.875rem;
+          font-size: 0.875rem;
+        }
+
+        /* The brand wordmark is redundant with the nav on a narrow screen. */
+        .brand span {
+          display: none;
+        }
       }
 
-      .feature-list .line-num {
-        color: #6b7a8f;
-        user-select: none;
-      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
 
-      /* Scroll indicator */
-      @keyframes subtle-bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(4px); }
-      }
-
-      .scroll-indicator {
-        animation: subtle-bounce 2s ease-in-out infinite;
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
       }
     </style>
   </head>
-  <body class="antialiased">
-    <!-- Navigation (appears after scrolling past hero) -->
-    <nav id="main-nav" class="fixed top-0 left-0 right-0 bg-base border-b border-surface py-3 px-6 z-50 opacity-0 -translate-y-full transition-all duration-200 pointer-events-none">
-      <div class="max-w-prose mx-auto flex items-center justify-between">
-        <a href="#" class="flex items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="20" height="20">
-              <path d="M 148,156 L 188,156 L 188,176 L 168,176 L 168,336 L 188,336 L 188,356 L 148,356 Z" fill="#6b7a8f"/>
-              <path d="M 324,156 L 364,156 L 364,356 L 324,356 L 324,336 L 344,336 L 344,176 L 324,176 Z" fill="#6b7a8f"/>
-              <circle cx="256" cy="256" r="52" fill="#22d3a7"/>
-            </svg>
-            <span class="text-text font-medium text-sm font-mono">goingenv</span>
-          </a>
-        <div class="flex gap-6">
-          <a href="#installation" class="nav-link text-sm">Installation</a>
-          <a href="#quick-start" class="nav-link text-sm">Quick Start</a>
-          <a href="#configuration" class="nav-link text-sm">Configuration</a>
-        </div>
-      </div>
-    </nav>
 
-    <!-- Hero Section -->
-    <header class="hero-bg min-h-screen flex flex-col px-6">
-      <!-- Background layers -->
-      <div class="dot-grid"></div>
-      <div class="scan-lines"></div>
-      <div class="aurora"></div>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
 
-      <!-- Hero Nav (static, stays in hero) -->
-      <nav class="relative z-10 py-4">
-        <div class="max-w-prose mx-auto flex items-center justify-between">
-          <a href="#" class="flex items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="20" height="20">
-              <path d="M 148,156 L 188,156 L 188,176 L 168,176 L 168,336 L 188,336 L 188,356 L 148,356 Z" fill="#6b7a8f"/>
-              <path d="M 324,156 L 364,156 L 364,356 L 324,356 L 324,336 L 344,336 L 344,176 L 324,176 Z" fill="#6b7a8f"/>
-              <circle cx="256" cy="256" r="52" fill="#22d3a7"/>
-            </svg>
-            <span class="text-text font-medium text-sm font-mono">goingenv</span>
-          </a>
-          <div class="flex gap-6">
-            <a href="#installation" class="nav-link text-sm">Installation</a>
-            <a href="#quick-start" class="nav-link text-sm">Quick Start</a>
-            <a href="#configuration" class="nav-link text-sm">Configuration</a>
-          </div>
-        </div>
-      </nav>
+    <!-- Icon sprite. Defined once and referenced with <use>; these SVGs were
+         previously pasted inline 12 times, about 8KB of duplication. -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+      <symbol id="i-logo" viewBox="0 0 200 200">
+        <path d="M 30,40 L 62,40 L 62,58 L 48,58 L 48,142 L 62,142 L 62,160 L 30,160 Z" fill="currentColor" />
+        <path d="M 138,40 L 170,40 L 170,160 L 138,160 L 138,142 L 152,142 L 152,58 L 138,58 Z" fill="currentColor" />
+        <circle cx="100" cy="100" r="26" fill="#22d3a7" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </symbol>
+    </svg>
 
-      <div class="max-w-prose mx-auto relative z-10 flex-1 flex items-center w-full">
-        <div>
-          <div class="mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" width="360" height="82">
-              <path d="M 40,50 L 65,50 L 65,62 L 52,62 L 52,138 L 65,138 L 65,150 L 40,150 Z" fill="#6b7a8f"/>
-              <path d="M 115,50 L 140,50 L 140,150 L 115,150 L 115,138 L 128,138 L 128,62 L 115,62 Z" fill="#6b7a8f"/>
-              <circle cx="90" cy="100" r="24" fill="#22d3a7"/>
-              <text x="152" y="118" font-family="JetBrains Mono, SF Mono, Menlo, Consolas, monospace" font-size="64" font-weight="500" fill="#e9eaeb">goingenv</text>
-            </svg>
-          </div>
-
-        <p class="text-lg text-text-muted mb-6">
-          Share envs the easy way.
-        </p>
-
-        <p class="text-base text-text-muted mb-10">
-          Secure your <code>.env</code> files with AES-256 encryption. No
-          dependencies, no configuration. Perfect for small teams and personal
-          projects where you want to share encrypted environments via Git.
-        </p>
-
-        <!-- Animated Terminal Demo -->
-        <div class="terminal mb-10" id="hero-terminal">
-          <div class="terminal-header">
-            <div class="terminal-dot"></div>
-            <div class="terminal-dot"></div>
-            <div class="terminal-dot"></div>
-            <span class="terminal-title">~/project</span>
-          </div>
-          <div class="terminal-body" id="terminal-output">
-            <!-- Content injected by JavaScript -->
-          </div>
-        </div>
-
-        <div class="flex gap-6">
-          <a href="#installation" class="cta-primary">Get started</a>
-          <a href="https://github.com/spencerjireh/goingenv">GitHub</a>
-        </div>
-        </div>
-      </div>
-
-      <!-- Scroll indicator -->
-      <div class="absolute bottom-8 left-1/2 -translate-x-1/2 scroll-indicator">
-        <a href="#installation" class="block text-primary opacity-50 hover:opacity-80 transition-opacity">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M12 5v14M5 12l7 7 7-7" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="#main">
+          <svg aria-hidden="true" focusable="false"><use href="#i-logo" /></svg>
+          <span>goingenv</span>
         </a>
+        <nav aria-label="Sections">
+          <a href="#install">Install</a>
+          <a href="#usage">Usage</a>
+          <a href="#scripting">Scripting</a>
+          <a href="#configuration">Config</a>
+        </nav>
       </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="px-6 py-16">
-      <div class="max-w-prose mx-auto">
-        <!-- Installation Section -->
-        <section id="installation" class="mb-24">
-          <h2 class="text-2xl font-medium text-text mb-2">
-            <span class="prompt-symbol">>_</span>Installation
-          </h2>
-          <p class="text-text-muted mb-8">
-            Quick installation on Linux and macOS.
-            <a href="https://github.com/spencerjireh/goingenv/releases"
-              >View all releases</a
-            >.
+    <main id="main">
+      <div class="wrap hero">
+        <h1>Encrypted <code>.env</code> archives you can commit</h1>
+        <p class="lede">
+          Bundle your environment files into one AES-256-GCM archive, commit it alongside
+          your code, and let teammates restore it with a shared password. A CLI and a
+          terminal UI over the same commands.
+        </p>
+
+        <div class="terminal">
+          <div class="terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+          <pre><code><span class="p">$</span> <span class="u">goingenv status</span>
+
+Environment Files (3)
+  .env
+  .env.local
+  .env.production
+
+<span class="p">$</span> <span class="u">goingenv pack</span>
+
+<span class="p">[&gt;]</span> Packing 3 files...
+<span class="ok">[+]</span> Created .goingenv/archive-20260910-174153.enc</code></pre>
+        </div>
+
+        <div class="actions">
+          <a class="cta" href="#install">Install</a>
+          <a href="https://github.com/spencerjireh/goingenv">GitHub</a>
+          <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">Security</a>
+        </div>
+      </div>
+
+      <section id="install" class="wrap">
+        <h2><span class="prompt" aria-hidden="true">&gt;_</span>Install</h2>
+        <p class="section-intro">
+          Linux and macOS, x86_64 and ARM64. On Windows, use
+          <a href="https://docs.microsoft.com/en-us/windows/wsl/install">WSL</a>.
+        </p>
+
+        <div class="code">
+          <pre><code>curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash</code></pre>
+          <button class="copy" type="button" aria-label="Copy install command"
+            data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
+        <p class="note">
+          The script verifies the download against the release checksums and refuses to
+          install if they do not match.
+        </p>
+
+        <h3>A specific version</h3>
+        <p>
+          Replace <code>&lt;tag&gt;</code> with one from the
+          <a href="https://github.com/spencerjireh/goingenv/releases">releases page</a>.
+        </p>
+        <div class="code">
+          <pre><code>curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version &lt;tag&gt;</code></pre>
+          <button class="copy" type="button" aria-label="Copy versioned install command"
+            data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version <tag>">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
+
+        <h3>Other options</h3>
+        <ul>
+          <li>
+            <strong>Manual:</strong> download a binary from
+            <a href="https://github.com/spencerjireh/goingenv/releases">releases</a>,
+            extract it, and move it onto your <code>PATH</code>.
+          </li>
+          <li><strong>From source:</strong> needs Go 1.26 or newer, then <code>go build ./cmd/goingenv</code>.</li>
+          <li>Re-running the installer upgrades in place. Add <code>--cleanup-all</code> to remove old backups and duplicate installations.</li>
+        </ul>
+      </section>
+
+      <section id="usage" class="wrap">
+        <h2><span class="prompt" aria-hidden="true">&gt;_</span>Usage</h2>
+        <p class="section-intro">Four commands cover the whole workflow.</p>
+
+        <div class="step">
+          <p><span class="step-n">01</span>Set up <code>.goingenv/</code> in your project.</p>
+          <div class="code">
+            <pre><code>goingenv init</code></pre>
+            <button class="copy" type="button" aria-label="Copy: goingenv init" data-copy="goingenv init">
+              <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+              <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="step">
+          <p><span class="step-n">02</span>See which files would be packed, before packing them.</p>
+          <div class="code">
+            <pre><code>goingenv status</code></pre>
+            <button class="copy" type="button" aria-label="Copy: goingenv status" data-copy="goingenv status">
+              <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+              <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="step">
+          <p><span class="step-n">03</span>Encrypt them into <code>.goingenv/archive-&lt;timestamp&gt;.enc</code>. You are prompted for a password.</p>
+          <div class="code">
+            <pre><code>goingenv pack</code></pre>
+            <button class="copy" type="button" aria-label="Copy: goingenv pack" data-copy="goingenv pack">
+              <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+              <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="step">
+          <p><span class="step-n">04</span>On another machine, restore it with the shared password.</p>
+          <div class="code">
+            <pre><code>goingenv unpack -f .goingenv/archive-20260910-174153.enc</code></pre>
+            <button class="copy" type="button" aria-label="Copy: goingenv unpack"
+              data-copy="goingenv unpack -f .goingenv/archive-20260910-174153.enc">
+              <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+              <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+            </button>
+          </div>
+          <p class="note">
+            Commit the <code>.enc</code> file. Share the password through a channel that is
+            not the repository — it is never stored.
           </p>
+        </div>
 
-          <h3 class="text-lg font-medium text-text mb-4">
-            One-line installation
-          </h3>
+        <h3>Every command</h3>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">Command</th><th scope="col">Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>goingenv</code></td><td>Launch the terminal UI</td></tr>
+              <tr><td><code>goingenv init</code></td><td>Set up <code>.goingenv/</code> in the current project</td></tr>
+              <tr><td><code>goingenv status</code></td><td>Show detected files and existing archives</td></tr>
+              <tr><td><code>goingenv pack</code></td><td>Encrypt env files into an archive</td></tr>
+              <tr><td><code>goingenv unpack</code></td><td>Decrypt an archive and restore files</td></tr>
+              <tr><td><code>goingenv list</code></td><td>Show an archive's contents without extracting</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">Run <code>goingenv</code> with no arguments for the terminal UI, which covers the same operations.</p>
+      </section>
 
-          <!-- Platform Detection -->
-          <div class="platform-tabs" id="platform-tabs">
-            <button class="platform-tab" data-platform="macos">macOS</button>
-            <button class="platform-tab" data-platform="linux">Linux</button>
-            <button class="platform-tab" data-platform="windows">Windows</button>
-          </div>
+      <section id="scripting" class="wrap">
+        <h2><span class="prompt" aria-hidden="true">&gt;_</span>Scripting</h2>
+        <p class="section-intro">
+          Every command takes <code>--format</code>. In <code>json</code> and
+          <code>porcelain</code>, stdout carries only the payload and all human output moves
+          to stderr, so the result pipes cleanly.
+        </p>
 
-          <div id="platform-macos" class="platform-content">
-            <p class="text-text-muted text-sm mb-4">
-              Install using the shell script:
-            </p>
-            <div class="code-block mb-4" data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash">
-              <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-              <code class="text-text-muted text-sm">curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash</code>
-            </div>
-          </div>
+        <div class="code">
+          <pre><code>goingenv status --format json | jq -r '.env_files[].path'</code></pre>
+          <button class="copy" type="button" aria-label="Copy JSON example"
+            data-copy="goingenv status --format json | jq -r '.env_files[].path'">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
 
-          <div id="platform-linux" class="platform-content">
-            <p class="text-text-muted text-sm mb-4">
-              Install using the automated installer:
-            </p>
-            <div class="code-block mb-4" data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash">
-              <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-              <code class="text-text-muted text-sm">curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash</code>
-            </div>
-          </div>
+        <div class="code">
+          <pre><code>goingenv status --format porcelain | awk -F'\t' '$1 == "env" { print $2 }'</code></pre>
+          <button class="copy" type="button" aria-label="Copy porcelain example"
+            data-copy="goingenv status --format porcelain | awk -F'\t' '$1 == &quot;env&quot; { print $2 }'">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
 
-          <div id="platform-windows" class="platform-content">
-            <p class="text-text-muted text-sm mb-4">
-              Native Windows support coming soon.
-            </p>
-            <p class="text-text-muted text-sm">
-              In the meantime, you can use <a href="https://docs.microsoft.com/en-us/windows/wsl/install">WSL</a> (Windows Subsystem for Linux) and follow the Linux installation instructions.
-            </p>
-          </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">Format</th><th scope="col">Output</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>text</code></td><td>The default. Human-readable, and <strong>not</strong> stable — do not parse it</td></tr>
+              <tr><td><code>json</code></td><td>One JSON object on stdout. Field names are a contract</td></tr>
+              <tr><td><code>porcelain</code></td><td>Tab-separated records, no header row, stable column order</td></tr>
+              <tr><td><code>csv</code></td><td><code>list</code> only</td></tr>
+            </tbody>
+          </table>
+        </div>
 
-          <div class="mb-10"></div>
+        <p class="note">
+          For CI, pass the password by environment variable rather than prompting:
+          <code>goingenv pack --password-env GOINGENV_PASSWORD</code>. Errors go to stderr,
+          as a JSON object under <code>--format json</code>, and the exit code remains the
+          primary signal.
+        </p>
+      </section>
 
-          <h3 class="text-lg font-medium text-text mb-4">Specific version</h3>
-          <p class="text-text-muted mb-4 text-sm">Replace <code>&lt;tag&gt;</code> with a tag from the <a class="underline" href="https://github.com/spencerjireh/goingenv/releases">releases page</a>.</p>
-          <div class="code-block mb-10" data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version &lt;tag&gt;">
-            <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-            <code class="text-text-muted text-sm"
-              >curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash -s -- --version &lt;tag&gt;</code
-            >
-          </div>
+      <section id="configuration" class="wrap">
+        <h2><span class="prompt" aria-hidden="true">&gt;_</span>Configuration</h2>
+        <p class="section-intro">Settings are read from the first of these that exists.</p>
 
-          <h3 class="text-lg font-medium text-text mb-4">Manual installation</h3>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">Location</th><th scope="col">Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>.goingenv/config.json</code></td><td>Project-local. Commit it to pin how this repository is scanned</td></tr>
+              <tr><td><code>~/.goingenv.json</code></td><td>Your personal default, for projects that do not pin one</td></tr>
+              <tr><td>built-in defaults</td><td>Used when neither file exists</td></tr>
+            </tbody>
+          </table>
+        </div>
 
-          <div class="space-y-6">
-            <div>
-              <p class="text-text-muted mb-2">
-                <span class="step-number">01</span> Download the appropriate
-                binary for your platform from the
-                <a
-                  href="https://github.com/spencerjireh/goingenv/releases"
-                  >GitHub releases page</a
-                >.
-              </p>
-            </div>
+        <p>
+          The first file found wins outright — the two are never merged — so checking out a
+          repository determines its file set regardless of personal configuration. Keys
+          omitted from a file fall back to the built-in default.
+          <code>goingenv init --project-config</code> writes one for you.
+        </p>
 
-            <div>
-              <p class="text-text-muted mb-2">
-                <span class="step-number">02</span> Extract the archive:
-              </p>
-              <div class="code-block" data-copy="tar -xzf goingenv-*.tar.gz">
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm"
-                  >tar -xzf goingenv-*.tar.gz</code
-                >
-              </div>
-            </div>
+        <h3>Which files get picked up</h3>
+        <p>
+          Patterns are regular expressions matched against the base filename, not globs, and
+          they are unanchored. The default is a single pattern, <code>\.env.*</code>, so
+          anything containing <code>.env</code> matches — including <code>.env.backup</code>,
+          <code>.env.example</code> and <code>myapp.environment</code>. Scanning is
+          depth-limited, 10 directories by default.
+        </p>
 
-            <div>
-              <p class="text-text-muted mb-2">
-                <span class="step-number">03</span> Install the binary:
-              </p>
-              <div class="code-block" data-copy="sudo mv goingenv /usr/local/bin/
-chmod +x /usr/local/bin/goingenv">
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm block"
-                  >sudo mv goingenv /usr/local/bin/</code
-                >
-                <code class="text-text-muted text-sm block"
-                  >chmod +x /usr/local/bin/goingenv</code
-                >
-              </div>
-            </div>
+        <div class="code">
+          <pre><code>goingenv pack --env-exclude '\.example$'</code></pre>
+          <button class="copy" type="button" aria-label="Copy env-exclude example"
+            data-copy="goingenv pack --env-exclude '\.example$'">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
+        <p class="note">
+          <code>--exclude</code> is a different thing: it matches directory paths, so it can
+          skip a whole tree but never an individual file.
+        </p>
 
-            <div>
-              <p class="text-text-muted mb-2">
-                <span class="step-number">04</span> Verify the installation:
-              </p>
-              <div class="code-block" data-copy="goingenv --version">
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm">goingenv --version</code>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Quick Start Section -->
-        <section id="quick-start" class="mb-24">
-          <h2 class="text-2xl font-medium text-text mb-2">
-            <span class="prompt-symbol">>_</span>Quick Start
-          </h2>
-          <p class="text-text-muted mb-8">Get up and running in minutes.</p>
-
-          <h3 class="text-lg font-medium text-text mb-6">Your first backup</h3>
-
-          <div class="space-y-6">
-            <div>
-              <p class="text-text-muted mb-2">
-                <span class="step-number">01</span> Navigate to your project:
-              </p>
-              <div class="code-block" data-copy="cd /path/to/your/project">
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm"
-                  >cd /path/to/your/project</code
-                >
-              </div>
-            </div>
-
-            <div>
-              <p class="text-text-muted mb-2">
-                <span class="step-number">02</span> Initialize goingenv:
-              </p>
-              <div class="code-block" data-copy="goingenv init">
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm">goingenv init</code>
-              </div>
-              <p class="text-text-muted text-sm mt-2">
-                Required first step. Sets up goingenv in your project directory.
-              </p>
-            </div>
-
-            <div>
-              <p class="text-text-muted mb-2">
-                <span class="step-number">03</span> Check what files are
-                detected:
-              </p>
-              <div class="code-block" data-copy="goingenv status">
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm">goingenv status</code>
-              </div>
-              <p class="text-text-muted text-sm mt-2">
-                Shows environment files found in your project.
-              </p>
-            </div>
-
-            <div>
-              <p class="text-text-muted mb-2">
-                <span class="step-number">04</span> Create your first backup:
-              </p>
-              <div class="code-block" data-copy="goingenv pack">
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm">goingenv pack</code>
-              </div>
-              <p class="text-text-muted text-sm mt-2">
-                Creates an encrypted archive. <span class="text-signal">encrypted in 0.003s</span>
-              </p>
-            </div>
-          </div>
-
-          <div class="mt-12 bg-surface rounded p-6">
-            <h3 class="text-lg font-medium text-text mb-3">Interactive mode</h3>
-            <p class="text-text-muted text-sm mb-4">
-              For a guided experience, simply run:
-            </p>
-            <div class="code-block" data-copy="goingenv">
-              <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-              <code class="text-text-muted">goingenv</code>
-            </div>
-            <p class="text-text-muted text-sm mt-4">
-              Launches an interactive interface with arrow key navigation.
-            </p>
-          </div>
-        </section>
-
-        <!-- Configuration Section -->
-        <section id="configuration" class="mb-24">
-          <h2 class="text-2xl font-medium text-text mb-2">
-            <span class="prompt-symbol">>_</span>Configuration
-          </h2>
-          <p class="text-text-muted mb-8">
-            Customize goingenv behavior with configuration files.
-          </p>
-
-          <h3 class="text-lg font-medium text-text mb-4">Basic configuration</h3>
-          <p class="text-text-muted text-sm mb-4">
-            Create a configuration file at <code>~/.goingenv.json</code> to
-            customize default behavior:
-          </p>
-
-          <div class="code-block mb-8" data-copy='{
+        <h3>Config file</h3>
+        <div class="code">
+          <pre><code>{
   "default_depth": 10,
   "env_patterns": ["\\.env.*"],
-  "env_exclude_patterns": [],
-  "exclude_patterns": ["node_modules/", "\\.git/", "vendor/", "dist/", "build/", "target/", "bin/", "obj/", "\\.next/", "\\.nuxt/", "coverage/"],
-  "max_file_size": 10485760
-}'>
-            <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-            <pre class="text-text-muted text-sm"><code>{
-  "default_depth": 10,
-  "env_patterns": ["\\.env.*"],
-  "env_exclude_patterns": [],
-  "exclude_patterns": ["node_modules/", "\\.git/", "vendor/", "dist/", "build/", "target/", "bin/", "obj/", "\\.next/", "\\.nuxt/", "coverage/"],
+  "env_exclude_patterns": ["\\.env\\.example$"],
+  "exclude_patterns": ["node_modules/", "\\.git/"],
   "max_file_size": 10485760
 }</code></pre>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-            <div>
-              <h4 class="text-base font-medium text-text mb-3">
-                Pattern options
-              </h4>
-              <ul class="feature-list text-text-muted">
-                <li><span class="line-num">01</span> <code>env_patterns</code> - Files to include</li>
-                <li><span class="line-num">02</span> <code>env_exclude_patterns</code> - Files to skip</li>
-                <li><span class="line-num">03</span> <code>exclude_patterns</code> - Dirs to skip</li>
-              </ul>
-            </div>
-            <div>
-              <h4 class="text-base font-medium text-text mb-3">
-                Behavior options
-              </h4>
-              <ul class="feature-list text-text-muted">
-                <li><span class="line-num">01</span> <code>default_depth</code> - Scan depth (1-10)</li>
-                <li><span class="line-num">02</span> <code>max_file_size</code> - Max size in bytes</li>
-              </ul>
-            </div>
-          </div>
-
-          <h3 class="text-lg font-medium text-text mb-4">Pattern examples</h3>
-
-          <div class="space-y-6">
-            <div>
-              <h4 class="text-base text-text mb-2">All-inclusive (default)</h4>
-              <div class="code-block mb-2" data-copy='"env_patterns": ["\\.env.*"]'>
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm"
-                  >"env_patterns": ["\\.env.*"]</code
-                >
-              </div>
-              <p class="text-text-muted text-sm">
-                Matches: .env, .env.local, .env.development, .env.custom, etc.
-              </p>
-            </div>
-
-            <div>
-              <h4 class="text-base text-text mb-2">Specific patterns</h4>
-              <div class="code-block mb-2" data-copy='"env_patterns": ["\\.env$", "\\.env\\.local$", "\\.env\\.production$"]'>
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm"
-                  >"env_patterns": ["\\.env$", "\\.env\\.local$",
-                  "\\.env\\.production$"]</code
-                >
-              </div>
-              <p class="text-text-muted text-sm">
-                Matches only: .env, .env.local, .env.production
-              </p>
-            </div>
-
-            <div>
-              <h4 class="text-base text-text mb-2">Exclude backups</h4>
-              <div class="code-block mb-2" data-copy='"env_exclude_patterns": ["\\.env\\.backup$", "\\.env\\.bak$", "\\.env\\.old$"]'>
-                <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-                <code class="text-text-muted text-sm"
-                  >"env_exclude_patterns": ["\\.env\\.backup$", "\\.env\\.bak$",
-                  "\\.env\\.old$"]</code
-                >
-              </div>
-              <p class="text-text-muted text-sm">
-                Excludes: .env.backup, .env.bak, .env.old files
-              </p>
-            </div>
-          </div>
-
-          <div class="mt-10">
-            <h3 class="text-lg font-medium text-text mb-3">Quick setup</h3>
-            <p class="text-text-muted text-sm mb-4">
-              View current configuration:
-            </p>
-            <div class="code-block" data-copy="goingenv status --verbose">
-              <span class="copy-icon">
-                <svg class="icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-              <code class="text-text-muted text-sm"
-                >goingenv status --verbose</code
-              >
-            </div>
-            <p class="text-text-muted text-sm mt-2">
-              Shows current configuration settings and detected files.
-            </p>
-          </div>
-        </section>
-      </div>
+          <button class="copy" type="button" aria-label="Copy example configuration"
+            data-copy='{
+  "default_depth": 10,
+  "env_patterns": ["\\.env.*"],
+  "env_exclude_patterns": ["\\.env\\.example$"],
+  "exclude_patterns": ["node_modules/", "\\.git/"],
+  "max_file_size": 10485760
+}'>
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
+        <ul>
+          <li><code>default_depth</code> — how many directories deep to scan, 1 to 50</li>
+          <li><code>env_patterns</code> — filename regexes to include</li>
+          <li><code>env_exclude_patterns</code> — filename regexes to drop again</li>
+          <li><code>exclude_patterns</code> — directory paths to skip entirely</li>
+          <li><code>max_file_size</code> — bytes; larger files are ignored</li>
+        </ul>
+        <p class="note">
+          <code>goingenv status --verbose</code> prints the configuration actually in force,
+          including which file it came from.
+        </p>
+      </section>
     </main>
 
-    <!-- Footer -->
-    <footer class="border-t border-surface py-12 px-6">
-      <div class="max-w-prose mx-auto">
-        <div class="flex items-center gap-1.5 mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16">
-            <path d="M 148,156 L 188,156 L 188,176 L 168,176 L 168,336 L 188,336 L 188,356 L 148,356 Z" fill="#6b7a8f"/>
-            <path d="M 324,156 L 364,156 L 364,356 L 324,356 L 324,336 L 344,336 L 344,176 L 324,176 Z" fill="#6b7a8f"/>
-            <circle cx="256" cy="256" r="52" fill="#22d3a7"/>
-          </svg>
-          <span class="text-sm text-text-muted">MIT License</span>
-        </div>
-        <div class="flex gap-6 text-sm">
+    <footer>
+      <div class="wrap">
+        <p>MIT licensed. Built with Go.</p>
+        <nav aria-label="Project links">
           <a href="https://github.com/spencerjireh/goingenv">GitHub</a>
-          <a href="https://github.com/spencerjireh/goingenv/releases"
-            >Releases</a
-          >
-          <a href="https://github.com/spencerjireh/goingenv/issues"
-            >Issues</a
-          >
-        </div>
+          <a href="https://github.com/spencerjireh/goingenv/releases">Releases</a>
+          <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">Security</a>
+          <a href="https://github.com/spencerjireh/goingenv/issues">Issues</a>
+        </nav>
       </div>
     </footer>
 
     <script>
-      // Terminal Animation
-      const terminalSequence = [
-        { type: 'command', text: 'goingenv init', delay: 60 },
-        { type: 'output', text: '[>] Initializing goingenv...', delay: 400 },
-        { type: 'output', text: '[+] Created .goingenv/', delay: 200 },
-        { type: 'success', text: '[+] Initialized', delay: 300 },
-        { type: 'blank', delay: 600 },
-        { type: 'command', text: 'goingenv status', delay: 60 },
-        { type: 'output', text: 'Environment Files (3)', delay: 300 },
-        { type: 'file', text: '  .env', delay: 150 },
-        { type: 'file', text: '  .env.local', delay: 150 },
-        { type: 'file', text: '  .env.production', delay: 150 },
-        { type: 'blank', delay: 600 },
-        { type: 'command', text: 'goingenv pack', delay: 60 },
-        { type: 'output', text: '[>] Packing 3 files...', delay: 400 },
-        { type: 'output', text: '[>] Encrypting...', delay: 300 },
-        { type: 'success', text: '[+] Created envs.goingenv', delay: 400 },
-      ];
+      // Copy to clipboard.
+      //
+      // These are real <button> elements, so keyboard and screen-reader users
+      // get them for free -- previously they were <div>s with a click handler
+      // and a cursor:pointer that advertised interactivity nobody could reach
+      // without a mouse. A failure now shows in the UI rather than only in the
+      // console: clipboard writes are rejected outside secure contexts, and a
+      // silent no-op looks identical to success.
+      document.querySelectorAll(".copy").forEach(function (button) {
+        button.addEventListener("click", function () {
+          var text = button.getAttribute("data-copy") || "";
 
-      const terminalOutput = document.getElementById('terminal-output');
-      let currentLine = 0;
-      let currentChar = 0;
-      let isTyping = false;
+          var done = function (ok) {
+            button.setAttribute("data-copied", String(ok));
+            button.setAttribute("aria-label", ok ? "Copied" : "Copy failed");
+            setTimeout(function () {
+              button.removeAttribute("data-copied");
+              button.setAttribute("aria-label", button.dataset.label);
+            }, 1600);
+          };
 
-      function createLine(type) {
-        const line = document.createElement('div');
-        line.className = 'terminal-line';
+          button.dataset.label = button.dataset.label || button.getAttribute("aria-label");
 
-        if (type === 'command') {
-          const prompt = document.createElement('span');
-          prompt.className = 'terminal-prompt';
-          prompt.textContent = '$ ';
-          line.appendChild(prompt);
-
-          const cmd = document.createElement('span');
-          cmd.className = 'terminal-command';
-          line.appendChild(cmd);
-
-          const cursor = document.createElement('span');
-          cursor.className = 'cursor';
-          line.appendChild(cursor);
-        } else if (type === 'blank') {
-          line.innerHTML = '&nbsp;';
-        }
-
-        return line;
-      }
-
-      function typeCommand(line, text, charDelay, callback) {
-        const cmdSpan = line.querySelector('.terminal-command');
-        const cursor = line.querySelector('.cursor');
-        let i = 0;
-
-        function typeChar() {
-          if (i < text.length) {
-            cmdSpan.textContent += text[i];
-            i++;
-            setTimeout(typeChar, charDelay);
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(
+              function () { done(true); },
+              function () { done(false); }
+            );
           } else {
-            if (cursor) cursor.remove();
-            callback();
-          }
-        }
-        typeChar();
-      }
-
-      function addOutput(text, type, callback) {
-        const line = document.createElement('div');
-        line.className = 'terminal-line';
-
-        if (type === 'success') {
-          line.innerHTML = `<span class="terminal-success">${text}</span>`;
-        } else if (type === 'file') {
-          line.innerHTML = `<span class="terminal-file">${text}</span>`;
-        } else {
-          line.innerHTML = `<span class="terminal-output">${text}</span>`;
-        }
-
-        terminalOutput.appendChild(line);
-        callback();
-      }
-
-      function runTerminalSequence() {
-        terminalOutput.innerHTML = '';
-        currentLine = 0;
-
-        function processNext() {
-          if (currentLine >= terminalSequence.length) {
-            // Restart after pause
-            setTimeout(() => {
-              terminalOutput.style.opacity = '0';
-              setTimeout(() => {
-                terminalOutput.style.opacity = '1';
-                runTerminalSequence();
-              }, 300);
-            }, 3000);
-            return;
-          }
-
-          const item = terminalSequence[currentLine];
-          currentLine++;
-
-          if (item.type === 'command') {
-            const line = createLine('command');
-            terminalOutput.appendChild(line);
-            typeCommand(line, item.text, item.delay, () => {
-              setTimeout(processNext, 200);
-            });
-          } else if (item.type === 'blank') {
-            const line = createLine('blank');
-            terminalOutput.appendChild(line);
-            setTimeout(processNext, item.delay);
-          } else {
-            setTimeout(() => {
-              addOutput(item.text, item.type, () => {
-                setTimeout(processNext, 100);
-              });
-            }, item.delay);
-          }
-        }
-
-        processNext();
-      }
-
-      // Start terminal animation
-      terminalOutput.style.transition = 'opacity 0.3s ease';
-      runTerminalSequence();
-
-      // Platform Detection
-      function detectPlatform() {
-        const ua = navigator.userAgent.toLowerCase();
-        if (ua.includes('mac')) return 'macos';
-        if (ua.includes('win')) return 'windows';
-        return 'linux';
-      }
-
-      function setActivePlatform(platform) {
-        document.querySelectorAll('.platform-tab').forEach(tab => {
-          tab.classList.toggle('active', tab.dataset.platform === platform);
-        });
-        document.querySelectorAll('.platform-content').forEach(content => {
-          content.classList.toggle('active', content.id === `platform-${platform}`);
-        });
-      }
-
-      // Initialize platform tabs
-      const detectedPlatform = detectPlatform();
-      setActivePlatform(detectedPlatform);
-
-      document.querySelectorAll('.platform-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          setActivePlatform(tab.dataset.platform);
-        });
-      });
-
-      // Copy to Clipboard
-      document.querySelectorAll('.code-block').forEach(block => {
-        block.addEventListener('click', async () => {
-          const copyText = block.dataset.copy || block.textContent.trim();
-
-          try {
-            await navigator.clipboard.writeText(copyText);
-            block.classList.add('copied');
-
-            setTimeout(() => {
-              block.classList.remove('copied');
-            }, 1500);
-          } catch (err) {
-            console.error('Copy failed:', err);
+            done(false);
           }
         });
       });
-
-      // Show nav after scrolling past hero
-      const nav = document.getElementById('main-nav');
-      const hero = document.querySelector('header');
-
-      function updateNavVisibility() {
-        const heroBottom = hero.offsetHeight - 100;
-        if (window.scrollY > heroBottom) {
-          nav.classList.remove('opacity-0', '-translate-y-full', 'pointer-events-none');
-          nav.classList.add('opacity-100', 'translate-y-0', 'pointer-events-auto');
-        } else {
-          nav.classList.add('opacity-0', '-translate-y-full', 'pointer-events-none');
-          nav.classList.remove('opacity-100', 'translate-y-0', 'pointer-events-auto');
-        }
-      }
-
-      window.addEventListener('scroll', updateNavVisibility);
-      updateNavVisibility();
     </script>
   </body>
 </html>
