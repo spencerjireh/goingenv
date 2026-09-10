@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -49,13 +50,15 @@ Examples:
 
 // runUnpackCommand executes the unpack command
 func runUnpackCommand(cmd *cobra.Command, args []string) error {
-	out := NewOutput(appVersion)
+	out, err := outputFor(cmd, false)
+	if err != nil {
+		return err
+	}
 
 	app, err := initApp()
 	if err != nil {
 		out.Header()
 		out.Blank()
-		out.Error(err.Error())
 		return err
 	}
 
@@ -93,7 +96,7 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 		if len(conflicts) > 0 {
 			out.Indent(fmt.Sprintf("%d existing files would be affected", len(conflicts)))
 		}
-		return nil
+		return emitUnpackResult(out, archiveFile, filesToExtract, opts, true)
 	}
 
 	if !handleConflicts(out, filesToExtract, opts) {
@@ -195,7 +198,34 @@ func executeUnpack(out *Output, app *types.App, archiveFile string, files []type
 	}
 
 	displayUnpackResult(out, files, conflicts, opts, duration)
-	return nil
+	return emitUnpackResult(out, archiveFile, files, opts, false)
+}
+
+// emitUnpackResult writes the machine-readable result, and nothing in the
+// default text format -- the human output has already been printed.
+func emitUnpackResult(out *Output, archiveFile string, files []types.EnvFile, opts *UnpackOpts, dryRun bool) error {
+	switch out.Format() {
+	case FormatJSON:
+		return out.EmitJSON(UnpackPayload{
+			Archive: archiveFile,
+			Target:  opts.Target,
+			Files:   toFileInfos(files),
+			Count:   len(files),
+			DryRun:  dryRun,
+		})
+	case FormatPorcelain:
+		records := make([][]string, 0, len(files))
+		for _, f := range files {
+			records = append(records, []string{
+				f.RelativePath,
+				strconv.FormatInt(f.Size, 10),
+				f.ModTime.UTC().Format(time.RFC3339),
+			})
+		}
+		return out.EmitPorcelain(records)
+	default:
+		return nil
+	}
 }
 
 // verifyUnpackedFiles verifies extracted files

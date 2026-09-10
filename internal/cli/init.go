@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -69,7 +70,10 @@ func maybeWriteProjectConfig(enabled bool, cfg *types.Config) (bool, error) {
 
 // runInitCommand executes the init command
 func runInitCommand(cmd *cobra.Command, args []string) error {
-	out := NewOutput(appVersion)
+	out, err := outputFor(cmd, false)
+	if err != nil {
+		return err
+	}
 
 	force, err := cmd.Flags().GetBool("force")
 	if err != nil {
@@ -93,7 +97,7 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 	if config.IsInitialized() && !force {
 		out.Warning("goingenv is already initialized in this directory")
 		out.Hint("Use 'goingenv init --force' to reinitialize")
-		return nil
+		return emitInitResult(out, false, false)
 	}
 
 	if verbose {
@@ -144,5 +148,34 @@ func runInitCommand(cmd *cobra.Command, args []string) error {
 		out.Hint("Run 'goingenv status' to see detected files")
 	}
 
-	return nil
+	return emitInitResult(out, true, wroteProjectConfig)
+}
+
+// emitInitResult writes the machine-readable result, and nothing in the
+// default text format -- the human output has already been printed.
+//
+// created is false when the project was already initialised. That is a
+// success, so the exit code stays 0 and the distinction lives in the payload,
+// where a script can act on it.
+func emitInitResult(out *Output, created, wroteProjectConfig bool) error {
+	projectConfig := ""
+	if wroteProjectConfig {
+		projectConfig = config.ProjectConfigPath()
+	}
+
+	switch out.Format() {
+	case FormatJSON:
+		return out.EmitJSON(InitPayload{
+			Created:       created,
+			GoingEnvDir:   config.GetGoingEnvDir(),
+			ProjectConfig: projectConfig,
+		})
+	case FormatPorcelain:
+		return out.EmitPorcelain([][]string{{
+			config.GetGoingEnvDir(),
+			strconv.FormatBool(created),
+		}})
+	default:
+		return nil
+	}
 }

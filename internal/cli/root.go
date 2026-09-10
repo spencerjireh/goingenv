@@ -87,6 +87,12 @@ backup, transfer, and restore your environment configurations.`,
 	// Add global verbose flag
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose debug logging for TUI mode")
 
+	// Output format, global so scripts get the same contract from every
+	// command. `list` also accepts csv, which it supported before this flag
+	// existed; it validates that itself.
+	rootCmd.PersistentFlags().String("format", string(FormatText),
+		"Output format: text, json, porcelain")
+
 	// Add subcommands
 	rootCmd.AddCommand(newInitCommand())
 	rootCmd.AddCommand(newPackCommand())
@@ -117,4 +123,25 @@ func runInteractiveMode(verbose bool, version string) error {
 	}
 
 	return nil
+}
+
+// activeFormat records the --format a command resolved, so a failure can be
+// reported in the shape the caller asked for. It is set by outputFor before
+// any work happens.
+var activeFormat = FormatText
+
+// ReportError prints a failed command's error, once.
+//
+// SilenceErrors is set on the root command, so this is the only place failures
+// surface. Commands deliberately do NOT report their own errors: doing both
+// printed every failure twice, and in JSON that meant a structured payload
+// followed by a prose duplicate.
+//
+// Always stderr, never stdout, so a machine-readable stdout stays parseable
+// (or empty) on failure. The exit code remains the primary signal.
+func ReportError(err error) {
+	if err == nil {
+		return
+	}
+	NewOutputFormat(appVersion, activeFormat).EmitError(err)
 }

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -48,13 +49,15 @@ Examples:
 
 // runPackCommand executes the pack command
 func runPackCommand(cmd *cobra.Command, args []string) error {
-	out := NewOutput(appVersion)
+	out, err := outputFor(cmd, false)
+	if err != nil {
+		return err
+	}
 
 	app, err := initApp()
 	if err != nil {
 		out.Header()
 		out.Blank()
-		out.Error(err.Error())
 		return err
 	}
 
@@ -88,7 +91,7 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 
 	if opts.DryRun {
 		out.Success(fmt.Sprintf("Dry run: would create %s", opts.Output))
-		return nil
+		return emitPackResult(out, files, opts, 0, true)
 	}
 
 	if !confirm(fmt.Sprintf("Proceed with packing to %s?", opts.Output)) {
@@ -171,5 +174,41 @@ func executePack(out *Output, app *types.App, files []types.EnvFile, opts *PackO
 	out.Blank()
 	out.Hint("Store your password securely")
 
-	return nil
+	var archiveSize int64
+	if info, statErr := os.Stat(opts.Output); statErr == nil {
+		archiveSize = info.Size()
+	}
+	return emitPackResult(out, files, opts, archiveSize, false)
+}
+
+// emitPackResult writes the machine-readable result, and nothing at all in the
+// default text format -- the human output has already been printed.
+//
+// TotalSize is the size of the packed archive rather than the sum of the
+// inputs: a script asking about pack wants to know what landed on disk, and
+// the per-file sizes are in Files if it wants the other number. On a dry run
+// no archive exists, so it is zero.
+func emitPackResult(out *Output, files []types.EnvFile, opts *PackOpts, archiveSize int64, dryRun bool) error {
+	switch out.Format() {
+	case FormatJSON:
+		return out.EmitJSON(PackPayload{
+			Archive:   opts.Output,
+			Files:     toFileInfos(files),
+			Count:     len(files),
+			TotalSize: archiveSize,
+			DryRun:    dryRun,
+		})
+	case FormatPorcelain:
+		records := make([][]string, 0, len(files))
+		for _, f := range files {
+			records = append(records, []string{
+				f.RelativePath,
+				strconv.FormatInt(f.Size, 10),
+				f.ModTime.UTC().Format(time.RFC3339),
+			})
+		}
+		return out.EmitPorcelain(records)
+	default:
+		return nil
+	}
 }
