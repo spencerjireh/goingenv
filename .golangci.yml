@@ -34,9 +34,16 @@ linters:
       disabled-checks:
         - whyNoLint
     gosec:
+      # Source of truth for gosec exclusions. The SARIF run in ci.yml passes
+      # the same list on the command line -- keep the two in sync.
+      # Rules excluded as false positives for a file-management CLI:
       excludes:
-        - G204
-        - G304
+        - G115  # integer overflow in file size conversions
+        - G117  # struct fields named "Password" flagged as hardcoded secrets
+        - G204  # subprocess launched with a variable (expected in a CLI)
+        - G304  # file inclusion via variable (the entire point of this tool)
+        - G407  # false positive on make([]byte, N) filled by rand.Read
+        - G703  # path traversal via taint analysis (expected in a file CLI)
     errcheck:
       check-type-assertions: true
       check-blank: true

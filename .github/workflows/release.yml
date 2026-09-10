@@ -12,7 +12,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Gate the release on the full CI suite. Previously a tag push went straight
+  # to building and publishing, so a tag cut from a branch with failing tests
+  # would ship. The called workflow's permissions must be a subset of this
+  # workflow's, hence security-events below.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      security-events: write
+
   build-release:
+    needs: [ci]
     name: Build (${{ matrix.goos }}-${{ matrix.goarch }})
     runs-on: ubuntu-latest
     strategy:

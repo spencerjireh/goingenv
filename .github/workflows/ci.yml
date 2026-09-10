@@ -3,43 +3,60 @@ name: CI
 on:
   push:
     branches: [main, develop]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'public/**'
-      - '.github/workflows/pages.yml'
-      - '.github/workflows/release.yml'
   pull_request:
     branches: [main, develop]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'public/**'
+  # Called by release.yml so a tag can never publish untested code.
+  workflow_call:
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Don't cancel a run on main: it is the one whose result people rely on.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Decides whether the code jobs need to run. Replaces paths-ignore, which
+  # skipped the jobs entirely -- so a docs-only PR would sit forever against a
+  # required status check that never reported. Here the jobs are skipped but
+  # ci-ok still reports, so ci-ok is the only check branch protection needs.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ github.event_name == 'workflow_call' || steps.filter.outputs.code }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - uses: dorny/paths-filter@v4
+      id: filter
+      with:
+        filters: |
+          code:
+            - '!**.md'
+            - '!docs/**'
+            - '!public/**'
+            - '!assets/**'
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
       with:
         clean: true
 
-    - name: Set up Go
-      uses: actions/setup-go@v7
+    # mise.toml is the single source of truth for tool versions, so the linter
+    # here is byte-identical to the one `make lint` runs locally.
+    - name: Set up toolchain
+      uses: jdx/mise-action@v4
       with:
-        go-version: 'stable'
-        check-latest: true
-        cache: false
+        cache: true
 
     - name: Download dependencies
       run: go mod download
@@ -55,37 +72,33 @@ jobs:
     - name: Run go vet
       run: go vet ./...
 
+    # -diff does not mutate go.mod, unlike the previous tidy-then-git-diff
+    # which rewrote it underneath the linter.
     - name: Check go mod tidy
-      run: |
-        go mod tidy
-        if ! git diff --exit-code go.mod go.sum; then
-          echo "go.mod or go.sum is not tidy. Please run 'go mod tidy'"
-          exit 1
-        fi
+      run: go mod tidy -diff
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v9
-      with:
-        version: v2.13
-        args: --config=.golangci.yml
+      run: golangci-lint run --config=.golangci.yml
 
   test:
     name: Test (${{ matrix.os }}, Go ${{ matrix.go-version }})
     runs-on: ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go-version:
-          # go.mod declares go 1.23.0 as minimum supported version.
-          # With the toolchain directive, users on 1.23 auto-upgrade to the
-          # declared toolchain version. Consider dropping this entry and
-          # bumping go.mod minimum when 1.23 reaches EOL.
-          - '1.23'
-          - 'stable'
+        # 1.24 is the minimum go.mod declares. GOTOOLCHAIN=local below is what
+        # makes that leg meaningful -- with the default (auto), Go silently
+        # downloads a newer toolchain and the leg tests nothing. That is
+        # exactly what the previous '1.23' leg did.
+        go-version: ['1.24', 'stable']
         exclude:
           - os: macos-latest
-            go-version: '1.23'
+            go-version: '1.24'
+    env:
+      GOTOOLCHAIN: ${{ matrix.go-version == 'stable' && 'auto' || 'local' }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
@@ -96,8 +109,8 @@ jobs:
       uses: actions/setup-go@v7
       with:
         go-version: ${{ matrix.go-version }}
-        check-latest: true
-        cache: false
+        cache: true
+        cache-dependency-path: go.sum
 
     - name: Download dependencies
       run: |
@@ -123,47 +136,57 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    permissions:
+      contents: read
+      # Scoped to this job rather than granted to the whole workflow.
+      security-events: write
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
       with:
         clean: true
 
-    - name: Set up Go
-      uses: actions/setup-go@v7
+    # Replaces `go install ...@latest` on every run: unpinned, non-reproducible,
+    # and a couple of minutes of compilation each time.
+    - name: Set up toolchain
+      uses: jdx/mise-action@v4
       with:
-        go-version: 'stable'
-        check-latest: true
-        cache: false
+        cache: true
 
     - name: Run govulncheck
-      run: |
-        go install golang.org/x/vuln/cmd/govulncheck@latest
-        govulncheck ./...
+      run: govulncheck ./...
 
-    - name: Run gosec
-      run: |
-        go install github.com/securego/gosec/v2/cmd/gosec@latest
-        # Exclude rules that are false positives for CLI tools:
-        # G115: integer overflow (file size conversions)
-        # G117: struct fields named "Password" flagged as secrets
-        # G204: subprocess with variable (expected in CLI)
-        # G304: file inclusion via variable (expected in file management CLI)
-        # G407: false positive on make([]byte, N) filled with rand.Read()
-        # G703: path traversal via taint analysis (expected in file management CLI)
-        gosec -exclude=G115,G117,G204,G304,G407,G703 -fmt sarif -out results.sarif ./...
+    # gosec also runs inside golangci-lint, where .golangci.yml holds the
+    # exclusion list (the two used to disagree: six exclusions here, two
+    # there). This run exists only to produce SARIF for the Security tab, so
+    # -no-fail avoids reporting the same finding as a second failure.
+    # Exclusion list mirrors linters.settings.gosec.excludes in .golangci.yml,
+    # which is the source of truth; there is no way to share one list between
+    # a YAML block and a command-line flag.
+    - name: Run gosec (SARIF for the Security tab)
+      run: gosec -no-fail -exclude=G115,G117,G204,G304,G407,G703 -fmt sarif -out results.sarif ./...
 
+    # Not continue-on-error: a broken upload used to be invisible and would
+    # silently stale the Security tab. Fork PRs get a read-only token and
+    # genuinely cannot upload, so they are skipped explicitly instead.
     - name: Upload SARIF file
+      if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
       uses: github/codeql-action/upload-sarif@v4
-      continue-on-error: true
       with:
         sarif_file: results.sarif
 
   test-install-script:
     name: Test Install Script (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    needs: [lint, test, security]
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    # No longer needs [lint, test, security]: this job lints a shell script and
+    # runs a self-contained fixture install. Serialising it behind the whole
+    # test matrix added several minutes for nothing.
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
@@ -176,7 +199,8 @@ jobs:
       uses: actions/setup-go@v7
       with:
         go-version: 'stable'
-        check-latest: true
+        cache: true
+        cache-dependency-path: go.sum
 
     - name: Test install script help
       run: |
@@ -191,3 +215,23 @@ jobs:
     - name: Test install script dry run
       run: |
         DEBUG=1 NO_SUDO=1 SKIP_SHELL_INTEGRATION=1 ./install.sh --version v99.99.99 || echo "Expected failure for non-existent version"
+
+  # The single required status check. Reports on every run, including
+  # docs-only ones where the jobs above are skipped.
+  ci-ok:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [changes, lint, test, security, test-install-script]
+    if: always()
+    steps:
+    - name: Check job results
+      run: |
+        results='${{ join(needs.*.result, " ") }}'
+        echo "Job results: $results"
+        for r in $results; do
+          if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+            echo "A required job did not succeed."
+            exit 1
+          fi
+        done
+        echo "All required jobs succeeded or were skipped."
