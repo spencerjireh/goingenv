@@ -33,7 +33,7 @@ make ci-full            # Run all CI checks locally -- run this before pushing
 make release-local
 
 # TUI development (sandbox in /tmp/goingenv-sandbox)
-make tui                # Build and launch TUI with sample .env files
+make tui                # Build and launch TUI in the sandbox (password: test1234)
 make tui-watch          # Same as tui but with hot-reload via air
 make tui-clean          # Remove the sandbox directory
 ```

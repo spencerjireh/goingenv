@@ -69,7 +69,16 @@ make ci-full          # Run all CI checks locally
 
 ### TUI Development Sandbox
 
-A persistent sandbox at `/tmp/goingenv-sandbox` provides sample `.env` files for iterating on the TUI without touching real project data. The sandbox is created once and reused across runs.
+A persistent sandbox at `/tmp/goingenv-sandbox` provides five sample `.env`
+files **and three archives** for iterating on the TUI without touching real
+project data. It is created once and reused across runs; the password for every
+seeded archive is `test1234`, and the target prints it.
+
+The archives matter. Without them the Unpack and List tabs both land on their
+empty state, so the archive picker -- the most intricate widget in the TUI, and
+the one that broke silently across a dependency upgrade -- is never reached by
+whoever is testing by hand. Three of them, because its failure mode was listing
+exactly one.
 
 ```bash
 make tui              # Build and launch TUI in the sandbox
