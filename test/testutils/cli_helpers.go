@@ -82,6 +82,22 @@ func RunCLIWithPassword(t *testing.T, workDir, password string, args ...string) 
 	return runBinaryCommand(t, binary, workDir, env, args...)
 }
 
+// coverDir returns the directory that -cover-instrumented subprocesses should
+// write coverage data into, or "" when coverage collection is off.
+//
+// Deliberately a goingenv-specific variable rather than GOCOVERDIR: that one is
+// read by the Go runtime, and an ambient value inherited from the environment
+// must not silently change how the test binary is BUILT.
+//
+// When it is empty the harness behaves exactly as it did before coverage
+// existed. In particular the binary is not instrumented, so it can never emit
+// the runtime's "GOCOVERDIR not set" warning onto a stderr that assertions
+// inspect. Instrumentation and the output directory are gated on the same
+// variable, so they are always both on or both off.
+func coverDir() string {
+	return os.Getenv("GOINGENV_TEST_COVERDIR")
+}
+
 // BuildBinary compiles the goingenv binary for E2E tests
 // The binary is cached and reused across tests
 func BuildBinary(t *testing.T) string {
@@ -104,8 +120,32 @@ func BuildBinary(t *testing.T) string {
 
 		binaryPath = filepath.Join(tmpDir, "goingenv")
 
-		// Build the binary
-		cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/goingenv")
+		// Build the binary.
+		args := []string{"build"}
+		if dir := coverDir(); dir != "" {
+			// covermode must match the in-process profile's mode -- atomic,
+			// because those packages run under -race -- or the two text
+			// profiles cannot be concatenated: go tool cover rejects a file
+			// whose "mode:" header disagrees.
+			//
+			// -coverpkg is explicit rather than relying on the default, which
+			// would also instrument ./test/testutils and drag harness code
+			// into the denominator.
+			args = append(args,
+				"-cover",
+				"-covermode=atomic",
+				"-coverpkg=./cmd/...,./internal/...,./pkg/...",
+			)
+			// An instrumented binary pointed at a missing or unwritable
+			// directory writes an error on every single invocation.
+			if mkErr := os.MkdirAll(dir, 0o750); mkErr != nil {
+				binaryBuildErr = mkErr
+				return
+			}
+		}
+		args = append(args, "-o", binaryPath, "./cmd/goingenv")
+
+		cmd := exec.Command("go", args...)
 		cmd.Dir = projectRoot
 
 		var stderr bytes.Buffer
@@ -199,6 +239,11 @@ func runBinaryCommand(t *testing.T, binaryPath, workDir string, env map[string]s
 	// needed. Caller-supplied env is appended last so it can still win.
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "HOME="+TestHome(t))
+	if dir := coverDir(); dir != "" {
+		// After os.Environ() so it overrides any ambient value, before the
+		// caller's map so the documented "caller wins" contract still holds.
+		cmd.Env = append(cmd.Env, "GOCOVERDIR="+dir)
+	}
 	for k, v := range env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}

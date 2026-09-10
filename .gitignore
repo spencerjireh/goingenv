@@ -64,6 +64,8 @@ Thumbs.db
 
 # Test coverage
 coverage.out
+coverage.unit.out
+coverage.bin.out
 coverage.html
 
 # Temporary files
@@ -76,3 +78,5 @@ temp/
 .air.toml.bak
 
 .claude/
+# Binary-format coverage data emitted by the -cover instrumented test binary
+coverage-data/
