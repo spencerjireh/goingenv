@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-10
+
 ### Added
 - **Project-local configuration** - a committed `.goingenv/config.json` now takes precedence over `~/.goingenv.json`, so a repository can pin how it is scanned regardless of each developer's personal config. Precedence is whole-file; the two are never merged
 - **`goingenv init --project-config`** - writes that project config. Opt-in, and never overwrites an existing one, since it is a committed file
@@ -125,6 +127,7 @@ go, and promote them to a version section when cutting a release.
 - **Patch (0.0.X)**: Bug fixes, security updates
 - **Prerelease (0.0.0-alpha.1)**: Development versions
 
-[Unreleased]: https://github.com/spencerjireh/goingenv/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/spencerjireh/goingenv/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.3.0
 [1.2.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.2.0
 [1.0.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.0.0

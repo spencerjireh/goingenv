@@ -965,7 +965,7 @@ EXAMPLES:
     $0
 
     # Install specific version
-    $0 --version v1.2.0
+    $0 --version v1.3.0
 
     # Install to custom directory
     $0 --dir /opt/bin
