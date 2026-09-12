@@ -27,7 +27,7 @@ func (m *MockScanner) ValidateFile(path string) error {
 // MockArchiver implements Archiver interface for testing
 type MockArchiver struct {
 	PackFunc                 func(opts PackOptions) error
-	UnpackFunc               func(opts UnpackOptions) error
+	UnpackFunc               func(opts UnpackOptions) (*UnpackResult, error)
 	ListFunc                 func(archivePath, password string) (*Archive, error)
 	GetAvailableArchivesFunc func(dir string) ([]string, error)
 }
@@ -39,11 +39,11 @@ func (m *MockArchiver) Pack(opts PackOptions) error {
 	return nil
 }
 
-func (m *MockArchiver) Unpack(opts UnpackOptions) error {
+func (m *MockArchiver) Unpack(opts UnpackOptions) (*UnpackResult, error) {
 	if m.UnpackFunc != nil {
 		return m.UnpackFunc(opts)
 	}
-	return nil
+	return &UnpackResult{}, nil
 }
 
 func (m *MockArchiver) List(archivePath, password string) (*Archive, error) {

@@ -218,37 +218,35 @@ func (s *Service) decryptArchive(archivePath, password string) ([]byte, error) {
 	return tarData, nil
 }
 
-// extractEntry extracts a single tar entry
-func (s *Service) extractEntry(tarReader *tar.Reader, header *tar.Header, opts types.UnpackOptions) error {
-	if header.Name == "metadata.json" {
-		return nil // skip metadata
-	}
-
+// extractEntry extracts a single tar entry. It reports skipped=true when the
+// target already exists and Overwrite is off, so the caller can tell the user
+// which files were left alone.
+func (s *Service) extractEntry(tarReader *tar.Reader, header *tar.Header, opts types.UnpackOptions) (skipped bool, err error) {
 	targetPath, pathErr := safePath(header.Name, opts.TargetDir)
 	if pathErr != nil {
-		return pathErr
+		return false, pathErr
 	}
 
 	if dirErr := ensureDir(targetPath); dirErr != nil {
-		return fmt.Errorf("failed to create directory: %w", dirErr)
+		return false, fmt.Errorf("failed to create directory: %w", dirErr)
 	}
 
 	skip, existErr := handleExisting(targetPath, opts.Overwrite, opts.Backup)
 	if existErr != nil {
-		return existErr
+		return false, existErr
 	}
 	if skip {
-		return nil
+		return true, nil
 	}
 
-	return s.extractFile(tarReader, targetPath, header)
+	return false, s.extractFile(tarReader, targetPath, header)
 }
 
 // Unpack decrypts and extracts files from an archive
-func (s *Service) Unpack(opts types.UnpackOptions) error {
+func (s *Service) Unpack(opts types.UnpackOptions) (*types.UnpackResult, error) {
 	tarData, err := s.decryptArchive(opts.ArchivePath, opts.Password)
 	if err != nil {
-		return &types.ArchiveError{
+		return nil, &types.ArchiveError{
 			Operation: "unpack",
 			Path:      opts.ArchivePath,
 			Err:       err,
@@ -256,6 +254,7 @@ func (s *Service) Unpack(opts types.UnpackOptions) error {
 	}
 
 	tarReader := tar.NewReader(strings.NewReader(string(tarData)))
+	result := &types.UnpackResult{}
 
 	for {
 		header, err := tarReader.Next()
@@ -263,23 +262,32 @@ func (s *Service) Unpack(opts types.UnpackOptions) error {
 			break
 		}
 		if err != nil {
-			return &types.ArchiveError{
+			return nil, &types.ArchiveError{
 				Operation: "unpack",
 				Path:      opts.ArchivePath,
 				Err:       fmt.Errorf("failed to read archive entry: %w", err),
 			}
 		}
+		if header.Name == "metadata.json" {
+			continue
+		}
 
-		if extractErr := s.extractEntry(tarReader, header, opts); extractErr != nil {
-			return &types.ArchiveError{
+		skipped, extractErr := s.extractEntry(tarReader, header, opts)
+		if extractErr != nil {
+			return nil, &types.ArchiveError{
 				Operation: "unpack",
 				Path:      header.Name,
 				Err:       extractErr,
 			}
 		}
+		if skipped {
+			result.Skipped = append(result.Skipped, header.Name)
+		} else {
+			result.Extracted = append(result.Extracted, header.Name)
+		}
 	}
 
-	return nil
+	return result, nil
 }
 
 // List returns the contents of an archive without extracting

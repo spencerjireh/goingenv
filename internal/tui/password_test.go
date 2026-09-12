@@ -45,6 +45,24 @@ func TestPasswordFieldsAreMasked(t *testing.T) {
 	if !strings.Contains(view, "Password:") {
 		t.Errorf("the password prompt is missing entirely\n---\n%s\n---", view)
 	}
+
+	// The confirmation field is a second, independently constructed input.
+	send(t, m, keyMsg("enter"))
+	for _, r := range secret {
+		send(t, m, keyMsg(string(r)))
+	}
+
+	if got := tab.confirmInput.Value(); got != secret {
+		t.Fatalf("the confirm field holds %q, want %q -- the typing did not land", got, secret)
+	}
+
+	view = m.View()
+	if strings.Contains(view, "battery") {
+		t.Errorf("the password is echoed in the confirm view\n---\n%s\n---", view)
+	}
+	if !strings.Contains(view, "Confirm:") {
+		t.Errorf("the confirm prompt is missing entirely\n---\n%s\n---", view)
+	}
 }
 
 // TestEveryPasswordInputUsesEchoPassword covers the two tabs that cannot easily
@@ -54,9 +72,10 @@ func TestEveryPasswordInputUsesEchoPassword(t *testing.T) {
 	m := newTestModel(t)
 
 	inputs := map[string]textinput.Model{
-		"Pack":   packTab(t, m).textInput,
-		"Unpack": unpackTab(t, m).textInput,
-		"List":   listTab(t, m).textInput,
+		"Pack":         packTab(t, m).textInput,
+		"Pack confirm": packTab(t, m).confirmInput,
+		"Unpack":       unpackTab(t, m).textInput,
+		"List":         listTab(t, m).textInput,
 	}
 
 	for name, ti := range inputs {
@@ -80,6 +99,95 @@ func TestEmptyPasswordIsRejected(t *testing.T) {
 	}
 	if !strings.Contains(m.View(), "Password cannot be empty") {
 		t.Errorf("no reason was shown for refusing the empty password\n---\n%s\n---", m.View())
+	}
+}
+
+// TestMatchingConfirmationStartsPack drives the two entries through to the
+// pack kickoff. send does not run the returned command, so nothing is packed.
+func TestMatchingConfirmationStartsPack(t *testing.T) {
+	m := newTestModel(t)
+	focusPackPassword(t, m)
+	tab := packTab(t, m)
+
+	typeKeys(t, m, "hunter2")
+	send(t, m, keyMsg("enter"))
+
+	if tab.step != PackStepConfirm {
+		t.Fatalf("after the first entry the tab is at step %d, want PackStepConfirm", tab.step)
+	}
+	if !tab.InputFocused() {
+		t.Error("InputFocused() is false on the confirm step; global keys would steal the typing")
+	}
+
+	typeKeys(t, m, "hunter2")
+	cmd := send(t, m, keyMsg("enter"))
+
+	if tab.step != PackStepPacking {
+		t.Errorf("after a matching entry the tab is at step %d, want PackStepPacking", tab.step)
+	}
+	if cmd == nil {
+		t.Error("no command was returned; the pack was never started")
+	}
+	if tab.password != "" || tab.textInput.Value() != "" || tab.confirmInput.Value() != "" {
+		t.Error("the password is still held by the tab after the pack started")
+	}
+}
+
+// TestMismatchedConfirmationReturnsToPassword pins the whole point of the
+// second entry: a typo must not reach the archiver.
+func TestMismatchedConfirmationReturnsToPassword(t *testing.T) {
+	m := newTestModel(t)
+	focusPackPassword(t, m)
+	tab := packTab(t, m)
+
+	typeKeys(t, m, "abc")
+	send(t, m, keyMsg("enter"))
+	typeKeys(t, m, "abd")
+	send(t, m, keyMsg("enter"))
+
+	if tab.step != PackStepPassword {
+		t.Errorf("a mismatch left the tab at step %d, want PackStepPassword", tab.step)
+	}
+	if !strings.Contains(m.View(), "Passwords do not match") {
+		t.Errorf("no reason was shown for refusing the mismatch\n---\n%s\n---", m.View())
+	}
+	if got := tab.textInput.Value(); got != "" {
+		t.Errorf("the first field still holds %q; a mismatch must start over", got)
+	}
+	if got := tab.confirmInput.Value(); got != "" {
+		t.Errorf("the confirm field still holds %q; a mismatch must start over", got)
+	}
+	if !tab.textInput.Focused() {
+		t.Error("the first field is not focused after a mismatch")
+	}
+}
+
+// TestEscOnConfirmReturnsToPassword checks that backing out of the confirm
+// step keeps the first entry, so a user who noticed a typo can edit it.
+func TestEscOnConfirmReturnsToPassword(t *testing.T) {
+	m := newTestModel(t)
+	focusPackPassword(t, m)
+	tab := packTab(t, m)
+
+	typeKeys(t, m, "abc")
+	send(t, m, keyMsg("enter"))
+	send(t, m, keyMsg("esc"))
+
+	if tab.step != PackStepPassword {
+		t.Errorf("esc left the tab at step %d, want PackStepPassword", tab.step)
+	}
+	if got := tab.textInput.Value(); got != "abc" {
+		t.Errorf("the first field holds %q after esc, want the original entry", got)
+	}
+	if !tab.textInput.Focused() {
+		t.Error("the first field is not focused after esc")
+	}
+}
+
+func typeKeys(t *testing.T, m *Model, text string) {
+	t.Helper()
+	for _, r := range text {
+		send(t, m, keyMsg(string(r)))
 	}
 }
 

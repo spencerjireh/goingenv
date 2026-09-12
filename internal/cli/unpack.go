@@ -139,17 +139,13 @@ func decryptArchive(out *Output, app *types.App, archiveFile, key string) (*type
 	return archive, nil
 }
 
-// displayUnpackFiles shows the files to be extracted
+// displayUnpackFiles shows every file to be extracted; verbose adds the size.
 func displayUnpackFiles(out *Output, files []types.EnvFile, verbose bool) {
-	for i, file := range files {
-		switch {
-		case verbose:
+	for _, file := range files {
+		if verbose {
 			out.ListItem(fmt.Sprintf("%s (%s)", file.RelativePath, utils.FormatSize(file.Size)))
-		case i < 5:
+		} else {
 			out.ListItem(file.RelativePath)
-		case i == 5:
-			out.ListItem(fmt.Sprintf("... and %d more files", len(files)-5))
-			return
 		}
 	}
 	out.Blank()
@@ -162,7 +158,7 @@ func handleConflicts(out *Output, files []types.EnvFile, opts *UnpackOpts) bool 
 		return true
 	}
 
-	out.WarningList(fmt.Sprintf("%d files already exist:", len(conflicts)), conflicts, 5)
+	out.WarningList(fmt.Sprintf("%d files already exist:", len(conflicts)), conflicts, 0)
 	out.Blank()
 	out.Hint("Use --overwrite to replace them, or --backup to keep a copy")
 	return false
@@ -178,7 +174,7 @@ func executeUnpack(out *Output, app *types.App, archiveFile string, files []type
 	conflicts := checkFileConflicts(files, opts.Target)
 
 	start := time.Now()
-	err := app.Archiver.Unpack(types.UnpackOptions{
+	_, err := app.Archiver.Unpack(types.UnpackOptions{
 		ArchivePath: archiveFile,
 		Password:    key,
 		TargetDir:   opts.Target,

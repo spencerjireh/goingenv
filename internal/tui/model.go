@@ -37,7 +37,7 @@ type Tab interface {
 // Message types used by the old screen-based model (kept for commands.go compatibility).
 type (
 	PackCompleteMsg   string
-	UnpackCompleteMsg string
+	UnpackCompleteMsg types.UnpackResult
 	ListCompleteMsg   string
 	ScanCompleteMsg   []types.EnvFile
 	ErrorMsg          string

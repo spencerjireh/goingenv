@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"goingenv/internal/config"
@@ -38,7 +39,9 @@ type UnpackTab struct {
 	textInput       textinput.Model
 	filepicker      filepicker.Model
 	spinner         spinner.Model
-	resultMsg       string
+	viewport        viewport.Model
+	vpReady         bool
+	result          types.UnpackResult
 	errorMsg        string
 	fpInitialized   bool
 }
@@ -190,16 +193,21 @@ func (t *UnpackTab) updatePassword(msg tea.Msg) (Tab, tea.Cmd) {
 func (t *UnpackTab) updateUnpacking(msg tea.Msg) (Tab, tea.Cmd) {
 	switch msg := msg.(type) {
 	case UnpackCompleteMsg:
-		t.resultMsg = string(msg)
+		t.result = types.UnpackResult(msg)
 		t.errorMsg = ""
 		t.step = UnpackStepResult
+		t.vpReady = false
 		t.debugLogger.LogOperation("unpack", "complete")
+		toast := fmt.Sprintf("Unpacked %d files", len(t.result.Extracted))
+		if n := len(t.result.Skipped); n > 0 {
+			toast += fmt.Sprintf(", skipped %d", n)
+		}
 		return t, func() tea.Msg {
-			return ToastMsg{Message: "Unpack completed successfully", IsError: false}
+			return ToastMsg{Message: toast, IsError: false}
 		}
 	case ErrorMsg:
 		t.errorMsg = string(msg)
-		t.resultMsg = ""
+		t.result = types.UnpackResult{}
 		t.step = UnpackStepResult
 		return t, func() tea.Msg {
 			return ToastMsg{Message: string(msg), IsError: true}
@@ -213,12 +221,20 @@ func (t *UnpackTab) updateUnpacking(msg tea.Msg) (Tab, tea.Cmd) {
 	return t, nil
 }
 
-// updateResult returns the tab to idle so another unpack can be started.
+// updateResult returns the tab to idle so another unpack can be started, and
+// otherwise lets the user scroll the list of restored files.
 func (t *UnpackTab) updateResult(msg tea.Msg) (Tab, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if key.Matches(keyMsg, WizardKeys.Reset) || key.Matches(keyMsg, WizardKeys.Start) {
 			t.reset()
+			return t, nil
 		}
+	}
+
+	if t.vpReady {
+		var cmd tea.Cmd
+		t.viewport, cmd = t.viewport.Update(msg)
+		return t, cmd
 	}
 
 	return t, nil
@@ -244,10 +260,11 @@ func (t *UnpackTab) startSelection() (Tab, tea.Cmd) {
 func (t *UnpackTab) reset() {
 	t.step = UnpackStepIdle
 	t.selectedArchive = ""
-	t.resultMsg = ""
+	t.result = types.UnpackResult{}
 	t.errorMsg = ""
 	t.textInput.Reset()
 	t.textInput.Blur()
+	t.vpReady = false
 }
 
 func (t *UnpackTab) View(width, height int) string {
@@ -326,10 +343,34 @@ func (t *UnpackTab) renderResult(width, height int) string {
 			width, height,
 		)
 	}
-	return renderEmptyState(
-		"Unpacked",
-		t.resultMsg,
-		"Press Enter or R to unpack again.",
-		width, height,
-	)
+
+	var b strings.Builder
+	b.WriteString("\n")
+	b.WriteString(RenderSectionHeader(fmt.Sprintf("  Restored %d files to the current directory", len(t.result.Extracted))) + "\n\n")
+	for _, path := range t.result.Extracted {
+		fmt.Fprintf(&b, "  %s\n", path)
+	}
+
+	// The TUI never overwrites, so anything already on disk is left alone.
+	// Say so, per file, rather than counting it as restored.
+	if len(t.result.Skipped) > 0 {
+		b.WriteString("\n")
+		b.WriteString(RenderSectionHeader(fmt.Sprintf("  Skipped %d existing files", len(t.result.Skipped))) + "\n\n")
+		for _, path := range t.result.Skipped {
+			fmt.Fprintf(&b, "  %s\n", path)
+		}
+		b.WriteString("\n  " + MutedStyle.Render("Existing files are never overwritten by the TUI; remove them or run goingenv unpack --overwrite") + "\n")
+	}
+
+	b.WriteString("\n  " + MutedStyle.Render("Press Enter or R to unpack again"))
+
+	if !t.vpReady {
+		t.viewport = viewport.New(width, height)
+		t.vpReady = true
+	} else {
+		t.viewport.Width = width
+		t.viewport.Height = height
+	}
+	t.viewport.SetContent(b.String())
+	return t.viewport.View()
 }

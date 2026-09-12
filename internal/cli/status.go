@@ -123,19 +123,14 @@ func displayFiles(out *Output, app *types.App, directory string, verbose bool) [
 		out.Blank()
 	default:
 		out.Section(fmt.Sprintf("Environment Files (%d)", len(files)))
-		for i, file := range files {
-			switch {
-			case verbose:
+		for _, file := range files {
+			if verbose {
 				out.Indent(fmt.Sprintf("%-25s %10s   %s",
 					file.RelativePath,
 					utils.FormatSize(file.Size),
 					file.ModTime.Format(constants.DateTimeFormat)))
-			case i < 10:
+			} else {
 				out.Indent(file.RelativePath)
-			case i == 10:
-				out.Indent(fmt.Sprintf("... and %d more", len(files)-10))
-				out.Blank()
-				return files
 			}
 		}
 		out.Blank()

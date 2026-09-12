@@ -118,21 +118,16 @@ func scanPackFiles(out *Output, app *types.App, opts *PackOpts) ([]types.EnvFile
 	return files, nil
 }
 
-// displayPackFiles shows the files to be packed
+// displayPackFiles shows every file to be packed; verbose adds the size.
 func displayPackFiles(out *Output, files []types.EnvFile, verbose bool) {
 	out.Action(fmt.Sprintf("Packing %d files...", len(files)))
 	out.Blank()
 
-	for i, file := range files {
-		switch {
-		case verbose:
+	for _, file := range files {
+		if verbose {
 			out.ListItem(fmt.Sprintf("%s (%s)", file.RelativePath, utils.FormatSize(file.Size)))
-		case i < 5:
+		} else {
 			out.ListItem(file.RelativePath)
-		case i == 5:
-			out.ListItem(fmt.Sprintf("... and %d more files", len(files)-5))
-			out.Blank()
-			return
 		}
 	}
 	out.Blank()
