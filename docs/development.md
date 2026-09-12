@@ -195,7 +195,7 @@ the runtime does -- messages in, model state and rendered substrings out. They
 deliberately carry no golden files and no layout arithmetic, so a lipgloss or
 bubbletea release changes the output without breaking the suite.
 
-Eleven of the twelve checks below now run on every push. Item 12 is terminal
+All checks below except item 12 run on every push. Item 12 is terminal
 state rather than model state, so it still needs a human at `make tui`.
 
 | # | Check | Covered by |
@@ -206,12 +206,13 @@ state rather than model state, so it still needs a human at `make tui`.
 | 4 | The wheel does not switch tabs | `TestModel_WheelDoesNotSelectTabs` |
 | 5 | Unpack picker: opens in `.goingenv`, lists every archive, selection advances | `TestUnpackTab_*` in `filepicker_test.go` |
 | 6 | List picker: the same, as a separate instance | `TestListTab_*` in `filepicker_test.go` |
-| 7 | Password fields mask what is typed | `TestPasswordFieldsAreMasked`, `TestEveryPasswordInputUsesEchoPassword` |
+| 7 | Password fields mask what is typed, including the Pack confirm field | `TestPasswordFieldsAreMasked`, `TestEveryPasswordInputUsesEchoPassword` |
 | 8 | `?` toggles help; any key closes it; suppressed while typing | `TestModel_HelpOverlay` |
 | 9 | Confirmation modal: `y` confirms, `n`/`esc` cancel, other keys are swallowed | `TestModel_ConfirmModal` |
 | 10 | A toast appears and is removed when it expires | `TestModel_Toast` |
 | 11 | No panic from 0x0 up to 300x100 | `TestModel_ViewAtExtremeSizes` |
 | 12 | **`q` quits and the alt-screen is restored** | `TestModel_Quit` covers the quit; **alt-screen restore is manual** |
+| 13 | Pack and unpack results list every file, scrollable, never truncated | `TestPackResultListsEveryFile`, `TestUnpackResultListsExtractedAndSkipped` |
 
 Item 12 is the whole manual pass. `tea.WithAltScreen()` is applied in
 `internal/cli/root.go`, outside the model, so nothing a headless test can reach

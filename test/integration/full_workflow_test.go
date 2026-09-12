@@ -141,7 +141,7 @@ func TestFullWorkflow(t *testing.T) {
 			Backup:      false,
 		}
 
-		err = archiverService.Unpack(unpackOpts)
+		_, err = archiverService.Unpack(unpackOpts)
 		testutils.AssertNoError(t, err)
 
 		// Verify unpacked files
@@ -242,7 +242,7 @@ func TestErrorHandling(t *testing.T) {
 			TargetDir:   tmpDir,
 		}
 
-		err = archiverService.Unpack(unpackOpts)
+		_, err = archiverService.Unpack(unpackOpts)
 		if err == nil {
 			t.Error("Expected error when unpacking with wrong password, got nil")
 		}

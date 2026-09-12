@@ -66,6 +66,12 @@ type UnpackOptions struct {
 	Backup      bool
 }
 
+// UnpackResult reports what Unpack wrote and what it left alone.
+type UnpackResult struct {
+	Extracted []string // relative paths written to TargetDir
+	Skipped   []string // relative paths that already existed and were not overwritten
+}
+
 // Interfaces for better testability and decoupling
 
 // Scanner interface for file scanning operations
@@ -77,7 +83,7 @@ type Scanner interface {
 // Archiver interface for archive operations
 type Archiver interface {
 	Pack(opts PackOptions) error
-	Unpack(opts UnpackOptions) error
+	Unpack(opts UnpackOptions) (*UnpackResult, error)
 	List(archivePath, password string) (*Archive, error)
 	GetAvailableArchives(dir string) ([]string, error)
 }

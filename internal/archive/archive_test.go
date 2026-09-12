@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -186,7 +187,7 @@ func TestService_Unpack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := service.Unpack(tt.opts)
+			_, err := service.Unpack(tt.opts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Unpack() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -455,7 +456,7 @@ func TestService_Unpack_PathTraversalPrevention(t *testing.T) {
 	}
 
 	// Attempt to unpack - should fail with path traversal error
-	err = service.Unpack(types.UnpackOptions{
+	_, err = service.Unpack(types.UnpackOptions{
 		ArchivePath: archivePath,
 		Password:    password,
 		TargetDir:   targetDir,
@@ -521,7 +522,7 @@ func TestService_Unpack_AbsolutePathPrevention(t *testing.T) {
 	}
 
 	// Attempt to unpack - should fail with unsafe path error
-	err = service.Unpack(types.UnpackOptions{
+	_, err = service.Unpack(types.UnpackOptions{
 		ArchivePath: archivePath,
 		Password:    password,
 		TargetDir:   targetDir,
@@ -600,7 +601,7 @@ func TestService_PackUnpack_RoundTrip(t *testing.T) {
 		t.Fatalf("Failed to create extract dir: %v", mkdirErr)
 	}
 
-	err = service.Unpack(types.UnpackOptions{
+	_, err = service.Unpack(types.UnpackOptions{
 		ArchivePath: archivePath,
 		Password:    password,
 		TargetDir:   extractDir,
@@ -674,7 +675,7 @@ func TestService_Unpack_OverwriteAndBackup(t *testing.T) {
 	}
 
 	// Test with backup=true
-	err = service.Unpack(types.UnpackOptions{
+	_, err = service.Unpack(types.UnpackOptions{
 		ArchivePath: archivePath,
 		Password:    password,
 		TargetDir:   targetDir,
@@ -702,6 +703,70 @@ func TestService_Unpack_OverwriteAndBackup(t *testing.T) {
 	}
 	if !bytes.Equal(newContent, testContent) {
 		t.Errorf("File was not overwritten correctly")
+	}
+}
+
+// TestService_Unpack_ReportsExtractedAndSkipped pins the result callers show
+// to the user: a file left alone because it already exists must be reported
+// as skipped, not counted as restored.
+func TestService_Unpack_ReportsExtractedAndSkipped(t *testing.T) {
+	cryptoService := crypto.NewService()
+	service := NewService(cryptoService)
+	tmpDir := t.TempDir()
+	password := "testpassword123"
+
+	var envFiles []types.EnvFile
+	for _, name := range []string{".env", ".env.local", "api/.env"} {
+		path := filepath.Join(tmpDir, "src", name)
+		if mkErr := os.MkdirAll(filepath.Dir(path), 0o700); mkErr != nil {
+			t.Fatalf("Failed to create source dir: %v", mkErr)
+		}
+		if writeErr := os.WriteFile(path, []byte("KEY=value"), 0o600); writeErr != nil {
+			t.Fatalf("Failed to create source file: %v", writeErr)
+		}
+		envFiles = append(envFiles, types.EnvFile{Path: path, RelativePath: name, Size: 9, ModTime: time.Now()})
+	}
+
+	archivePath := filepath.Join(tmpDir, "test.enc")
+	if err := service.Pack(types.PackOptions{Files: envFiles, OutputPath: archivePath, Password: password}); err != nil {
+		t.Fatalf("Pack failed: %v", err)
+	}
+
+	// One of the three already exists in the target and must not be touched.
+	targetDir := filepath.Join(tmpDir, "target")
+	if mkErr := os.MkdirAll(targetDir, 0o700); mkErr != nil {
+		t.Fatalf("Failed to create target dir: %v", mkErr)
+	}
+	existing := filepath.Join(targetDir, ".env.local")
+	if writeErr := os.WriteFile(existing, []byte("KEEP=me"), 0o600); writeErr != nil {
+		t.Fatalf("Failed to create existing file: %v", writeErr)
+	}
+
+	result, err := service.Unpack(types.UnpackOptions{
+		ArchivePath: archivePath,
+		Password:    password,
+		TargetDir:   targetDir,
+		Overwrite:   false,
+	})
+	if err != nil {
+		t.Fatalf("Unpack failed: %v", err)
+	}
+
+	wantExtracted := []string{".env", "api/.env"}
+	if !reflect.DeepEqual(result.Extracted, wantExtracted) {
+		t.Errorf("Extracted = %v, want %v", result.Extracted, wantExtracted)
+	}
+	wantSkipped := []string{".env.local"}
+	if !reflect.DeepEqual(result.Skipped, wantSkipped) {
+		t.Errorf("Skipped = %v, want %v", result.Skipped, wantSkipped)
+	}
+
+	kept, readErr := os.ReadFile(existing)
+	if readErr != nil {
+		t.Fatalf("Failed to read existing file: %v", readErr)
+	}
+	if string(kept) != "KEEP=me" {
+		t.Errorf("the existing file was overwritten; Overwrite was false")
 	}
 }
 
@@ -790,7 +855,7 @@ func BenchmarkUnpack(b *testing.B) {
 		_ = os.RemoveAll(targetDir)
 		_ = os.MkdirAll(targetDir, 0o700) //nolint:errcheck // benchmark setup
 
-		err := service.Unpack(types.UnpackOptions{
+		_, err := service.Unpack(types.UnpackOptions{
 			ArchivePath: archivePath,
 			Password:    password,
 			TargetDir:   targetDir,

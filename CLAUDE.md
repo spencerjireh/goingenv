@@ -122,8 +122,8 @@ repo's pinned rules.
 - TUI tests in `internal/tui/` -- smoke tests driving the root model the way
   the runtime does. Deliberately no golden files or exact-layout assertions:
   those break on every lipgloss release rather than surviving one. They cover
-  eleven of the twelve items in the manual checklist in `docs/development.md`;
-  the twelfth (alt-screen restore) is terminal state and stays manual
+  every item in the manual checklist in `docs/development.md` except one:
+  alt-screen restore is terminal state and stays manual
 - Install script tests in `test/install/test_install.sh` -- covers checksum
   verification against a local fixture release
 - Website tests in `test/site/` -- parse `public/index.html` into a DOM and

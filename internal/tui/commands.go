@@ -69,12 +69,12 @@ func UnpackFilesCmd(app *types.App, password, archivePath string) tea.Cmd {
 		}
 
 		// Unpack files
-		err := app.Archiver.Unpack(unpackOpts)
+		result, err := app.Archiver.Unpack(unpackOpts)
 		if err != nil {
 			return ErrorMsg(fmt.Sprintf("Failed to unpack files: %v", err))
 		}
 
-		return UnpackCompleteMsg("Files unpacked to the current directory")
+		return UnpackCompleteMsg(*result)
 	}
 }
 
@@ -132,16 +132,12 @@ func formatArchiveContents(archive *types.Archive) string {
 
 	result += "\nFiles:\n"
 
-	for i, file := range archive.Files {
-		if i < 20 { // Show first 20 files
-			result += fmt.Sprintf("  [-] %s (%s) - %s\n",
-				file.RelativePath,
-				utils.FormatSize(file.Size),
-				file.ModTime.Format("2006-01-02 15:04:05"))
-		} else if i == 20 {
-			result += fmt.Sprintf("  [-] ... and %d more files\n", len(archive.Files)-20)
-			break
-		}
+	// Every file is listed; the tab renders this in a scrolling viewport.
+	for _, file := range archive.Files {
+		result += fmt.Sprintf("  [-] %s (%s) - %s\n",
+			file.RelativePath,
+			utils.FormatSize(file.Size),
+			file.ModTime.Format("2006-01-02 15:04:05"))
 	}
 
 	return result

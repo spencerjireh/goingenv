@@ -131,13 +131,8 @@ func (t *StatusTab) buildLeftColumn() string {
 	files, err := t.app.Scanner.ScanFiles(&scanOpts)
 	if err == nil && len(files) > 0 {
 		b.WriteString(RenderSectionHeader(fmt.Sprintf("Environment Files (%d)", len(files))) + "\n")
-		for i, file := range files {
-			if i < 15 {
-				fmt.Fprintf(&b, "  %s\n", file.RelativePath)
-			} else if i == 15 {
-				fmt.Fprintf(&b, "  ... and %d more\n", len(files)-15)
-				break
-			}
+		for _, file := range files {
+			fmt.Fprintf(&b, "  %s\n", file.RelativePath)
 		}
 
 		stats := scanner.GetFileStats(files)
