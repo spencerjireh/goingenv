@@ -12,6 +12,23 @@ import (
 // Options contains password input configuration
 type Options struct {
 	PasswordEnv string // Environment variable name
+	// Confirm asks for the password a second time at the interactive prompt
+	// and rejects a mismatch. Pack sets it: a typo there produces an archive
+	// nobody can open. It has no effect when the password comes from
+	// PasswordEnv, which is not typed.
+	Confirm bool
+}
+
+// readSecret reads one hidden line from the terminal. It is a variable so
+// tests can substitute scripted answers; the interactive path is otherwise
+// untestable without a pty.
+var readSecret = func() (string, error) {
+	passwordBytes, err := term.ReadPassword(syscall.Stdin)
+	fmt.Println() // Add newline after hidden input
+	if err != nil {
+		return "", err
+	}
+	return string(passwordBytes), nil
 }
 
 // GetPassword retrieves password using the specified options
@@ -33,7 +50,7 @@ func GetPassword(opts Options) (string, error) {
 	}
 
 	// Fall back to interactive prompt
-	return readPasswordInteractively()
+	return readPasswordInteractively(opts.Confirm)
 }
 
 // readPasswordFromEnv reads password from environment variable
@@ -45,19 +62,29 @@ func readPasswordFromEnv(envVar string) (string, error) {
 	return password, nil
 }
 
-// readPasswordInteractively prompts user for password with hidden input
-func readPasswordInteractively() (string, error) {
+// readPasswordInteractively prompts user for password with hidden input.
+// With confirm set it prompts a second time and requires the entries to match.
+func readPasswordInteractively(confirm bool) (string, error) {
 	fmt.Print("Enter encryption password: ")
-	passwordBytes, err := term.ReadPassword(syscall.Stdin)
-	fmt.Println() // Add newline after hidden input
-
+	password, err := readSecret()
 	if err != nil {
 		return "", fmt.Errorf("failed to read password: %w", err)
 	}
-
-	password := string(passwordBytes)
 	if password == "" {
 		return "", fmt.Errorf("password cannot be empty")
+	}
+
+	if !confirm {
+		return password, nil
+	}
+
+	fmt.Print("Confirm encryption password: ")
+	again, err := readSecret()
+	if err != nil {
+		return "", fmt.Errorf("failed to read password confirmation: %w", err)
+	}
+	if again != password {
+		return "", fmt.Errorf("passwords do not match")
 	}
 
 	return password, nil

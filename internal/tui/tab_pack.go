@@ -39,7 +39,6 @@ type PackTab struct {
 	scannedFiles []types.EnvFile
 	textInput    textinput.Model
 	confirmInput textinput.Model
-	password     string // first entry, held until the confirmation matches it
 	spinner      spinner.Model
 	viewport     viewport.Model
 	vpReady      bool
@@ -49,16 +48,6 @@ type PackTab struct {
 
 // NewPackTab creates a new PackTab.
 func NewPackTab(app *types.App, debugLogger *DebugLogger) *PackTab {
-	ti := textinput.New()
-	ti.Placeholder = "Enter password..."
-	ti.EchoMode = textinput.EchoPassword
-	ti.CharLimit = 256
-
-	ci := textinput.New()
-	ci.Placeholder = "Re-enter password..."
-	ci.EchoMode = textinput.EchoPassword
-	ci.CharLimit = 256
-
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = HighlightStyle
@@ -67,8 +56,8 @@ func NewPackTab(app *types.App, debugLogger *DebugLogger) *PackTab {
 		app:          app,
 		debugLogger:  debugLogger,
 		step:         PackStepIdle,
-		textInput:    ti,
-		confirmInput: ci,
+		textInput:    newPasswordInput("Enter password..."),
+		confirmInput: newPasswordInput("Re-enter password..."),
 		spinner:      s,
 	}
 }
@@ -154,7 +143,7 @@ func (t *PackTab) updateScanning(msg tea.Msg) (Tab, tea.Cmd) {
 		t.debugLogger.LogOperation("pack", "init complete, scanning")
 		return t, ScanFilesCmd(t.app)
 	case ErrorMsg:
-		t.errorMsg = string(msg)
+		t.errorMsg = msg.Text
 		t.step = PackStepResult
 		return t, nil
 	case spinner.TickMsg:
@@ -172,6 +161,9 @@ func (t *PackTab) updateReview(msg tea.Msg) (Tab, tea.Cmd) {
 		switch {
 		case key.Matches(keyMsg, WizardKeys.Confirm):
 			t.step = PackStepPassword
+			// A mismatch message from an earlier attempt must not sit under
+			// a freshly cleared field.
+			t.errorMsg = ""
 			t.textInput.Reset()
 			t.textInput.Focus()
 			return t, textinput.Blink
@@ -181,13 +173,7 @@ func (t *PackTab) updateReview(msg tea.Msg) (Tab, tea.Cmd) {
 		}
 	}
 
-	if t.vpReady {
-		var cmd tea.Cmd
-		t.viewport, cmd = t.viewport.Update(msg)
-		return t, cmd
-	}
-
-	return t, nil
+	return t, scrollViewport(&t.viewport, t.vpReady, msg)
 }
 
 // updatePassword collects the archive password and asks for it a second time.
@@ -201,7 +187,6 @@ func (t *PackTab) updatePassword(msg tea.Msg) (Tab, tea.Cmd) {
 				return t, nil
 			}
 			t.errorMsg = ""
-			t.password = password
 			t.step = PackStepConfirm
 			t.textInput.Blur()
 			t.confirmInput.Reset()
@@ -222,13 +207,15 @@ func (t *PackTab) updatePassword(msg tea.Msg) (Tab, tea.Cmd) {
 // updateConfirm compares the second entry to the first and kicks off the pack
 // when they match. A typo here would otherwise produce an archive nobody can
 // open, so a mismatch starts the entry over rather than trusting either copy.
+//
+// The first entry lives only in textInput: it is blurred during this step and
+// receives no messages, so it cannot change under the comparison.
 func (t *PackTab) updateConfirm(msg tea.Msg) (Tab, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
 		case key.Matches(keyMsg, WizardKeys.Confirm):
-			password := t.password
+			password := t.textInput.Value()
 			match := t.confirmInput.Value() == password
-			t.password = ""
 			t.textInput.Reset()
 			t.confirmInput.Reset()
 			t.confirmInput.Blur()
@@ -244,7 +231,7 @@ func (t *PackTab) updateConfirm(msg tea.Msg) (Tab, tea.Cmd) {
 			return t, tea.Batch(t.spinner.Tick, PackFilesCmd(t.app, t.scannedFiles, password))
 		case key.Matches(keyMsg, WizardKeys.Cancel):
 			// Keep the first entry so it can be edited rather than retyped.
-			t.password = ""
+			t.errorMsg = ""
 			t.step = PackStepPassword
 			t.confirmInput.Reset()
 			t.confirmInput.Blur()
@@ -271,11 +258,11 @@ func (t *PackTab) updatePacking(msg tea.Msg) (Tab, tea.Cmd) {
 			return ToastMsg{Message: "Pack completed successfully", IsError: false}
 		}
 	case ErrorMsg:
-		t.errorMsg = string(msg)
+		t.errorMsg = msg.Text
 		t.resultMsg = ""
 		t.step = PackStepResult
 		return t, func() tea.Msg {
-			return ToastMsg{Message: string(msg), IsError: true}
+			return ToastMsg{Message: msg.Text, IsError: true}
 		}
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -296,13 +283,7 @@ func (t *PackTab) updateResult(msg tea.Msg) (Tab, tea.Cmd) {
 		}
 	}
 
-	if t.vpReady {
-		var cmd tea.Cmd
-		t.viewport, cmd = t.viewport.Update(msg)
-		return t, cmd
-	}
-
-	return t, nil
+	return t, scrollViewport(&t.viewport, t.vpReady, msg)
 }
 
 func (t *PackTab) reset() {
@@ -314,7 +295,6 @@ func (t *PackTab) reset() {
 	t.textInput.Blur()
 	t.confirmInput.Reset()
 	t.confirmInput.Blur()
-	t.password = ""
 	t.vpReady = false
 }
 
@@ -371,29 +351,23 @@ func (t *PackTab) stepIndex() int {
 }
 
 func (t *PackTab) renderReview(width, height int) string {
+	hint := "  " + MutedStyle.Render("Press Enter to continue, Esc to cancel")
+	return renderScrollable(&t.viewport, &t.vpReady, width, height, hint, func() string {
+		return t.renderFileList(fmt.Sprintf("Found %d environment files", len(t.scannedFiles)))
+	})
+}
+
+// renderFileList lists every scanned file under header. Pack is
+// all-or-nothing, so the scanned list is exactly what goes into the archive
+// and the review and result screens show the same rows.
+func (t *PackTab) renderFileList(header string) string {
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString(RenderSectionHeader(fmt.Sprintf("  Found %d environment files", len(t.scannedFiles))) + "\n\n")
+	b.WriteString(RenderSectionHeader("  "+header) + "\n\n")
 	for _, file := range t.scannedFiles {
 		fmt.Fprintf(&b, "  %s  %s\n", file.RelativePath, MutedStyle.Render(utils.FormatSize(file.Size)))
 	}
-	b.WriteString("\n  " + MutedStyle.Render("Press Enter to continue, Esc to cancel"))
-
-	return t.renderInViewport(width, height, b.String())
-}
-
-// renderInViewport shows content in the tab's viewport so a long file list
-// can be scrolled rather than cut off.
-func (t *PackTab) renderInViewport(width, height int, content string) string {
-	if !t.vpReady {
-		t.viewport = viewport.New(width, height)
-		t.vpReady = true
-	} else {
-		t.viewport.Width = width
-		t.viewport.Height = height
-	}
-	t.viewport.SetContent(content)
-	return t.viewport.View()
+	return b.String()
 }
 
 func (t *PackTab) renderPasswordEntry() string {
@@ -422,14 +396,8 @@ func (t *PackTab) renderResult(width, height int) string {
 		)
 	}
 
-	// Pack is all-or-nothing, so the scanned list is exactly what went in.
-	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(RenderSectionHeader("  "+t.resultMsg) + "\n\n")
-	for _, file := range t.scannedFiles {
-		fmt.Fprintf(&b, "  %s  %s\n", file.RelativePath, MutedStyle.Render(utils.FormatSize(file.Size)))
-	}
-	b.WriteString("\n  " + MutedStyle.Render("Press Enter or R to pack again"))
-
-	return t.renderInViewport(width, height, b.String())
+	hint := "  " + MutedStyle.Render("Press Enter or R to pack again")
+	return renderScrollable(&t.viewport, &t.vpReady, width, height, hint, func() string {
+		return t.renderFileList(t.resultMsg)
+	})
 }

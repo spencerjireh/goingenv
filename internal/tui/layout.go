@@ -5,6 +5,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -100,6 +103,64 @@ func renderEmptyState(title, description, hint string, width, height int) string
 
 	content := titleLine + "\n\n" + descLine + "\n\n" + hintLine
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, content)
+}
+
+// ensureViewport creates the viewport on first use and resizes it after. It
+// reports whether it was just created, so a tab whose content is fixed for
+// the life of a step (every wizard resets ready at the step transition) can
+// build the content and call SetContent only then, rather than on every
+// View. Tabs whose content is live call SetContent unconditionally.
+func ensureViewport(vp *viewport.Model, ready *bool, width, height int) (created bool) {
+	if height < 1 {
+		height = 1
+	}
+	if !*ready {
+		*vp = viewport.New(width, height)
+		*ready = true
+		return true
+	}
+	vp.Width = width
+	vp.Height = height
+	return false
+}
+
+// scrollViewport forwards msg to the viewport once it exists, so scroll keys
+// arriving before the first render are ignored rather than applied to a
+// zero-sized viewport.
+func scrollViewport(vp *viewport.Model, ready bool, msg tea.Msg) tea.Cmd {
+	if !ready {
+		return nil
+	}
+	var cmd tea.Cmd
+	*vp, cmd = vp.Update(msg)
+	return cmd
+}
+
+// renderScrollable shows build()'s output in the viewport with footer pinned
+// on fixed lines beneath it, so a "press Enter" hint stays visible however
+// long the list above it is. build runs only when the viewport is (re)created,
+// which the wizard tabs arrange by resetting ready at each step transition.
+func renderScrollable(vp *viewport.Model, ready *bool, width, height int, footer string, build func() string) string {
+	bodyHeight := height
+	if footer != "" {
+		bodyHeight -= strings.Count(footer, "\n") + 2 // footer lines plus the gap
+	}
+	if ensureViewport(vp, ready, width, bodyHeight) {
+		vp.SetContent(build())
+	}
+	if footer == "" {
+		return vp.View()
+	}
+	return vp.View() + "\n\n" + footer
+}
+
+// newPasswordInput builds the masked text input every password step uses.
+func newPasswordInput(placeholder string) textinput.Model {
+	ti := textinput.New()
+	ti.Placeholder = placeholder
+	ti.EchoMode = textinput.EchoPassword
+	ti.CharLimit = 256
+	return ti
 }
 
 // renderStepIndicator renders wizard step progress.

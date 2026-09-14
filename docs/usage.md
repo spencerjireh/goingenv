@@ -61,6 +61,10 @@ goingenv status --format porcelain | awk -F'\t' '$1 == "env" { print $2 }'
 GOINGENV_PASSWORD=... goingenv pack --password-env GOINGENV_PASSWORD
 ```
 
+At an interactive prompt, `pack` asks for the password twice and refuses a
+mismatch, since a typo would produce an archive nobody can open. The
+`--password-env` path is taken as given.
+
 ## Which files get picked up
 
 Patterns are **regular expressions matched against the base filename**, not

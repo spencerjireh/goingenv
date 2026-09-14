@@ -11,6 +11,7 @@ import (
 	"goingenv/internal/config"
 	"goingenv/pkg/password"
 	"goingenv/pkg/types"
+	"goingenv/pkg/utils"
 )
 
 // UnpackOpts holds parsed unpack command flags
@@ -64,9 +65,11 @@ func initApp() (*types.App, error) {
 	return NewApp()
 }
 
-// getPass retrieves password with cleanup function
-func getPass(envVar string) (key string, cleanup func(), err error) {
-	opts := password.Options{PasswordEnv: envVar}
+// getPass retrieves password with cleanup function. confirm asks for the
+// password a second time at an interactive prompt; it has no effect when the
+// password comes from envVar.
+func getPass(envVar string, confirm bool) (key string, cleanup func(), err error) {
+	opts := password.Options{PasswordEnv: envVar, Confirm: confirm}
 	if validateErr := password.ValidatePasswordOptions(opts); validateErr != nil {
 		return "", nil, fmt.Errorf("invalid password options: %w", validateErr)
 	}
@@ -274,6 +277,19 @@ func mergePatterns(flag, cfg []string) []string {
 	merged = append(merged, flag...)
 	merged = append(merged, cfg...)
 	return merged
+}
+
+// listFiles prints every file as a list item; verbose adds the size. Shared by
+// pack and unpack so the two previews cannot drift apart.
+func listFiles(out *Output, files []types.EnvFile, verbose bool) {
+	for _, file := range files {
+		if verbose {
+			out.ListItem(fmt.Sprintf("%s (%s)", file.RelativePath, utils.FormatSize(file.Size)))
+		} else {
+			out.ListItem(file.RelativePath)
+		}
+	}
+	out.Blank()
 }
 
 // outputFor builds the Output a command should use, honouring --format.

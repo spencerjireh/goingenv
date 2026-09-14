@@ -175,9 +175,8 @@ func displayArchives(out *Output, app *types.App, verbose bool) []string {
 //
 // Kept separate from the human path rather than threading conditionals through
 // it: the two differ in what they collect, not just how they print. The human
-// view truncates to ten files and hides configuration unless --verbose, both
-// of which would be wrong here -- a script asking for status wants all of it,
-// every time.
+// view hides configuration unless --verbose, which would be wrong here -- a
+// script asking for status wants all of it, every time.
 func runStatusMachine(out *Output, app *types.App, directory string) error {
 	cwd, _ := os.Getwd() //nolint:errcheck // best effort
 	resolved := cwd

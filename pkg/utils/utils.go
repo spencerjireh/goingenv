@@ -88,17 +88,25 @@ func CategorizeEnvFile(filename string) string {
 	}
 }
 
+// MatchesAnyGlob reports whether path matches at least one of the glob
+// patterns (filepath.Match syntax). A malformed pattern never matches.
+func MatchesAnyGlob(path string, patterns []string) bool {
+	for _, pattern := range patterns {
+		matched, err := filepath.Match(pattern, path)
+		if err == nil && matched {
+			return true
+		}
+	}
+	return false
+}
+
 // FilterFilesByPatterns filters files based on glob patterns
 func FilterFilesByPatterns(relativePaths, patterns []string) []string {
 	var filtered []string
 
 	for _, filePath := range relativePaths {
-		for _, pattern := range patterns {
-			matched, matchErr := filepath.Match(pattern, filePath)
-			if matchErr == nil && matched {
-				filtered = append(filtered, filePath)
-				break
-			}
+		if MatchesAnyGlob(filePath, patterns) {
+			filtered = append(filtered, filePath)
 		}
 	}
 

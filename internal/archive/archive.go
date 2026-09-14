@@ -2,6 +2,7 @@ package archive
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -221,7 +222,7 @@ func (s *Service) decryptArchive(archivePath, password string) ([]byte, error) {
 // extractEntry extracts a single tar entry. It reports skipped=true when the
 // target already exists and Overwrite is off, so the caller can tell the user
 // which files were left alone.
-func (s *Service) extractEntry(tarReader *tar.Reader, header *tar.Header, opts types.UnpackOptions) (skipped bool, err error) {
+func (s *Service) extractEntry(tarReader *tar.Reader, header *tar.Header, opts *types.UnpackOptions) (skipped bool, err error) {
 	targetPath, pathErr := safePath(header.Name, opts.TargetDir)
 	if pathErr != nil {
 		return false, pathErr
@@ -242,8 +243,9 @@ func (s *Service) extractEntry(tarReader *tar.Reader, header *tar.Header, opts t
 	return false, s.extractFile(tarReader, targetPath, header)
 }
 
-// Unpack decrypts and extracts files from an archive
-func (s *Service) Unpack(opts types.UnpackOptions) (*types.UnpackResult, error) {
+// Unpack decrypts and extracts files from an archive. opts is by value because
+// the Archiver interface takes it that way, like PackOptions.
+func (s *Service) Unpack(opts types.UnpackOptions) (*types.UnpackResult, error) { //nolint:gocritic // hugeParam: interface signature
 	tarData, err := s.decryptArchive(opts.ArchivePath, opts.Password)
 	if err != nil {
 		return nil, &types.ArchiveError{
@@ -253,7 +255,7 @@ func (s *Service) Unpack(opts types.UnpackOptions) (*types.UnpackResult, error) 
 		}
 	}
 
-	tarReader := tar.NewReader(strings.NewReader(string(tarData)))
+	tarReader := tar.NewReader(bytes.NewReader(tarData))
 	result := &types.UnpackResult{}
 
 	for {
@@ -268,11 +270,11 @@ func (s *Service) Unpack(opts types.UnpackOptions) (*types.UnpackResult, error) 
 				Err:       fmt.Errorf("failed to read archive entry: %w", err),
 			}
 		}
-		if header.Name == "metadata.json" {
+		if header.Name == "metadata.json" || !opts.Selects(header.Name) {
 			continue
 		}
 
-		skipped, extractErr := s.extractEntry(tarReader, header, opts)
+		skipped, extractErr := s.extractEntry(tarReader, header, &opts)
 		if extractErr != nil {
 			return nil, &types.ArchiveError{
 				Operation: "unpack",
@@ -313,7 +315,7 @@ func (s *Service) List(archivePath, password string) (*types.Archive, error) {
 	}
 
 	// Create tar reader
-	tarReader := tar.NewReader(strings.NewReader(string(tarData)))
+	tarReader := tar.NewReader(bytes.NewReader(tarData))
 
 	// Read metadata (should be first entry)
 	header, err := tarReader.Next()

@@ -47,25 +47,12 @@ func (t *SettingsTab) FullHelp() [][]key.Binding {
 }
 
 func (t *SettingsTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
-	if t.ready {
-		var cmd tea.Cmd
-		t.viewport, cmd = t.viewport.Update(msg)
-		return t, cmd
-	}
-	return t, nil
+	return t, scrollViewport(&t.viewport, t.ready, msg)
 }
 
 func (t *SettingsTab) View(width, height int) string {
-	content := t.buildContent()
-
-	if !t.ready {
-		t.viewport = viewport.New(width, height)
-		t.ready = true
-	} else {
-		t.viewport.Width = width
-		t.viewport.Height = height
-	}
-	t.viewport.SetContent(content)
+	ensureViewport(&t.viewport, &t.ready, width, height)
+	t.viewport.SetContent(t.buildContent())
 	return t.viewport.View()
 }
 

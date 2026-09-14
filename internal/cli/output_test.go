@@ -185,7 +185,7 @@ func TestOutputWarningList(t *testing.T) {
 	out := NewOutputWithWriter(&stdout, &stderr, false, "1.0.0")
 
 	items := []string{".env", ".env.local", ".env.production"}
-	out.WarningList("Files would be overwritten:", items, 0)
+	out.WarningList("Files would be overwritten:", items)
 
 	got := stdout.String()
 	if !strings.Contains(got, "[!] Files would be overwritten:") {
@@ -193,19 +193,6 @@ func TestOutputWarningList(t *testing.T) {
 	}
 	if !strings.Contains(got, ".env") {
 		t.Errorf("WarningList() should contain items, got %q", got)
-	}
-}
-
-func TestOutputWarningListWithLimit(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	out := NewOutputWithWriter(&stdout, &stderr, false, "1.0.0")
-
-	items := []string{".env", ".env.local", ".env.production", ".env.test"}
-	out.WarningList("Files:", items, 2)
-
-	got := stdout.String()
-	if !strings.Contains(got, "... and 2 more") {
-		t.Errorf("WarningList() with limit should show remaining count, got %q", got)
 	}
 }
 

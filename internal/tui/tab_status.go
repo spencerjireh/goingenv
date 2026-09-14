@@ -61,12 +61,7 @@ func (t *StatusTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 		}
 	}
 
-	if t.ready {
-		var cmd tea.Cmd
-		t.viewport, cmd = t.viewport.Update(msg)
-		return t, cmd
-	}
-	return t, nil
+	return t, scrollViewport(&t.viewport, t.ready, msg)
 }
 
 func (t *StatusTab) View(width, height int) string {
@@ -88,7 +83,7 @@ func (t *StatusTab) View(width, height int) string {
 	if halfWidth < 20 {
 		// Narrow terminal: stack vertically
 		content := leftContent + "\n\n" + rightContent
-		t.ensureViewport(width, height, content)
+		t.showLive(width, height, content)
 		return t.viewport.View()
 	}
 
@@ -100,18 +95,14 @@ func (t *StatusTab) View(width, height int) string {
 
 	combined := lipgloss.JoinHorizontal(lipgloss.Top, left, "  "+SplitDividerStyle.Render("│")+"  ", right)
 
-	t.ensureViewport(width, height, combined)
+	t.showLive(width, height, combined)
 	return t.viewport.View()
 }
 
-func (t *StatusTab) ensureViewport(width, height int, content string) {
-	if !t.ready {
-		t.viewport = viewport.New(width, height)
-		t.ready = true
-	} else {
-		t.viewport.Width = width
-		t.viewport.Height = height
-	}
+// showLive replaces the viewport content on every render: status is rescanned
+// each View so the archive list reflects a pack that just finished.
+func (t *StatusTab) showLive(width, height int, content string) {
+	ensureViewport(&t.viewport, &t.ready, width, height)
 	t.viewport.SetContent(content)
 }
 

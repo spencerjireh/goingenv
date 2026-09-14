@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,11 +22,11 @@ func ScanFilesCmd(app *types.App) tea.Cmd {
 
 		files, err := app.Scanner.ScanFiles(&scanOpts)
 		if err != nil {
-			return ErrorMsg(fmt.Sprintf("Failed to scan files: %v", err))
+			return ErrorMsg{Tab: TabPack, Text: fmt.Sprintf("Failed to scan files: %v", err)}
 		}
 
 		if len(files) == 0 {
-			return ErrorMsg("No environment files found")
+			return ErrorMsg{Tab: TabPack, Text: "No environment files found"}
 		}
 
 		return ScanCompleteMsg(files)
@@ -49,7 +50,7 @@ func PackFilesCmd(app *types.App, files []types.EnvFile, password string) tea.Cm
 		// Pack files
 		err := app.Archiver.Pack(packOpts)
 		if err != nil {
-			return ErrorMsg(fmt.Sprintf("Failed to pack files: %v", err))
+			return ErrorMsg{Tab: TabPack, Text: fmt.Sprintf("Failed to pack files: %v", err)}
 		}
 
 		return PackCompleteMsg(fmt.Sprintf("Successfully packed %d files to %s", len(files), outputPath))
@@ -71,7 +72,7 @@ func UnpackFilesCmd(app *types.App, password, archivePath string) tea.Cmd {
 		// Unpack files
 		result, err := app.Archiver.Unpack(unpackOpts)
 		if err != nil {
-			return ErrorMsg(fmt.Sprintf("Failed to unpack files: %v", err))
+			return ErrorMsg{Tab: TabUnpack, Text: fmt.Sprintf("Failed to unpack files: %v", err)}
 		}
 
 		return UnpackCompleteMsg(*result)
@@ -83,7 +84,7 @@ func ListFilesCmd(app *types.App, password, archivePath string) tea.Cmd {
 	return func() tea.Msg {
 		archive, err := app.Archiver.List(archivePath, password)
 		if err != nil {
-			return ErrorMsg(fmt.Sprintf("Failed to read archive: %v", err))
+			return ErrorMsg{Tab: TabList, Text: fmt.Sprintf("Failed to read archive: %v", err)}
 		}
 
 		// Format the archive contents for display
@@ -120,27 +121,28 @@ type SwitchTabMsg struct {
 
 // Helper function to format archive contents for display
 func formatArchiveContents(archive *types.Archive) string {
-	result := "Archive contents\n\n"
-	result += fmt.Sprintf("  Created: %s\n", archive.CreatedAt.Format("2006-01-02 15:04:05"))
-	result += fmt.Sprintf("  Version: %s\n", archive.Version)
-	result += fmt.Sprintf("  Total Files: %d\n", len(archive.Files))
-	result += fmt.Sprintf("  Total Size: %s\n", utils.FormatSize(archive.TotalSize))
+	var b strings.Builder
+	b.WriteString("Archive contents\n\n")
+	fmt.Fprintf(&b, "  Created: %s\n", archive.CreatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "  Version: %s\n", archive.Version)
+	fmt.Fprintf(&b, "  Total Files: %d\n", len(archive.Files))
+	fmt.Fprintf(&b, "  Total Size: %s\n", utils.FormatSize(archive.TotalSize))
 
 	if archive.Description != "" {
-		result += fmt.Sprintf("  Description: %s\n", archive.Description)
+		fmt.Fprintf(&b, "  Description: %s\n", archive.Description)
 	}
 
-	result += "\nFiles:\n"
+	b.WriteString("\nFiles:\n")
 
 	// Every file is listed; the tab renders this in a scrolling viewport.
 	for _, file := range archive.Files {
-		result += fmt.Sprintf("  [-] %s (%s) - %s\n",
+		fmt.Fprintf(&b, "  [-] %s (%s) - %s\n",
 			file.RelativePath,
 			utils.FormatSize(file.Size),
 			file.ModTime.Format("2006-01-02 15:04:05"))
 	}
 
-	return result
+	return b.String()
 }
 
 // InitProjectCmd initializes goingenv in the current directory
@@ -148,7 +150,7 @@ func InitProjectCmd() tea.Cmd {
 	return func() tea.Msg {
 		// Initialize the project
 		if err := config.InitializeProject(); err != nil {
-			return ErrorMsg(fmt.Sprintf("Failed to initialize project: %v", err))
+			return ErrorMsg{Tab: TabPack, Text: fmt.Sprintf("Failed to initialize project: %v", err)}
 		}
 
 		return InitCompleteMsg("Initialized")

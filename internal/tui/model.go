@@ -34,15 +34,25 @@ type Tab interface {
 	InputFocused() bool
 }
 
-// Message types used by the old screen-based model (kept for commands.go compatibility).
+// Messages returned by the async commands in commands.go. Model.Update routes
+// each completion type to the tab that owns it, so a result landing while the
+// user is on another tab still reaches the wizard that started the work.
 type (
 	PackCompleteMsg   string
 	UnpackCompleteMsg types.UnpackResult
 	ListCompleteMsg   string
 	ScanCompleteMsg   []types.EnvFile
-	ErrorMsg          string
 	ProgressMsg       float64
 )
+
+// ErrorMsg is the failure counterpart of the completion messages. One type
+// serves every command, so unlike them it has to name its owner: routing it
+// to the active tab instead left the originating wizard on its spinner with
+// no way out when the user had switched tabs while waiting.
+type ErrorMsg struct {
+	Tab  TabID
+	Text string
+}
 
 // Model is the root Bubbletea model for the full-screen TUI.
 type Model struct {
@@ -160,9 +170,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ListCompleteMsg:
 		return m.routeTo(TabList, msg)
 
-	// ErrorMsg: route to the active tab (the tab that initiated the operation).
 	case ErrorMsg:
-		return m.routeTo(m.activeTab, msg)
+		return m.routeTo(msg.Tab, msg)
 
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
