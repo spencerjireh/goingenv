@@ -24,9 +24,7 @@ func TestPasswordFieldsAreMasked(t *testing.T) {
 	m := newTestModel(t)
 	focusPackPassword(t, m)
 
-	for _, r := range secret {
-		send(t, m, keyMsg(string(r)))
-	}
+	typeKeys(t, m, secret)
 
 	tab := packTab(t, m)
 	if got := tab.textInput.Value(); got != secret {
@@ -48,9 +46,7 @@ func TestPasswordFieldsAreMasked(t *testing.T) {
 
 	// The confirmation field is a second, independently constructed input.
 	send(t, m, keyMsg("enter"))
-	for _, r := range secret {
-		send(t, m, keyMsg(string(r)))
-	}
+	typeKeys(t, m, secret)
 
 	if got := tab.confirmInput.Value(); got != secret {
 		t.Fatalf("the confirm field holds %q, want %q -- the typing did not land", got, secret)
@@ -128,8 +124,38 @@ func TestMatchingConfirmationStartsPack(t *testing.T) {
 	if cmd == nil {
 		t.Error("no command was returned; the pack was never started")
 	}
-	if tab.password != "" || tab.textInput.Value() != "" || tab.confirmInput.Value() != "" {
+	if tab.textInput.Value() != "" || tab.confirmInput.Value() != "" {
 		t.Error("the password is still held by the tab after the pack started")
+	}
+}
+
+// TestMismatchMessageDoesNotSurviveReview pins that backing out to the file
+// list and coming back shows a clean password step: the mismatch message must
+// not sit under a field that has since been reset.
+func TestMismatchMessageDoesNotSurviveReview(t *testing.T) {
+	m := newTestModel(t)
+	focusPackPassword(t, m)
+	tab := packTab(t, m)
+
+	typeKeys(t, m, "abc")
+	send(t, m, keyMsg("enter"))
+	typeKeys(t, m, "abd")
+	send(t, m, keyMsg("enter"))
+	if !strings.Contains(m.View(), "Passwords do not match") {
+		t.Fatalf("the mismatch was not reported, so the round trip below proves nothing\n---\n%s\n---", m.View())
+	}
+
+	send(t, m, keyMsg("esc"))
+	if tab.step != PackStepReview {
+		t.Fatalf("esc left the tab at step %d, want PackStepReview", tab.step)
+	}
+	send(t, m, keyMsg("enter"))
+	if tab.step != PackStepPassword {
+		t.Fatalf("enter left the tab at step %d, want PackStepPassword", tab.step)
+	}
+
+	if strings.Contains(m.View(), "Passwords do not match") {
+		t.Errorf("the mismatch message survived a trip through the review step\n---\n%s\n---", m.View())
 	}
 }
 

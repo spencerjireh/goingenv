@@ -85,12 +85,16 @@ type PackPayload struct {
 	DryRun    bool       `json:"dry_run"`
 }
 
-// UnpackPayload is the `goingenv unpack --format json` document.
+// UnpackPayload is the `goingenv unpack --format json` document. Files and
+// Count describe what was written; Skipped lists the entries left alone
+// because they already existed and --overwrite was not given. Both are always
+// present, empty rather than null.
 type UnpackPayload struct {
 	Archive string     `json:"archive"`
 	Target  string     `json:"target"`
 	Files   []FileInfo `json:"files"`
 	Count   int        `json:"count"`
+	Skipped []string   `json:"skipped"`
 	DryRun  bool       `json:"dry_run"`
 }
 

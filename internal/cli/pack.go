@@ -69,7 +69,7 @@ func runPackCommand(cmd *cobra.Command, args []string) error {
 	out.Header()
 	out.Blank()
 
-	key, cleanup, err := getPass(opts.PassEnv)
+	key, cleanup, err := getPass(opts.PassEnv, true)
 	if err != nil {
 		out.Error(fmt.Sprintf("Failed to get password: %v", err))
 		return err
@@ -122,15 +122,7 @@ func scanPackFiles(out *Output, app *types.App, opts *PackOpts) ([]types.EnvFile
 func displayPackFiles(out *Output, files []types.EnvFile, verbose bool) {
 	out.Action(fmt.Sprintf("Packing %d files...", len(files)))
 	out.Blank()
-
-	for _, file := range files {
-		if verbose {
-			out.ListItem(fmt.Sprintf("%s (%s)", file.RelativePath, utils.FormatSize(file.Size)))
-		} else {
-			out.ListItem(file.RelativePath)
-		}
-	}
-	out.Blank()
+	listFiles(out, files, verbose)
 }
 
 // executePack performs the actual packing operation

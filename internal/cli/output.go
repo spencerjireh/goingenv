@@ -245,14 +245,10 @@ func (o *Output) SuccessHighlight(prefix, highlight string) {
 	}
 }
 
-// WarningList prints a warning followed by a list of items
-func (o *Output) WarningList(msg string, items []string, limit int) {
+// WarningList prints a warning followed by every item, indented.
+func (o *Output) WarningList(msg string, items []string) {
 	o.Warning(msg)
-	for i, item := range items {
-		if limit > 0 && i >= limit {
-			o.Indent(fmt.Sprintf("... and %d more", len(items)-limit))
-			break
-		}
+	for _, item := range items {
 		o.Indent(item)
 	}
 }

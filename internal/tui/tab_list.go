@@ -47,11 +47,6 @@ type ListTab struct {
 
 // NewListTab creates a new ListTab.
 func NewListTab(app *types.App, debugLogger *DebugLogger) *ListTab {
-	ti := textinput.New()
-	ti.Placeholder = "Enter password..."
-	ti.EchoMode = textinput.EchoPassword
-	ti.CharLimit = 256
-
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = HighlightStyle
@@ -64,7 +59,7 @@ func NewListTab(app *types.App, debugLogger *DebugLogger) *ListTab {
 		app:         app,
 		debugLogger: debugLogger,
 		step:        ListStepIdle,
-		textInput:   ti,
+		textInput:   newPasswordInput("Enter password..."),
 		filepicker:  fp,
 		spinner:     s,
 	}
@@ -199,11 +194,11 @@ func (t *ListTab) updateListing(msg tea.Msg) (Tab, tea.Cmd) {
 		t.debugLogger.LogOperation("list", "listing complete")
 		return t, nil
 	case ErrorMsg:
-		t.errorMsg = string(msg)
+		t.errorMsg = msg.Text
 		t.resultMsg = ""
 		t.step = ListStepResult
 		return t, func() tea.Msg {
-			return ToastMsg{Message: string(msg), IsError: true}
+			return ToastMsg{Message: msg.Text, IsError: true}
 		}
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -226,13 +221,7 @@ func (t *ListTab) updateResult(msg tea.Msg) (Tab, tea.Cmd) {
 		}
 	}
 
-	if t.vpReady {
-		var cmd tea.Cmd
-		t.viewport, cmd = t.viewport.Update(msg)
-		return t, cmd
-	}
-
-	return t, nil
+	return t, scrollViewport(&t.viewport, t.vpReady, msg)
 }
 
 func (t *ListTab) startSelection() (Tab, tea.Cmd) {
@@ -336,13 +325,7 @@ func (t *ListTab) renderResult(width, height int) string {
 		)
 	}
 
-	if !t.vpReady {
-		t.viewport = viewport.New(width, height)
-		t.vpReady = true
-	} else {
-		t.viewport.Width = width
-		t.viewport.Height = height
-	}
-	t.viewport.SetContent("\n" + RenderSectionHeader("  Archive contents") + "\n\n" + t.resultMsg)
-	return t.viewport.View()
+	return renderScrollable(&t.viewport, &t.vpReady, width, height, "", func() string {
+		return "\n" + RenderSectionHeader("  Archive contents") + "\n\n" + t.resultMsg
+	})
 }

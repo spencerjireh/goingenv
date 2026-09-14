@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -243,7 +244,50 @@ func TestUnpack_WithIncludePattern(t *testing.T) {
 	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password, "unpack", "--file", archivePath, "--include", "*.production")
 
 	testutils.AssertSuccess(t, result)
-	// Only .env.production should be restored (if pattern matching is supported)
+
+	// The filter decides what is written, not only what is listed. Before the
+	// archiver applied it, every entry landed on disk while the output named
+	// one.
+	if _, err := os.Stat(filepath.Join(tmpDir, ".env.production")); err != nil {
+		t.Errorf(".env.production was not restored: %v", err)
+	}
+	for _, name := range []string{".env", ".env.local", ".env.development"} {
+		if _, err := os.Stat(filepath.Join(tmpDir, name)); err == nil {
+			t.Errorf("%s was written although --include excluded it", name)
+		}
+	}
+}
+
+// TestUnpack_IncludePatternJSON pins that the machine payload reports what the
+// archiver wrote: one file, nothing skipped.
+func TestUnpack_IncludePatternJSON(t *testing.T) {
+	tmpDir, cleanup := testutils.CLITestSetupWithEnvFiles(t)
+	defer cleanup()
+
+	fixtures := testutils.GetTestFixtures()
+	archivePath := testutils.CreateTestArchive(t, tmpDir, fixtures.Password)
+	for _, name := range []string{".env", ".env.local", ".env.development", ".env.production"} {
+		os.Remove(filepath.Join(tmpDir, name))
+	}
+
+	result := testutils.RunCLIWithPassword(t, tmpDir, fixtures.Password,
+		"unpack", "--file", archivePath, "--include", "*.production", "--format", "json")
+	testutils.AssertSuccess(t, result)
+
+	var payload struct {
+		Files   []struct{ Path string } `json:"files"`
+		Count   int                     `json:"count"`
+		Skipped []string                `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(result.Stdout), &payload); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v\n--- stdout ---\n%s\n--- stderr ---\n%s", err, result.Stdout, result.Stderr)
+	}
+	if payload.Count != 1 || len(payload.Files) != 1 || payload.Files[0].Path != ".env.production" {
+		t.Errorf("payload reports count=%d files=%v, want exactly .env.production", payload.Count, payload.Files)
+	}
+	if payload.Skipped == nil || len(payload.Skipped) != 0 {
+		t.Errorf("skipped = %v, want an empty list: filtered-out entries are not skips", payload.Skipped)
+	}
 }
 
 func TestUnpack_WithExcludePattern(t *testing.T) {

@@ -48,11 +48,6 @@ type UnpackTab struct {
 
 // NewUnpackTab creates a new UnpackTab.
 func NewUnpackTab(app *types.App, debugLogger *DebugLogger) *UnpackTab {
-	ti := textinput.New()
-	ti.Placeholder = "Enter password..."
-	ti.EchoMode = textinput.EchoPassword
-	ti.CharLimit = 256
-
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = HighlightStyle
@@ -65,7 +60,7 @@ func NewUnpackTab(app *types.App, debugLogger *DebugLogger) *UnpackTab {
 		app:         app,
 		debugLogger: debugLogger,
 		step:        UnpackStepIdle,
-		textInput:   ti,
+		textInput:   newPasswordInput("Enter password..."),
 		filepicker:  fp,
 		spinner:     s,
 	}
@@ -206,11 +201,11 @@ func (t *UnpackTab) updateUnpacking(msg tea.Msg) (Tab, tea.Cmd) {
 			return ToastMsg{Message: toast, IsError: false}
 		}
 	case ErrorMsg:
-		t.errorMsg = string(msg)
+		t.errorMsg = msg.Text
 		t.result = types.UnpackResult{}
 		t.step = UnpackStepResult
 		return t, func() tea.Msg {
-			return ToastMsg{Message: string(msg), IsError: true}
+			return ToastMsg{Message: msg.Text, IsError: true}
 		}
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -231,13 +226,7 @@ func (t *UnpackTab) updateResult(msg tea.Msg) (Tab, tea.Cmd) {
 		}
 	}
 
-	if t.vpReady {
-		var cmd tea.Cmd
-		t.viewport, cmd = t.viewport.Update(msg)
-		return t, cmd
-	}
-
-	return t, nil
+	return t, scrollViewport(&t.viewport, t.vpReady, msg)
 }
 
 func (t *UnpackTab) startSelection() (Tab, tea.Cmd) {
@@ -344,6 +333,20 @@ func (t *UnpackTab) renderResult(width, height int) string {
 		)
 	}
 
+	// The remedy for skipped files and the restart hint sit under the list on
+	// fixed lines: with a long list they would otherwise be below the fold.
+	footer := "  " + MutedStyle.Render("Press Enter or R to unpack again")
+	if len(t.result.Skipped) > 0 {
+		footer = "  " + MutedStyle.Render("Existing files are never overwritten by the TUI; remove them or run goingenv unpack --overwrite") + "\n" + footer
+	}
+
+	return renderScrollable(&t.viewport, &t.vpReady, width, height, footer, t.renderFileLists)
+}
+
+// renderFileLists lists what was restored and, when anything was left alone
+// because it already existed, lists that too rather than counting it as
+// restored. The TUI never overwrites.
+func (t *UnpackTab) renderFileLists() string {
 	var b strings.Builder
 	b.WriteString("\n")
 	b.WriteString(RenderSectionHeader(fmt.Sprintf("  Restored %d files to the current directory", len(t.result.Extracted))) + "\n\n")
@@ -351,26 +354,13 @@ func (t *UnpackTab) renderResult(width, height int) string {
 		fmt.Fprintf(&b, "  %s\n", path)
 	}
 
-	// The TUI never overwrites, so anything already on disk is left alone.
-	// Say so, per file, rather than counting it as restored.
 	if len(t.result.Skipped) > 0 {
 		b.WriteString("\n")
 		b.WriteString(RenderSectionHeader(fmt.Sprintf("  Skipped %d existing files", len(t.result.Skipped))) + "\n\n")
 		for _, path := range t.result.Skipped {
 			fmt.Fprintf(&b, "  %s\n", path)
 		}
-		b.WriteString("\n  " + MutedStyle.Render("Existing files are never overwritten by the TUI; remove them or run goingenv unpack --overwrite") + "\n")
 	}
 
-	b.WriteString("\n  " + MutedStyle.Render("Press Enter or R to unpack again"))
-
-	if !t.vpReady {
-		t.viewport = viewport.New(width, height)
-		t.vpReady = true
-	} else {
-		t.viewport.Width = width
-		t.viewport.Height = height
-	}
-	t.viewport.SetContent(b.String())
-	return t.viewport.View()
+	return b.String()
 }

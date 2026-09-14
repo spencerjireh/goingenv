@@ -79,16 +79,19 @@ tabs are per-step state machines, and each step's handling lives in its own
 method (`updateIdle`, `updateScanning`, `updateReview`, ...) rather than one
 large switch.
 
-Supporting files: `layout.go` (frame, tab bar, step indicator, empty states),
-`overlay.go` (modals and toasts), `keys.go`, `styles.go`, `debug.go`.
+Supporting files: `layout.go` (frame, tab bar, step indicator, empty states,
+and the shared viewport helpers `ensureViewport`, `scrollViewport` and
+`renderScrollable` -- every tab scrolls through these rather than owning a
+copy), `overlay.go` (modals and toasts), `keys.go`, `styles.go`, `debug.go`.
 
 Async operations (scan, pack, unpack, list) run in goroutines via `commands.go`
 and return typed messages (`PackCompleteMsg`, `ErrorMsg`, ...) to the update
-loop.
+loop. Completion messages are routed to their owning tab by type; `ErrorMsg`
+is one type shared by every command, so it carries its owner in a `Tab` field.
 
 ### Password Handling
 
-`pkg/password/` handles password acquisition with priority: env variable > interactive prompt. Passwords are cleared from memory via `ClearPassword()` (zeros bytes). CLI commands obtain passwords through `getPass(envVar)` in `cli/helpers.go` which returns a cleanup function used with defer.
+`pkg/password/` handles password acquisition with priority: env variable > interactive prompt. Passwords are cleared from memory via `ClearPassword()` (zeros bytes). CLI commands obtain passwords through `getPass(envVar, confirm)` in `cli/helpers.go`, which returns a cleanup function used with defer; `pack` passes `confirm: true` so the interactive prompt asks twice.
 
 ### Configuration
 

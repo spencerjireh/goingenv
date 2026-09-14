@@ -183,3 +183,77 @@ func TestClearPassword(t *testing.T) {
 		})
 	}
 }
+
+// scriptSecrets replaces the terminal read with a fixed sequence of answers
+// and restores it when the test ends.
+func scriptSecrets(t *testing.T, answers ...string) {
+	t.Helper()
+
+	saved := readSecret
+	t.Cleanup(func() { readSecret = saved })
+
+	readSecret = func() (string, error) {
+		if len(answers) == 0 {
+			t.Fatal("the prompt asked for more input than the test scripted")
+		}
+		next := answers[0]
+		answers = answers[1:]
+		return next, nil
+	}
+}
+
+func TestReadPasswordInteractively(t *testing.T) {
+	tests := []struct {
+		name          string
+		confirm       bool
+		answers       []string
+		want          string
+		errorContains string
+	}{
+		{name: "single entry", answers: []string{"hunter2"}, want: "hunter2"},
+		{name: "single entry ignores confirm answer", answers: []string{"hunter2", "other"}, want: "hunter2"},
+		{name: "confirm matches", confirm: true, answers: []string{"hunter2", "hunter2"}, want: "hunter2"},
+		{name: "confirm mismatch", confirm: true, answers: []string{"hunter2", "hunter3"}, errorContains: "do not match"},
+		{name: "empty first entry", confirm: true, answers: []string{""}, errorContains: "cannot be empty"},
+		{name: "empty confirmation", confirm: true, answers: []string{"hunter2", ""}, errorContains: "do not match"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scriptSecrets(t, tt.answers...)
+
+			got, err := readPasswordInteractively(tt.confirm)
+
+			if tt.errorContains != "" {
+				if err == nil {
+					t.Fatalf("got password %q, want an error containing %q", got, tt.errorContains)
+				}
+				if !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("error %q does not contain %q", err, tt.errorContains)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestConfirmDoesNotApplyToEnv pins that Confirm only affects the prompt: an
+// env-var password is not typed, so there is nothing to confirm.
+func TestConfirmDoesNotApplyToEnv(t *testing.T) {
+	t.Setenv("TEST_CONFIRM_ENV", "from-env")
+	scriptSecrets(t) // any prompt would fail the test
+
+	got, err := GetPassword(Options{PasswordEnv: "TEST_CONFIRM_ENV", Confirm: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "from-env" {
+		t.Errorf("got %q, want the env value", got)
+	}
+}

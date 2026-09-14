@@ -47,12 +47,18 @@ func TestPackResultListsEveryFile(t *testing.T) {
 	}
 
 	view := m.View()
-	assertListsAll(t, viewportContent(&tab.viewport), relativePaths(tab.scannedFiles))
+	content := viewportContent(&tab.viewport)
+	assertListsAll(t, content, relativePaths(tab.scannedFiles))
 	if !strings.Contains(view, "svc00/.env.packed") {
 		t.Errorf("the first packed file is not on screen\n---\n%s\n---", view)
 	}
-	if strings.Contains(view, "more") {
-		t.Errorf("the packed list is truncated\n---\n%s\n---", view)
+	if strings.Contains(content, "more") {
+		t.Errorf("the packed list is truncated\n---\n%s\n---", content)
+	}
+	// The hint is pinned under the list, so it is readable without scrolling
+	// a list that does not fit on screen.
+	if !strings.Contains(view, "pack again") {
+		t.Errorf("the restart hint is not on screen before scrolling\n---\n%s\n---", view)
 	}
 
 	before := tab.viewport.YOffset
@@ -76,10 +82,18 @@ func TestUnpackResultListsExtractedAndSkipped(t *testing.T) {
 		t.Fatalf("the Unpack tab is at step %d, want UnpackStepResult", tab.step)
 	}
 
-	m.View()
+	view := m.View()
 	content := viewportContent(&tab.viewport)
 	assertListsAll(t, content, extracted)
 	assertListsAll(t, content, skipped)
+	// The remedy for the skipped files and the restart hint are pinned under
+	// the list, so both are readable before scrolling.
+	if !strings.Contains(view, "--overwrite") {
+		t.Errorf("the --overwrite remedy is not on screen before scrolling\n---\n%s\n---", view)
+	}
+	if !strings.Contains(view, "unpack again") {
+		t.Errorf("the restart hint is not on screen before scrolling\n---\n%s\n---", view)
+	}
 	if !strings.Contains(content, "Skipped 2 existing files") {
 		t.Errorf("the skipped section is missing\n---\n%s\n---", content)
 	}
@@ -94,6 +108,44 @@ func TestUnpackResultListsExtractedAndSkipped(t *testing.T) {
 	send(t, m, keyMsg("down"))
 	if tab.viewport.YOffset <= before {
 		t.Error("down did not scroll the restored file list")
+	}
+}
+
+// TestErrorReachesOwningTabAfterSwitch pins the routing of ErrorMsg. A pack
+// failure must land on the Pack tab even when the user has moved to another
+// tab while waiting; routed to the active tab instead, the Pack tab stayed on
+// its spinner with no key that could leave it.
+func TestErrorReachesOwningTabAfterSwitch(t *testing.T) {
+	m := newTestModel(t)
+	m.activeTab = TabPack
+	tab := packTab(t, m)
+	tab.step = PackStepPacking
+
+	send(t, m, keyMsg("2"))
+	if m.activeTab != TabUnpack {
+		t.Fatalf("the active tab is %d, want TabUnpack; switching while packing must stay allowed", m.activeTab)
+	}
+
+	cmd := send(t, m, ErrorMsg{Tab: TabPack, Text: "Failed to pack files: disk full"})
+
+	if tab.step != PackStepResult {
+		t.Errorf("the Pack tab is at step %d, want PackStepResult", tab.step)
+	}
+	if tab.errorMsg != "Failed to pack files: disk full" {
+		t.Errorf("the Pack tab holds error %q, want the pack failure", tab.errorMsg)
+	}
+	if unpackTab(t, m).step != UnpackStepIdle {
+		t.Errorf("the Unpack tab reacted to a Pack error")
+	}
+
+	var toasted bool
+	for _, msg := range runCmd(t, cmd) {
+		if toast, ok := msg.(ToastMsg); ok && toast.IsError {
+			toasted = true
+		}
+	}
+	if !toasted {
+		t.Error("the failure produced no error toast")
 	}
 }
 

@@ -75,7 +75,7 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 	out.Header()
 	out.Blank()
 
-	key, cleanup, err := getPass(opts.PassEnv)
+	key, cleanup, err := getPass(opts.PassEnv, false)
 	if err != nil {
 		out.Error(fmt.Sprintf("Failed to get password: %v", err))
 		return err
@@ -88,7 +88,7 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	filesToExtract := filterArchiveFiles(archive.Files, opts.Include, opts.Exclude)
-	displayUnpackFiles(out, filesToExtract, opts.Verbose)
+	listFiles(out, filesToExtract, opts.Verbose)
 
 	if opts.DryRun {
 		conflicts := checkFileConflicts(filesToExtract, opts.Target)
@@ -96,7 +96,7 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 		if len(conflicts) > 0 {
 			out.Indent(fmt.Sprintf("%d existing files would be affected", len(conflicts)))
 		}
-		return emitUnpackResult(out, archiveFile, filesToExtract, opts, true)
+		return emitUnpackResult(out, archiveFile, filesToExtract, nil, opts, true)
 	}
 
 	if !handleConflicts(out, filesToExtract, opts) {
@@ -139,18 +139,6 @@ func decryptArchive(out *Output, app *types.App, archiveFile, key string) (*type
 	return archive, nil
 }
 
-// displayUnpackFiles shows every file to be extracted; verbose adds the size.
-func displayUnpackFiles(out *Output, files []types.EnvFile, verbose bool) {
-	for _, file := range files {
-		if verbose {
-			out.ListItem(fmt.Sprintf("%s (%s)", file.RelativePath, utils.FormatSize(file.Size)))
-		} else {
-			out.ListItem(file.RelativePath)
-		}
-	}
-	out.Blank()
-}
-
 // handleConflicts checks for and handles file conflicts
 func handleConflicts(out *Output, files []types.EnvFile, opts *UnpackOpts) bool {
 	conflicts := checkFileConflicts(files, opts.Target)
@@ -158,13 +146,20 @@ func handleConflicts(out *Output, files []types.EnvFile, opts *UnpackOpts) bool 
 		return true
 	}
 
-	out.WarningList(fmt.Sprintf("%d files already exist:", len(conflicts)), conflicts, 0)
+	out.WarningList(fmt.Sprintf("%d files already exist:", len(conflicts)), conflicts)
 	out.Blank()
-	out.Hint("Use --overwrite to replace them, or --backup to keep a copy")
+	// --backup on its own does nothing: the archiver only backs up on the way
+	// to overwriting, so the hint must not offer it as an alternative.
+	out.Hint("Use --overwrite to replace them (add --backup to keep a copy of each)")
 	return false
 }
 
-// executeUnpack performs the actual unpacking operation
+// executeUnpack performs the actual unpacking operation.
+//
+// Everything reported afterwards comes from the archiver's result rather than
+// from the preview list: the archiver applies the include/exclude filters and
+// decides what to leave alone, so it is the only source that cannot disagree
+// with what landed on disk.
 func executeUnpack(out *Output, app *types.App, archiveFile string, files []types.EnvFile, opts *UnpackOpts, key string) error { //nolint:unparam // error return kept for consistency
 	if opts.Verbose {
 		out.Action("Extracting...")
@@ -174,12 +169,14 @@ func executeUnpack(out *Output, app *types.App, archiveFile string, files []type
 	conflicts := checkFileConflicts(files, opts.Target)
 
 	start := time.Now()
-	_, err := app.Archiver.Unpack(types.UnpackOptions{
+	result, err := app.Archiver.Unpack(types.UnpackOptions{
 		ArchivePath: archiveFile,
 		Password:    key,
 		TargetDir:   opts.Target,
 		Overwrite:   opts.Overwrite,
 		Backup:      opts.Backup,
+		Include:     opts.Include,
+		Exclude:     opts.Exclude,
 	})
 	duration := time.Since(start)
 
@@ -188,24 +185,47 @@ func executeUnpack(out *Output, app *types.App, archiveFile string, files []type
 		return err
 	}
 
+	extracted := selectFiles(files, result.Extracted)
+
 	if opts.Verify {
-		verifyUnpackedFiles(out, files, opts.Target, opts.Verbose)
+		verifyUnpackedFiles(out, extracted, opts.Target, opts.Verbose)
 	}
 
-	displayUnpackResult(out, files, conflicts, opts, duration)
-	return emitUnpackResult(out, archiveFile, files, opts, false)
+	displayUnpackResult(out, extracted, result.Skipped, conflicts, opts, duration)
+	return emitUnpackResult(out, archiveFile, extracted, result.Skipped, opts, false)
+}
+
+// selectFiles returns the entries of files whose relative path is in names,
+// keeping the archive's order so output is stable across runs.
+func selectFiles(files []types.EnvFile, names []string) []types.EnvFile {
+	wanted := make(map[string]bool, len(names))
+	for _, name := range names {
+		wanted[name] = true
+	}
+
+	selected := make([]types.EnvFile, 0, len(names))
+	for _, file := range files {
+		if wanted[file.RelativePath] {
+			selected = append(selected, file)
+		}
+	}
+	return selected
 }
 
 // emitUnpackResult writes the machine-readable result, and nothing in the
 // default text format -- the human output has already been printed.
-func emitUnpackResult(out *Output, archiveFile string, files []types.EnvFile, opts *UnpackOpts, dryRun bool) error {
+func emitUnpackResult(out *Output, archiveFile string, files []types.EnvFile, skipped []string, opts *UnpackOpts, dryRun bool) error {
 	switch out.Format() {
 	case FormatJSON:
+		if skipped == nil {
+			skipped = []string{}
+		}
 		return out.EmitJSON(UnpackPayload{
 			Archive: archiveFile,
 			Target:  opts.Target,
 			Files:   toFileInfos(files),
 			Count:   len(files),
+			Skipped: skipped,
 			DryRun:  dryRun,
 		})
 	case FormatPorcelain:
@@ -237,8 +257,11 @@ func verifyUnpackedFiles(out *Output, files []types.EnvFile, targetDir string, v
 }
 
 // displayUnpackResult shows the unpack result
-func displayUnpackResult(out *Output, files []types.EnvFile, conflicts []string, opts *UnpackOpts, duration time.Duration) {
+func displayUnpackResult(out *Output, files []types.EnvFile, skipped, conflicts []string, opts *UnpackOpts, duration time.Duration) {
 	out.Success(fmt.Sprintf("Extracted %d files", len(files)))
+	if len(skipped) > 0 {
+		out.WarningList(fmt.Sprintf("Skipped %d existing files:", len(skipped)), skipped)
+	}
 
 	if opts.Verbose {
 		out.Indent(fmt.Sprintf("Time: %v", duration.Round(time.Millisecond)))
@@ -265,27 +288,16 @@ func filterFiles(files []types.EnvFile, includePatterns, excludePatterns []strin
 	var filtered []types.EnvFile
 
 	for _, file := range files {
-		if len(includePatterns) > 0 && !matchesAnyPattern(file.RelativePath, includePatterns) {
+		if len(includePatterns) > 0 && !utils.MatchesAnyGlob(file.RelativePath, includePatterns) {
 			continue
 		}
-		if matchesAnyPattern(file.RelativePath, excludePatterns) {
+		if utils.MatchesAnyGlob(file.RelativePath, excludePatterns) {
 			continue
 		}
 		filtered = append(filtered, file)
 	}
 
 	return filtered
-}
-
-// matchesAnyPattern checks if a path matches any of the given patterns
-func matchesAnyPattern(path string, patterns []string) bool {
-	for _, pattern := range patterns {
-		matched, err := filepath.Match(pattern, path)
-		if err == nil && matched {
-			return true
-		}
-	}
-	return false
 }
 
 // checkFileConflicts checks for existing files that would be overwritten

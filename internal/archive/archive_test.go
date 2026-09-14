@@ -715,22 +715,7 @@ func TestService_Unpack_ReportsExtractedAndSkipped(t *testing.T) {
 	tmpDir := t.TempDir()
 	password := "testpassword123"
 
-	var envFiles []types.EnvFile
-	for _, name := range []string{".env", ".env.local", "api/.env"} {
-		path := filepath.Join(tmpDir, "src", name)
-		if mkErr := os.MkdirAll(filepath.Dir(path), 0o700); mkErr != nil {
-			t.Fatalf("Failed to create source dir: %v", mkErr)
-		}
-		if writeErr := os.WriteFile(path, []byte("KEY=value"), 0o600); writeErr != nil {
-			t.Fatalf("Failed to create source file: %v", writeErr)
-		}
-		envFiles = append(envFiles, types.EnvFile{Path: path, RelativePath: name, Size: 9, ModTime: time.Now()})
-	}
-
-	archivePath := filepath.Join(tmpDir, "test.enc")
-	if err := service.Pack(types.PackOptions{Files: envFiles, OutputPath: archivePath, Password: password}); err != nil {
-		t.Fatalf("Pack failed: %v", err)
-	}
+	archivePath := packThreeFiles(t, service, tmpDir, password)
 
 	// One of the three already exists in the target and must not be touched.
 	targetDir := filepath.Join(tmpDir, "target")
@@ -767,6 +752,90 @@ func TestService_Unpack_ReportsExtractedAndSkipped(t *testing.T) {
 	}
 	if string(kept) != "KEEP=me" {
 		t.Errorf("the existing file was overwritten; Overwrite was false")
+	}
+}
+
+// packThreeFiles creates .env, .env.local and api/.env under tmpDir/src and
+// packs them, returning the archive path. Shared by the tests that check what
+// Unpack writes versus what it reports.
+func packThreeFiles(t *testing.T, service *Service, tmpDir, password string) string {
+	t.Helper()
+
+	var envFiles []types.EnvFile
+	for _, name := range []string{".env", ".env.local", "api/.env"} {
+		path := filepath.Join(tmpDir, "src", name)
+		if mkErr := os.MkdirAll(filepath.Dir(path), 0o700); mkErr != nil {
+			t.Fatalf("Failed to create source dir: %v", mkErr)
+		}
+		if writeErr := os.WriteFile(path, []byte("KEY=value"), 0o600); writeErr != nil {
+			t.Fatalf("Failed to create source file: %v", writeErr)
+		}
+		envFiles = append(envFiles, types.EnvFile{Path: path, RelativePath: name, Size: 9, ModTime: time.Now()})
+	}
+
+	archivePath := filepath.Join(tmpDir, "test.enc")
+	if err := service.Pack(types.PackOptions{Files: envFiles, OutputPath: archivePath, Password: password}); err != nil {
+		t.Fatalf("Pack failed: %v", err)
+	}
+	return archivePath
+}
+
+// TestService_Unpack_IncludeExclude pins that the filters decide what is
+// written, not only what is reported. Before they lived here the CLI filtered
+// its report and the archiver wrote everything.
+func TestService_Unpack_IncludeExclude(t *testing.T) {
+	tests := []struct {
+		name          string
+		include       []string
+		exclude       []string
+		wantExtracted []string
+	}{
+		{name: "include only", include: []string{".env"}, wantExtracted: []string{".env"}},
+		{name: "exclude only", exclude: []string{"*.local"}, wantExtracted: []string{".env", "api/.env"}},
+		{name: "include then exclude", include: []string{".env*"}, exclude: []string{"*.local"}, wantExtracted: []string{".env"}},
+		{name: "no filter", wantExtracted: []string{".env", ".env.local", "api/.env"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := NewService(crypto.NewService())
+			tmpDir := t.TempDir()
+			const password = "testpassword123"
+			archivePath := packThreeFiles(t, service, tmpDir, password)
+			targetDir := filepath.Join(tmpDir, "target")
+
+			result, err := service.Unpack(types.UnpackOptions{
+				ArchivePath: archivePath,
+				Password:    password,
+				TargetDir:   targetDir,
+				Include:     tt.include,
+				Exclude:     tt.exclude,
+			})
+			if err != nil {
+				t.Fatalf("Unpack failed: %v", err)
+			}
+
+			if !reflect.DeepEqual(result.Extracted, tt.wantExtracted) {
+				t.Errorf("Extracted = %v, want %v", result.Extracted, tt.wantExtracted)
+			}
+			if len(result.Skipped) != 0 {
+				t.Errorf("Skipped = %v, want none: filtered-out entries are not skips", result.Skipped)
+			}
+
+			onDisk := map[string]bool{}
+			for _, name := range tt.wantExtracted {
+				onDisk[name] = true
+			}
+			for _, name := range []string{".env", ".env.local", "api/.env"} {
+				_, statErr := os.Stat(filepath.Join(targetDir, name))
+				if onDisk[name] && statErr != nil {
+					t.Errorf("%s was reported extracted but is not on disk: %v", name, statErr)
+				}
+				if !onDisk[name] && statErr == nil {
+					t.Errorf("%s was written although the filter excluded it", name)
+				}
+			}
+		})
 	}
 }
 

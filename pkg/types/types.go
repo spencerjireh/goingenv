@@ -2,6 +2,8 @@ package types
 
 import (
 	"time"
+
+	"goingenv/pkg/utils"
 )
 
 // EnvFile represents a detected environment file
@@ -57,13 +59,30 @@ type PackOptions struct {
 	Description string
 }
 
-// UnpackOptions represents options for unpacking files
+// UnpackOptions represents options for unpacking files.
+//
+// Include and Exclude are glob patterns (filepath.Match) tested against each
+// entry's relative path. An entry is written only when it matches some
+// Include pattern (or Include is empty) and matches no Exclude pattern. The
+// archiver applies them so the files written and the files reported can never
+// disagree.
 type UnpackOptions struct {
 	ArchivePath string
 	Password    string
 	TargetDir   string
 	Overwrite   bool
 	Backup      bool
+	Include     []string
+	Exclude     []string
+}
+
+// Selects reports whether an entry with the given relative path passes the
+// Include and Exclude filters.
+func (o *UnpackOptions) Selects(relativePath string) bool {
+	if len(o.Include) > 0 && !utils.MatchesAnyGlob(relativePath, o.Include) {
+		return false
+	}
+	return !utils.MatchesAnyGlob(relativePath, o.Exclude)
 }
 
 // UnpackResult reports what Unpack wrote and what it left alone.
