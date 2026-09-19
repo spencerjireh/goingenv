@@ -80,3 +80,6 @@ temp/
 .claude/
 # Binary-format coverage data emitted by the -cover instrumented test binary
 coverage-data/
+
+# Playwright MCP screenshots and snapshots
+.playwright-mcp/
