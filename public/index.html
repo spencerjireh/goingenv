@@ -82,18 +82,17 @@
         scroll-padding-top: 3.5rem;
       }
 
-      /* The field: a tall dithered collage (assets/dither.py) that scrolls
-         with the page and shows in the margins outside the frame. Sized to
-         the viewport width, so the margin columns land where the image
-         puts them; it fades to --base before the page ends. Sections paint
-         solid --base over it; the hero lets a tenth through. */
+      /* The field: a dithered collage (assets/dither.py) sized to the
+         viewport and fixed, so the page slides over it and it shows in the
+         margins outside the frame. Sections paint solid --base over it;
+         the hero lets a tenth through. */
       body {
         margin: 0;
         background-color: var(--base);
         background-image: url("bg.png");
-        background-size: 100% auto;
-        background-repeat: no-repeat;
+        background-size: cover;
         background-position: center top;
+        background-attachment: fixed;
         color: var(--text);
         font-family: var(--font-mono);
         font-size: 15px;
@@ -597,6 +596,11 @@
       @media (prefers-reduced-motion: reduce) {
         html {
           scroll-behavior: auto;
+        }
+
+        /* A fixed background is parallax by another name. */
+        body {
+          background-attachment: scroll;
         }
 
         *,

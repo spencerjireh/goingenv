@@ -4,12 +4,13 @@
 # ///
 """Render public/bg.png, the page background of the website.
 
-A two-colour dithered collage, Signal ink on the base colour, tall enough
-to scroll with the page. The frame in the middle is opaque, so the image
-is designed for what shows: the two margins and a faint hero. Down the
-left, a hex dump of a real archive with its GENV header on the first row.
-Down the right, three objects: an IBM 80-column punched card stood on
-end, the pack flow as a line schematic, and a card-storage warehouse.
+A two-colour dithered collage, Signal ink on the base colour, sized to
+a viewport and fixed behind the page, which slides over it. The frame in
+the middle is opaque, so the image is designed for what shows: the two
+margins and a faint hero. Top-left, a hex dump of a real archive with its
+GENV header on the first row; bottom-left, the pack flow as a line
+schematic; top-right, an IBM 80-column punched card; bottom-right, a
+card-storage warehouse.
 
 Run with `make bg` (which is `uv run assets/dither.py`). Downloads land in
 assets/.cache/ and are verified against the hashes below, the way
@@ -63,16 +64,13 @@ INK = (0x1E, 0x7A, 0x63)
 
 # The canvas is rendered at half size and scaled up 2x with nearest
 # neighbour, so every dither cell is a 2px square. Browser scaling of a
-# 1px dither turns it into grey mush; 2px cells survive it. 1920x7200
-# covers the page at any width from 1280 up; the bottom fades to base.
-W, H = 960, 3600
+# 1px dither turns it into grey mush; 2px cells survive it.
+W, H = 960, 600
 SCALE = 2
 
 # How much of the field the frame occupies at 1920px wide (64rem of 1920),
 # used to keep the centre quiet and the margins loud.
 FRAME_FRACTION = 1024 / 1920
-
-HEX_ROW = 24  # canvas px per hex dump row
 
 
 def fetch(url: str, dest: Path, digest: str, algo: str) -> Path:
@@ -170,21 +168,20 @@ def fade_left(im: Image.Image, width_fraction: float = 0.45) -> Image.Image:
 
 
 def hex_layer(font: ImageFont.FreeTypeFont) -> Image.Image:
-    """The archive, dumped down the left edge for the height of the page."""
-    rows_that_fit = (H - 26) // HEX_ROW
-    rows = hexdump(archive_bytes(16 * rows_that_fit))
+    rows = hexdump(archive_bytes(16 * 14))
     out = layer()
     d = ImageDraw.Draw(out)
+    x, y = 28, 26
+    step = 24
     for i, row in enumerate(rows):
-        # Brightest at the header row, settling to a steady value so the
-        # column reads all the way down rather than fading to nothing.
-        v = max(120, 210 - i * 8)
-        d.text((28, 26 + i * HEX_ROW), row, fill=v, font=font)
+        # Brightest at the header row, fading down the dump.
+        v = int(210 - i * 12)
+        d.text((x, y + i * step), row, fill=v, font=font)
     return out
 
 
 def card_layer() -> Image.Image:
-    """An 80-column card stood on end, flush with the right edge."""
+    """An 80-column card across the top right, the way it is read."""
     src = fetch(CARD_URL, CACHE / "punchcard.png", CARD_SHA1, "sha1")
     # Not inverted, and a steep gamma: the card's blue field falls to a
     # faint tone, the printed digits vanish into it, and the holes, which
@@ -193,52 +190,50 @@ def card_layer() -> Image.Image:
     im = Image.open(src).convert("L")
     w, h = im.size
     im = im.crop((int(w * 0.012), int(h * 0.025), int(w * 0.988), int(h * 0.975)))
-    im = ImageOps.autocontrast(im, cutoff=1).point(lambda v: int(255 * (v / 255) ** 2.4))
-    im = im.rotate(90, expand=True)
-    target_w = 250
+    im = ImageOps.autocontrast(im, cutoff=1).point(lambda v: int(255 * (v / 255) ** 1.9))
+    target_w = 430
     im = im.resize((target_w, int(im.height * target_w / im.width)), Image.LANCZOS)
     out = layer()
-    out.paste(im, (W - im.width + 12, 170))
+    out.paste(im, (W - im.width + 10, 28))
     return out
 
 
 def schematic_layer(font: ImageFont.FreeTypeFont) -> Image.Image:
-    """The pack flow, stacked so it fits the right margin: three files, a
-    bus, the archive, and a dimension line, the way a drawing sizes a part."""
     out = layer()
     d = ImageDraw.Draw(out)
     v = 175
-    bw, bh, gap = 134, 34, 12
-    x0 = W - bw - 10
-    y = 1420
-    for name in (".env", ".env.local", ".env.production"):
-        d.rectangle((x0, y, x0 + bw, y + bh), outline=v, width=1)
-        d.text((x0 + 8, y + 9), name, fill=v, font=font)
-        # Connector out of the box into the bus on its left.
-        d.line((x0, y + bh // 2, x0 - 22, y + bh // 2), fill=v, width=1)
-        y += bh + gap
-    bus_x = x0 - 22
-    top = 1420 + bh // 2
-    bot = y - gap - bh // 2
+    x0, y0 = 40, 392
+    fw, fh, gap = 118, 40, 14
+    files = [".env", ".env.local", ".env.production"]
+    for i, name in enumerate(files):
+        y = y0 + i * (fh + gap)
+        d.rectangle((x0, y, x0 + fw, y + fh), outline=v, width=1)
+        d.text((x0 + 10, y + 11), name, fill=v, font=font)
+        # Connector into the bus.
+        d.line((x0 + fw, y + fh // 2, x0 + fw + 34, y + fh // 2), fill=v, width=1)
+    bus_x = x0 + fw + 34
+    top = y0 + fh // 2
+    bot = y0 + 2 * (fh + gap) + fh // 2
+    mid = (top + bot) // 2
     d.line((bus_x, top, bus_x, bot), fill=v, width=1)
-    # Down from the bus, then back in to the archive.
-    ay = y + 26
-    d.line((bus_x, bot, bus_x, ay + 31), fill=v, width=1)
-    d.line((bus_x, ay + 31, x0, ay + 31), fill=v, width=1)
-    d.polygon([(x0, ay + 31), (x0 - 9, ay + 26), (x0 - 9, ay + 36)], fill=v)
-    d.rectangle((x0, ay, x0 + bw, ay + 62), outline=v, width=1)
-    d.text((x0 + 8, ay + 12), "archive-", fill=v, font=font)
-    d.text((x0 + 8, ay + 32), "<ts>.enc", fill=v, font=font)
-    dy = ay + 62 + 16
-    d.line((x0, dy, x0 + bw, dy), fill=v, width=1)
-    for xx in (x0, x0 + bw):
+    ax = bus_x + 70
+    d.line((bus_x, mid, ax, mid), fill=v, width=1)
+    d.polygon([(ax, mid), (ax - 10, mid - 5), (ax - 10, mid + 5)], fill=v)
+    # The archive.
+    aw, ah = 190, 62
+    d.rectangle((ax + 8, mid - ah // 2, ax + 8 + aw, mid + ah // 2), outline=v, width=1)
+    d.text((ax + 20, mid - 10), "archive-<ts>.enc", fill=v, font=font)
+    # Dimension line under the archive, the way a drawing sizes a part.
+    dy = mid + ah // 2 + 18
+    d.line((ax + 8, dy, ax + 8 + aw, dy), fill=v, width=1)
+    for xx in (ax + 8, ax + 8 + aw):
         d.line((xx, dy - 5, xx, dy + 5), fill=v, width=1)
-    d.text((x0 + 14, dy + 6), "AES-256-GCM", fill=v, font=font)
+    d.text((ax + 8 + aw // 2 - 42, dy + 6), "AES-256-GCM", fill=v, font=font)
     return out
 
 
 def storage_layer() -> Image.Image:
-    """Boxed cards to the horizon: an archive, lower right."""
+    """Boxed cards to the horizon: an archive, bottom right."""
     src = fetch(STORAGE_URL, CACHE / "cardstorage.jpg", STORAGE_SHA1, "sha1")
     im = load_photo(src, gamma=1.6, invert=False)
     w, h = im.size
@@ -247,16 +242,20 @@ def storage_layer() -> Image.Image:
     target_w = 520
     im = im.resize((target_w, int(im.height * target_w / im.width)), Image.LANCZOS)
     im = fade_left(im.point(lambda v: int(v * 0.9)))
+    # A short fade at the top so the crop does not meet the card as a line.
+    top = Image.linear_gradient("L").resize(im.size)
+    top = top.point(lambda v: min(255, int(v * 255 / 40)))
+    im = ImageChops.multiply(im, top)
     out = layer()
-    out.paste(im, (W - im.width, 2320))
+    out.paste(im, (W - im.width, H - im.height - 10))
     return out
 
 
 def vignette(im: Image.Image) -> Image.Image:
     """Quiet the centre, where the frame sits, and leave the margins loud.
 
-    The bottom eighth fades to nothing so the image ends in the base
-    colour before the page does.
+    The bottom eighth fades to nothing so the field ends in base rather
+    than a line.
     """
     half = FRAME_FRACTION / 2
     mask = Image.new("L", (W, H), 0)

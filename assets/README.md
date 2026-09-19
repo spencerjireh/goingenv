@@ -64,12 +64,12 @@ Use for favicon, app icons, small contexts.
 
 ## Website Background
 
-`public/bg.png` is a tall (1920x7200) two-colour dithered collage, Signal
-ink on the base colour, that scrolls with the page and shows in the margins
-outside the content frame. Down the left runs a hex dump of a real archive
-with its `GENV` header on the first row; down the right sit an IBM
-80-column punched card stood on end, the pack flow as a line schematic,
-and a card-storage warehouse. `make bg` regenerates it by running
+`public/bg.png` is a 1920x1200 two-colour dithered collage, Signal ink on
+the base colour, fixed behind the page and visible in the margins outside
+the content frame. Top-left, a hex dump of a real archive with its `GENV`
+header on the first row; bottom-left, the pack flow as a line schematic;
+top-right, an IBM 80-column punched card; bottom-right, a card-storage
+warehouse. `make bg` regenerates it by running
 `assets/dither.py` under uv. Downloads land in `assets/.cache/` and are
 checked against pinned hashes; the hex dump comes from an archive the
 script packs itself with a random password, so the bytes are real
