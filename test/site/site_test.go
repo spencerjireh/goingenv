@@ -485,6 +485,7 @@ func TestSite_CommandsMatchTheCLI(t *testing.T) {
 	// The subcommands wired up in internal/cli/root.go.
 	known := map[string]bool{
 		"init": true, "pack": true, "unpack": true, "list": true, "status": true,
+		"diff": true, "run": true,
 	}
 
 	checked := 0

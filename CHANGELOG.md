@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-09-19
+
+### Breaking
+- **New archive format.** Archives now start with a 16-byte header (magic, format version, KDF parameters, a reserved key-mode byte) and the key is derived with Argon2id (t=3, m=64 MiB, p=4) instead of PBKDF2 at 100,000 iterations. The header is authenticated as GCM additional data. Archives written by 1.x have no header and **cannot be read by 2.0.0**: unpack them with goingenv v1.6.0, then re-pack with this version. Every command that meets one says exactly that
+- `unpack`, `list` and `diff` with no archive named now pick the newest `archive-<timestamp>.enc` (or `<env>-<timestamp>.enc` with `--env`). Previously the lexically last `.enc` of any name was chosen, so a custom `-o` name could win over a newer default one
+- `list` without `-f` or `--all` no longer errors: it lists the newest archive, like `unpack`
+- The archive metadata version is `2.0.0` and carries the environment name
+
+### Added
+- **`goingenv run -- COMMAND`** decrypts an archive in memory and runs a command with its variables set; nothing is written to disk. Loads the root `.env` by default, `--file` (repeatable, later wins) selects other entries, archive values override the host environment, and the child's exit status is propagated (127 when the command is not found)
+- **`goingenv diff [FROM [TO]]`** reports which files and keys differ between two archives, or between an archive and the env files on disk, without ever printing a value. `--format json|porcelain` are supported; `--exit-code` returns 1 when there are differences
+- **Manifest**: `pack --manifest` writes `<archive>.manifest.json` beside the archive with file paths, key names and per-file SHA-256, so a pull request shows which keys changed. Off by default; `manifest: true` in the config turns it on, `--no-manifest` turns it off for one run. It publishes paths and key names, never values
+- **Named environments**: `--env NAME` on `pack`, `unpack`, `list`, `diff` and `run`. `pack --env prod` writes `prod-<timestamp>.enc`; the other commands pick the newest archive for that name. Names are `[a-z0-9][a-z0-9_-]*`; `archive` is reserved
+- **`--password-stdin`** on every command that opens an archive: reads the first line of standard input and never prompts. Only that line is consumed, so `run --password-stdin` leaves the rest of stdin to the child
+- **`GOINGENV_PASSWORD` is consulted by default**, and `GOINGENV_PASSWORD_<ENV>` (hyphens become underscores) before it when `--env` is set, so `--password-env` is no longer required in scripts
+- TUI: an options step on Pack for the environment name and manifest toggle, an environment filter on the Unpack archive list, and a Diff tab (key `6`)
+- `Archiver.ReadFiles` returns an archive's contents in memory; `pkg/envfile` parses dotenv files without expansion
+
+### Changed
+- Decrypt refuses Argon2id parameters above t=32, m=1 GiB or p=32 before deriving a key, so a hostile header cannot demand unbounded work
+- `status --format json` reports the `manifest` config key; `pack --format json` reports `env` and `manifest`; `list --format json` reports `env`
+- Commands no longer print their own failure before returning it, so an error is reported once
+
 ## [1.4.0] - 2026-09-10
 
 ### Added
@@ -153,7 +176,8 @@ go, and promote them to a version section when cutting a release.
 - **Patch (0.0.X)**: Bug fixes, security updates
 - **Prerelease (0.0.0-alpha.1)**: Development versions
 
-[Unreleased]: https://github.com/spencerjireh/goingenv/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/spencerjireh/goingenv/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/spencerjireh/goingenv/releases/tag/v2.0.0
 [1.4.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.4.0
 [1.3.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.3.0
 [1.2.0]: https://github.com/spencerjireh/goingenv/releases/tag/v1.2.0

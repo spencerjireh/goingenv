@@ -15,6 +15,10 @@ import (
 	"goingenv/pkg/types"
 )
 
+// MetadataVersion is written into every archive's metadata.json. It tracks
+// the metadata schema, not the blob format, which has its own header.
+const MetadataVersion = "2.0.0"
+
 // Service implements the Archiver interface
 type Service struct {
 	crypto types.Cryptor
@@ -27,8 +31,9 @@ func NewService(crypto types.Cryptor) *Service {
 	}
 }
 
-// Pack creates an encrypted archive of the given files
-func (s *Service) Pack(opts types.PackOptions) error {
+// Pack creates an encrypted archive of the given files. opts is by value
+// because the Archiver interface takes it that way.
+func (s *Service) Pack(opts types.PackOptions) error { //nolint:gocritic // hugeParam: interface signature
 	if len(opts.Files) == 0 {
 		return &types.ArchiveError{
 			Operation: "pack",
@@ -49,7 +54,8 @@ func (s *Service) Pack(opts types.PackOptions) error {
 		Files:       opts.Files,
 		TotalSize:   totalSize,
 		Description: opts.Description,
-		Version:     "1.0.0", // You might want to make this configurable
+		Version:     MetadataVersion,
+		Env:         opts.Env,
 	}
 
 	// Create temporary file for the tar archive
@@ -292,71 +298,88 @@ func (s *Service) Unpack(opts types.UnpackOptions) (*types.UnpackResult, error) 
 	return result, nil
 }
 
-// List returns the contents of an archive without extracting
-func (s *Service) List(archivePath, password string) (*types.Archive, error) {
-	// Read encrypted file
-	encryptedData, err := os.ReadFile(archivePath)
-	if err != nil {
-		return nil, &types.ArchiveError{
-			Operation: "list",
-			Path:      archivePath,
-			Err:       fmt.Errorf("failed to read archive: %w", err),
-		}
-	}
-
-	// Decrypt the data
-	tarData, err := s.crypto.Decrypt(encryptedData, password)
-	if err != nil {
-		return nil, &types.ArchiveError{
-			Operation: "list",
-			Path:      archivePath,
-			Err:       fmt.Errorf("failed to decrypt archive: %w", err),
-		}
-	}
-
-	// Create tar reader
-	tarReader := tar.NewReader(bytes.NewReader(tarData))
-
-	// Read metadata (should be first entry)
+// readMetadata consumes the first tar entry, which every archive stores as
+// metadata.json.
+func readMetadata(tarReader *tar.Reader) (*types.Archive, error) {
 	header, err := tarReader.Next()
 	if err != nil {
-		return nil, &types.ArchiveError{
-			Operation: "list",
-			Path:      archivePath,
-			Err:       fmt.Errorf("failed to read metadata: %w", err),
-		}
+		return nil, fmt.Errorf("failed to read metadata: %w", err)
 	}
-
 	if header.Name != "metadata.json" {
-		return nil, &types.ArchiveError{
-			Operation: "list",
-			Path:      archivePath,
-			Err:       fmt.Errorf("invalid archive format: missing metadata"),
-		}
+		return nil, fmt.Errorf("invalid archive format: missing metadata")
 	}
 
 	metadataBytes, err := io.ReadAll(tarReader)
 	if err != nil {
-		return nil, &types.ArchiveError{
-			Operation: "list",
-			Path:      archivePath,
-			Err:       fmt.Errorf("failed to read metadata: %w", err),
-		}
+		return nil, fmt.Errorf("failed to read metadata: %w", err)
 	}
 
 	var archive types.Archive
 	if err := json.Unmarshal(metadataBytes, &archive); err != nil {
-		return nil, &types.ArchiveError{
-			Operation: "list",
-			Path:      archivePath,
-			Err:       fmt.Errorf("failed to parse archive metadata: %w", err),
-		}
+		return nil, fmt.Errorf("failed to parse archive metadata: %w", err)
 	}
-
 	return &archive, nil
 }
 
-// GetAvailableArchives returns a list of available archive files
+// List returns the contents of an archive without extracting
+func (s *Service) List(archivePath, password string) (*types.Archive, error) {
+	tarData, err := s.decryptArchive(archivePath, password)
+	if err != nil {
+		return nil, &types.ArchiveError{Operation: "list", Path: archivePath, Err: err}
+	}
+
+	archive, err := readMetadata(tar.NewReader(bytes.NewReader(tarData)))
+	if err != nil {
+		return nil, &types.ArchiveError{Operation: "list", Path: archivePath, Err: err}
+	}
+	return archive, nil
+}
+
+// ReadFiles decrypts an archive entirely in memory and returns its metadata
+// plus the content of every entry keyed by relative path. Nothing touches
+// disk, which is what run and diff need.
+func (s *Service) ReadFiles(archivePath, password string) (*types.Archive, map[string][]byte, error) {
+	tarData, err := s.decryptArchive(archivePath, password)
+	if err != nil {
+		return nil, nil, &types.ArchiveError{Operation: "read", Path: archivePath, Err: err}
+	}
+
+	tarReader := tar.NewReader(bytes.NewReader(tarData))
+	archive, err := readMetadata(tarReader)
+	if err != nil {
+		return nil, nil, &types.ArchiveError{Operation: "read", Path: archivePath, Err: err}
+	}
+
+	files := make(map[string][]byte)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, nil, &types.ArchiveError{
+				Operation: "read",
+				Path:      archivePath,
+				Err:       fmt.Errorf("failed to read archive entry: %w", err),
+			}
+		}
+		data, err := io.ReadAll(tarReader)
+		if err != nil {
+			return nil, nil, &types.ArchiveError{
+				Operation: "read",
+				Path:      header.Name,
+				Err:       fmt.Errorf("failed to read archive entry: %w", err),
+			}
+		}
+		files[header.Name] = data
+	}
+
+	return archive, files, nil
+}
+
+// GetAvailableArchives returns every .enc file in dir (default .goingenv),
+// in filename order as os.ReadDir returns it. Callers that want the newest
+// archive rely on that order because default names carry a timestamp.
 func (s *Service) GetAvailableArchives(dir string) ([]string, error) {
 	var archives []string
 

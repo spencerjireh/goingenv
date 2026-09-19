@@ -72,6 +72,7 @@ func TestEveryPasswordInputUsesEchoPassword(t *testing.T) {
 		"Pack confirm": packTab(t, m).confirmInput,
 		"Unpack":       unpackTab(t, m).textInput,
 		"List":         listTab(t, m).textInput,
+		"Diff":         diffTab(t, m).textInput,
 	}
 
 	for name, ti := range inputs {
@@ -146,10 +147,14 @@ func TestMismatchMessageDoesNotSurviveReview(t *testing.T) {
 	}
 
 	send(t, m, keyMsg("esc"))
-	if tab.step != PackStepReview {
-		t.Fatalf("esc left the tab at step %d, want PackStepReview", tab.step)
+	if tab.step != PackStepOptions {
+		t.Fatalf("esc left the tab at step %d, want PackStepOptions", tab.step)
 	}
-	send(t, m, keyMsg("enter"))
+	send(t, m, keyMsg("esc"))
+	if tab.step != PackStepReview {
+		t.Fatalf("second esc left the tab at step %d, want PackStepReview", tab.step)
+	}
+	send(t, m, keyMsg("enter"), keyMsg("enter"))
 	if tab.step != PackStepPassword {
 		t.Fatalf("enter left the tab at step %d, want PackStepPassword", tab.step)
 	}
@@ -223,6 +228,16 @@ func unpackTab(t *testing.T, m *Model) *UnpackTab {
 	tab, ok := m.tabs[TabUnpack].(*UnpackTab)
 	if !ok {
 		t.Fatalf("tab %d is a %T, want *UnpackTab", TabUnpack, m.tabs[TabUnpack])
+	}
+	return tab
+}
+
+func diffTab(t *testing.T, m *Model) *DiffTab {
+	t.Helper()
+
+	tab, ok := m.tabs[TabDiff].(*DiffTab)
+	if !ok {
+		t.Fatalf("tab %d is a %T, want *DiffTab", TabDiff, m.tabs[TabDiff])
 	}
 	return tab
 }

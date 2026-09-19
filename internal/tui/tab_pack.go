@@ -22,13 +22,14 @@ const (
 	PackStepIdle     PackStep = iota // Press enter to scan
 	PackStepScanning                 // Spinner active
 	PackStepReview                   // Show scanned files
+	PackStepOptions                  // Environment name and manifest toggle
 	PackStepPassword                 // Enter password
 	PackStepConfirm                  // Re-enter password
 	PackStepPacking                  // Spinner active
 	PackStepResult                   // Success or error
 )
 
-var packStepNames = []string{"Scan", "Review", "Password", "Pack"}
+var packStepNames = []string{"Scan", "Review", "Options", "Password", "Pack"}
 
 // PackTab implements the Pack wizard tab.
 type PackTab struct {
@@ -39,6 +40,8 @@ type PackTab struct {
 	scannedFiles []types.EnvFile
 	textInput    textinput.Model
 	confirmInput textinput.Model
+	envInput     textinput.Model // optional environment name
+	manifest     bool            // write a manifest; seeded from config
 	spinner      spinner.Model
 	viewport     viewport.Model
 	vpReady      bool
@@ -58,14 +61,27 @@ func NewPackTab(app *types.App, debugLogger *DebugLogger) *PackTab {
 		step:         PackStepIdle,
 		textInput:    newPasswordInput("Enter password..."),
 		confirmInput: newPasswordInput("Re-enter password..."),
+		envInput:     newEnvInput(),
+		manifest:     app.Config != nil && app.Config.Manifest,
 		spinner:      s,
 	}
+}
+
+func newEnvInput() textinput.Model {
+	ti := newTextInput("optional, e.g. prod")
+	ti.CharLimit = 64
+	return ti
+}
+
+// manifestDefault is what reset() restores the toggle to.
+func (t *PackTab) manifestDefault() bool {
+	return t.app.Config != nil && t.app.Config.Manifest
 }
 
 func (t *PackTab) Title() string { return "Pack" }
 
 func (t *PackTab) InputFocused() bool {
-	return t.step == PackStepPassword || t.step == PackStepConfirm
+	return t.step == PackStepOptions || t.step == PackStepPassword || t.step == PackStepConfirm
 }
 
 func (t *PackTab) ShortHelp() []key.Binding {
@@ -76,6 +92,8 @@ func (t *PackTab) ShortHelp() []key.Binding {
 		return nil
 	case PackStepReview:
 		return []key.Binding{WizardKeys.Confirm, WizardKeys.Cancel}
+	case PackStepOptions:
+		return []key.Binding{PackKeys.ToggleManifest, WizardKeys.Confirm, WizardKeys.Back}
 	case PackStepPassword, PackStepConfirm:
 		return []key.Binding{WizardKeys.Confirm, WizardKeys.Cancel}
 	case PackStepResult:
@@ -87,6 +105,7 @@ func (t *PackTab) ShortHelp() []key.Binding {
 func (t *PackTab) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{WizardKeys.Start, WizardKeys.Confirm, WizardKeys.Cancel, WizardKeys.Reset},
+		{PackKeys.ToggleManifest},
 	}
 }
 
@@ -98,6 +117,8 @@ func (t *PackTab) Update(msg tea.Msg) (Tab, tea.Cmd) {
 		return t.updateScanning(msg)
 	case PackStepReview:
 		return t.updateReview(msg)
+	case PackStepOptions:
+		return t.updateOptions(msg)
 	case PackStepPassword:
 		return t.updatePassword(msg)
 	case PackStepConfirm:
@@ -160,12 +181,9 @@ func (t *PackTab) updateReview(msg tea.Msg) (Tab, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
 		case key.Matches(keyMsg, WizardKeys.Confirm):
-			t.step = PackStepPassword
-			// A mismatch message from an earlier attempt must not sit under
-			// a freshly cleared field.
+			t.step = PackStepOptions
 			t.errorMsg = ""
-			t.textInput.Reset()
-			t.textInput.Focus()
+			t.envInput.Focus()
 			return t, textinput.Blink
 		case key.Matches(keyMsg, WizardKeys.Cancel):
 			t.reset()
@@ -174,6 +192,40 @@ func (t *PackTab) updateReview(msg tea.Msg) (Tab, tea.Cmd) {
 	}
 
 	return t, scrollViewport(&t.viewport, t.vpReady, msg)
+}
+
+// updateOptions collects the environment name and the manifest toggle. Space
+// flips the toggle; everything else types into the name field.
+func (t *PackTab) updateOptions(msg tea.Msg) (Tab, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case key.Matches(keyMsg, PackKeys.ToggleManifest):
+			t.manifest = !t.manifest
+			return t, nil
+		case key.Matches(keyMsg, WizardKeys.Confirm):
+			if err := config.ValidateEnvName(t.envInput.Value()); err != nil {
+				t.errorMsg = err.Error()
+				return t, nil
+			}
+			t.step = PackStepPassword
+			// A mismatch message from an earlier attempt must not sit under
+			// a freshly cleared field.
+			t.errorMsg = ""
+			t.envInput.Blur()
+			t.textInput.Reset()
+			t.textInput.Focus()
+			return t, textinput.Blink
+		case key.Matches(keyMsg, WizardKeys.Back):
+			t.step = PackStepReview
+			t.errorMsg = ""
+			t.envInput.Blur()
+			return t, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	t.envInput, cmd = t.envInput.Update(msg)
+	return t, cmd
 }
 
 // updatePassword collects the archive password and asks for it a second time.
@@ -193,9 +245,10 @@ func (t *PackTab) updatePassword(msg tea.Msg) (Tab, tea.Cmd) {
 			t.confirmInput.Focus()
 			return t, textinput.Blink
 		case key.Matches(keyMsg, WizardKeys.Cancel):
-			t.step = PackStepReview
+			t.step = PackStepOptions
 			t.textInput.Blur()
-			return t, nil
+			t.envInput.Focus()
+			return t, textinput.Blink
 		}
 	}
 
@@ -228,7 +281,7 @@ func (t *PackTab) updateConfirm(msg tea.Msg) (Tab, tea.Cmd) {
 			t.errorMsg = ""
 			t.step = PackStepPacking
 			t.debugLogger.LogOperation("pack", "packing files")
-			return t, tea.Batch(t.spinner.Tick, PackFilesCmd(t.app, t.scannedFiles, password))
+			return t, tea.Batch(t.spinner.Tick, PackFilesCmd(t.app, t.scannedFiles, password, t.envInput.Value(), t.manifest))
 		case key.Matches(keyMsg, WizardKeys.Cancel):
 			// Keep the first entry so it can be edited rather than retyped.
 			t.errorMsg = ""
@@ -295,6 +348,9 @@ func (t *PackTab) reset() {
 	t.textInput.Blur()
 	t.confirmInput.Reset()
 	t.confirmInput.Blur()
+	t.envInput.Reset()
+	t.envInput.Blur()
+	t.manifest = t.manifestDefault()
 	t.vpReady = false
 }
 
@@ -325,6 +381,8 @@ func (t *PackTab) View(width, height int) string {
 		content = fmt.Sprintf("\n  %s Scanning for environment files...", t.spinner.View())
 	case PackStepReview:
 		content = t.renderReview(width, contentHeight)
+	case PackStepOptions:
+		content = t.renderOptions()
 	case PackStepPassword, PackStepConfirm:
 		content = t.renderPasswordEntry()
 	case PackStepPacking:
@@ -342,12 +400,33 @@ func (t *PackTab) stepIndex() int {
 		return 0
 	case PackStepReview:
 		return 1
-	case PackStepPassword, PackStepConfirm:
+	case PackStepOptions:
 		return 2
-	case PackStepPacking, PackStepResult:
+	case PackStepPassword, PackStepConfirm:
 		return 3
+	case PackStepPacking, PackStepResult:
+		return 4
 	}
 	return 0
+}
+
+// renderOptions shows the environment name field and the manifest toggle.
+func (t *PackTab) renderOptions() string {
+	var b strings.Builder
+	b.WriteString("\n")
+	b.WriteString(RenderSectionHeader(fmt.Sprintf("  Packing %d files", len(t.scannedFiles))) + "\n\n")
+	b.WriteString("  Environment: " + t.envInput.View() + "\n")
+	b.WriteString("  " + MutedStyle.Render("Names the archive <env>-<timestamp>.enc; leave blank for archive-<timestamp>.enc") + "\n\n")
+	box := "[ ]"
+	if t.manifest {
+		box = "[x]"
+	}
+	fmt.Fprintf(&b, "  %s Manifest  %s\n", box, MutedStyle.Render("(space to toggle) writes file paths and key names, never values, beside the archive"))
+
+	if t.errorMsg != "" {
+		b.WriteString("\n  " + ErrorStyle.Render(t.errorMsg))
+	}
+	return b.String()
 }
 
 func (t *PackTab) renderReview(width, height int) string {

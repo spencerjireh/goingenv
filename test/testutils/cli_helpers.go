@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -59,25 +60,7 @@ func RunCLIWithPassword(t *testing.T, workDir, password string, args ...string) 
 	env := map[string]string{"GOINGENV_PASSWORD": password}
 	binary := BuildBinary(t)
 
-	// Check if this is a command that needs password
-	// Add --password-env GOINGENV_PASSWORD if not already specified
-	if len(args) > 0 {
-		cmd := args[0]
-		needsPassword := cmd == "pack" || cmd == "unpack" || cmd == "list"
-
-		if needsPassword {
-			hasPasswordEnv := false
-			for _, arg := range args {
-				if arg == "--password-env" || strings.HasPrefix(arg, "--password-env=") {
-					hasPasswordEnv = true
-					break
-				}
-			}
-			if !hasPasswordEnv {
-				args = append(args, "--password-env", "GOINGENV_PASSWORD")
-			}
-		}
-	}
+	args = withPasswordEnvFlag(args)
 
 	return runBinaryCommand(t, binary, workDir, env, args...)
 }
@@ -177,6 +160,38 @@ func (e *BuildError) Error() string {
 	return e.Err.Error() + ": " + e.Stderr
 }
 
+// withPasswordEnvFlag appends --password-env GOINGENV_PASSWORD to a command
+// that opens an archive, unless the caller already chose a password source.
+func withPasswordEnvFlag(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
+	switch args[0] {
+	case "pack", "unpack", "list", "run", "diff":
+	default:
+		return args
+	}
+	for _, arg := range args {
+		if arg == "--password-env" || strings.HasPrefix(arg, "--password-env=") || arg == "--password-stdin" {
+			return args
+		}
+	}
+	// run stops flag parsing at the command, so its flags must precede it.
+	if args[0] == "run" {
+		return append([]string{"run", "--password-env", "GOINGENV_PASSWORD"}, args[1:]...)
+	}
+	return append(args, "--password-env", "GOINGENV_PASSWORD")
+}
+
+// RunCLIWithStdin executes the goingenv CLI with the given standard input.
+// It does not set GOINGENV_PASSWORD: the point is to exercise
+// --password-stdin and stdin passthrough.
+func RunCLIWithStdin(t *testing.T, workDir, stdin string, env map[string]string, args ...string) CLIResult {
+	t.Helper()
+	binary := BuildBinary(t)
+	return runBinaryCommandStdin(t, binary, workDir, env, strings.NewReader(stdin), args...)
+}
+
 // RunBinary executes the compiled binary with the given arguments
 func RunBinary(t *testing.T, binaryPath, workDir string, args ...string) CLIResult {
 	t.Helper()
@@ -195,25 +210,7 @@ func RunBinaryWithPassword(t *testing.T, binaryPath, workDir, password string, a
 	t.Helper()
 	env := map[string]string{"GOINGENV_PASSWORD": password}
 
-	// Check if this is a command that needs password
-	// Add --password-env GOINGENV_PASSWORD if not already specified
-	if len(args) > 0 {
-		cmd := args[0]
-		needsPassword := cmd == "pack" || cmd == "unpack" || cmd == "list"
-
-		if needsPassword {
-			hasPasswordEnv := false
-			for _, arg := range args {
-				if arg == "--password-env" || strings.HasPrefix(arg, "--password-env=") {
-					hasPasswordEnv = true
-					break
-				}
-			}
-			if !hasPasswordEnv {
-				args = append(args, "--password-env", "GOINGENV_PASSWORD")
-			}
-		}
-	}
+	args = withPasswordEnvFlag(args)
 
 	return runBinaryCommand(t, binaryPath, workDir, env, args...)
 }
@@ -221,22 +218,35 @@ func RunBinaryWithPassword(t *testing.T, binaryPath, workDir, password string, a
 // runBinaryCommand runs the compiled binary with the provided arguments
 func runBinaryCommand(t *testing.T, binaryPath, workDir string, env map[string]string, args ...string) CLIResult {
 	t.Helper()
+	return runBinaryCommandStdin(t, binaryPath, workDir, env, nil, args...)
+}
+
+// runBinaryCommandStdin is runBinaryCommand with an explicit standard input.
+// CLICommand returns an unstarted command for the built binary with the same
+// isolation every RunCLI helper applies. Tests that need the process itself
+// (to signal it, or to read its output as it runs) start this directly.
+func CLICommand(t *testing.T, workDir string, env map[string]string, args ...string) *exec.Cmd {
+	t.Helper()
+	return newBinaryCommand(t, BuildBinary(t), workDir, env, args...)
+}
+
+// newBinaryCommand builds the exec.Cmd every spawned binary runs as.
+//
+// HOME is redirected at a per-run temp directory so the binary reads and
+// writes an isolated ~/.goingenv.json instead of the developer's real one.
+// Without this every CLI and E2E test is implicitly parameterised by
+// whatever config happens to be on the machine.
+//
+// os/exec dedupes Cmd.Env and keeps the LAST occurrence of each key, so
+// appending after os.Environ() is a genuine override -- no manual dedupe
+// needed. Caller-supplied env is appended last so it can still win.
+func newBinaryCommand(t *testing.T, binaryPath, workDir string, env map[string]string, args ...string) *exec.Cmd {
+	t.Helper()
 
 	cmd := exec.Command(binaryPath, args...)
 	if workDir != "" {
 		cmd.Dir = workDir
 	}
-
-	// Set up environment.
-	//
-	// HOME is redirected at a per-run temp directory so the binary reads and
-	// writes an isolated ~/.goingenv.json instead of the developer's real one.
-	// Without this every CLI and E2E test is implicitly parameterised by
-	// whatever config happens to be on the machine.
-	//
-	// os/exec dedupes Cmd.Env and keeps the LAST occurrence of each key, so
-	// appending after os.Environ() is a genuine override -- no manual dedupe
-	// needed. Caller-supplied env is appended last so it can still win.
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "HOME="+TestHome(t))
 	if dir := coverDir(); dir != "" {
@@ -247,6 +257,14 @@ func runBinaryCommand(t *testing.T, binaryPath, workDir string, env map[string]s
 	for k, v := range env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
+	return cmd
+}
+
+func runBinaryCommandStdin(t *testing.T, binaryPath, workDir string, env map[string]string, stdin io.Reader, args ...string) CLIResult {
+	t.Helper()
+
+	cmd := newBinaryCommand(t, binaryPath, workDir, env, args...)
+	cmd.Stdin = stdin
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

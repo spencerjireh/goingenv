@@ -46,6 +46,7 @@ type ConfigInfo struct {
 	Patterns    []string `json:"patterns"`
 	Excludes    []string `json:"excludes,omitempty"`
 	EnvExcludes []string `json:"env_excludes,omitempty"`
+	Manifest    bool     `json:"manifest"`
 }
 
 // StatusPayload is the `goingenv status --format json` document.
@@ -72,6 +73,7 @@ type ListArchiveInfo struct {
 	CreatedAt   time.Time `json:"created_at"`
 	Version     string    `json:"version"`
 	Description string    `json:"description,omitempty"`
+	Env         string    `json:"env,omitempty"`
 }
 
 // PackPayload is the `goingenv pack --format json` document. DryRun is
@@ -79,6 +81,8 @@ type ListArchiveInfo struct {
 // without inspecting the filesystem.
 type PackPayload struct {
 	Archive   string     `json:"archive"`
+	Env       string     `json:"env,omitempty"`
+	Manifest  string     `json:"manifest,omitempty"`
 	Files     []FileInfo `json:"files"`
 	Count     int        `json:"count"`
 	TotalSize int64      `json:"total_size"`
@@ -96,6 +100,38 @@ type UnpackPayload struct {
 	Count   int        `json:"count"`
 	Skipped []string   `json:"skipped"`
 	DryRun  bool       `json:"dry_run"`
+}
+
+// DiffSide names one side of a diff: an archive, or the env files on disk.
+type DiffSide struct {
+	Kind string `json:"kind"` // "archive" or "worktree"
+	Path string `json:"path,omitempty"`
+}
+
+// KeyDiff is one key that differs between the two sides. Values are never
+// included: the diff exists so a change can be reviewed without them.
+type KeyDiff struct {
+	Key    string `json:"key"`
+	Change string `json:"change"` // "added", "removed" or "changed"
+}
+
+// FileDiff is one file that differs. A file that exists on only one side is
+// "added" or "removed" and lists every key with the same change, so a
+// consumer counting key changes needs no special case. A file on both sides
+// with differing keys is "modified".
+type FileDiff struct {
+	Path   string    `json:"path"`
+	Status string    `json:"status"`
+	Keys   []KeyDiff `json:"keys"`
+}
+
+// DiffPayload is the `goingenv diff --format json` document. Files holds only
+// the files that differ; Changed is false when it is empty.
+type DiffPayload struct {
+	From    DiffSide   `json:"from"`
+	To      DiffSide   `json:"to"`
+	Files   []FileDiff `json:"files"`
+	Changed bool       `json:"changed"`
 }
 
 // InitPayload is the `goingenv init --format json` document. Created is false
@@ -136,10 +172,14 @@ func toFileInfos(files []types.EnvFile) []FileInfo {
 //	pack              path <TAB> size <TAB> modified
 //	unpack            path <TAB> size <TAB> modified
 //	init              dir  <TAB> created
+//	diff file         file <TAB> path <TAB> added|removed
+//	diff key          key  <TAB> path <TAB> KEY <TAB> added|removed|changed
 //
-// status emits two record kinds, so its rows are prefixed with a type column
-// ("env" or "archive") to keep them distinguishable in a single stream.
+// status and diff emit two record kinds, so their rows are prefixed with a
+// type column to keep them distinguishable in a single stream.
 const (
 	porcelainKindEnv     = "env"
 	porcelainKindArchive = "archive"
+	porcelainKindFile    = "file"
+	porcelainKindKey     = "key"
 )

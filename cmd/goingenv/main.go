@@ -28,6 +28,6 @@ func main() {
 		// to use -- which corrupted every machine-readable format and any
 		// `goingenv ... > file` redirect.
 		cli.ReportError(err)
-		os.Exit(1)
+		os.Exit(cli.ExitCode(err))
 	}
 }

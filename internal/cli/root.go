@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -100,6 +101,8 @@ operations as the subcommands below.`,
 	rootCmd.AddCommand(newUnpackCommand())
 	rootCmd.AddCommand(newListCommand())
 	rootCmd.AddCommand(newStatusCommand())
+	rootCmd.AddCommand(newDiffCommand())
+	rootCmd.AddCommand(newRunCommand())
 
 	return rootCmd
 }
@@ -140,8 +143,14 @@ var activeFormat = FormatText
 //
 // Always stderr, never stdout, so a machine-readable stdout stays parseable
 // (or empty) on failure. The exit code remains the primary signal.
+//
+// An ExitError with a nil Err is silent: it only sets the exit status.
 func ReportError(err error) {
 	if err == nil {
+		return
+	}
+	var exitErr *ExitError
+	if errors.As(err, &exitErr) && exitErr.Err == nil {
 		return
 	}
 	NewOutputFormat(appVersion, activeFormat).EmitError(err)

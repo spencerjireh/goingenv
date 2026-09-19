@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"goingenv/internal/config"
+	"goingenv/internal/crypto"
 	"goingenv/pkg/types"
 )
 
@@ -449,4 +450,12 @@ func CreateInitializedTempDir(t *testing.T, pattern string) string {
 	tmpDir := CreateTempDir(t, pattern)
 	CreateTempGoingEnvDir(t, tmpDir)
 	return tmpDir
+}
+
+// FastCrypto returns a crypto service with the smallest Argon2id parameters
+// the format accepts. Decrypt reads the parameters from the blob header, so
+// archives it writes go through exactly the production code path; only the
+// key derivation is cheaper.
+func FastCrypto() *crypto.Service {
+	return crypto.NewServiceWithParams(crypto.Params{Time: 1, MemoryKiB: 8 * 1024, Threads: 1})
 }

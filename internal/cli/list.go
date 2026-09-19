@@ -32,14 +32,18 @@ The list command:
 - Optionally filters those files by pattern
 
 Examples:
-  goingenv list -f backup.enc                           # Interactive password prompt
+  goingenv list                                         # Newest unnamed archive, prompt for password
+  goingenv list --env prod                              # Newest prod-<timestamp>.enc
+  goingenv list -f backup.enc                           # A specific archive
   goingenv list --password-env MY_PASSWORD --all        # List all archives with env password
+  goingenv list --all --env prod                        # Only the prod archives
   goingenv list -f archive.enc --pattern "*.env.prod*"  # Filter files by pattern`,
 		RunE: runListCommand,
 	}
 
-	cmd.Flags().String("password-env", "", "Read the password from this environment variable")
-	cmd.Flags().StringP("file", "f", "", "List this archive (required unless --all is used)")
+	addPasswordFlags(cmd)
+	addEnvFlag(cmd)
+	cmd.Flags().StringP("file", "f", "", "List this archive (default: most recent for the environment)")
 	cmd.Flags().Bool("all", false, "List contents of all available archives")
 	cmd.Flags().BoolP("verbose", "v", false, "Show detailed file information")
 	cmd.Flags().Bool("sizes", false, "Show detailed output")
@@ -74,42 +78,39 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	passwordOpts := password.Options{PasswordEnv: opts.PassEnv}
-
 	if opts.All {
-		return listAllArchives(out, app, passwordOpts, opts.Verbose)
+		return listAllArchives(out, app, opts)
 	}
 
-	if opts.Archive == "" {
-		return fmt.Errorf("archive file is required: use the -f flag, or --all to list every archive")
+	if opts.Archive, err = pickArchive(app, opts.Archive, opts.Env); err != nil {
+		return err
 	}
 
 	if _, statErr := os.Stat(opts.Archive); os.IsNotExist(statErr) {
 		return fmt.Errorf("archive not found: %s", opts.Archive)
 	}
 
-	if validateErr := password.ValidatePasswordOptions(passwordOpts); validateErr != nil {
-		return fmt.Errorf("invalid password options: %w", validateErr)
-	}
-
-	key, err := password.GetPassword(passwordOpts)
+	key, cleanup, err := getPass(opts.PassOpts, opts.Env, false)
 	if err != nil {
-		return fmt.Errorf("failed to get password: %w", err)
+		return err
 	}
-	defer password.ClearPassword(&key)
+	defer cleanup()
 
 	out.Header()
 	out.Blank()
 
 	archive, err := app.Archiver.List(opts.Archive, key)
 	if err != nil {
-		return fmt.Errorf("failed to read archive: wrong password, or the file is corrupted")
+		return describeDecryptError(err)
 	}
 
 	// Archive info
 	out.Section(filepath.Base(opts.Archive))
 	out.Indent(fmt.Sprintf("Created: %s", archive.CreatedAt.Format(constants.DateTimeFormat)))
 	out.Indent(fmt.Sprintf("Version: %s", archive.Version))
+	if archive.Env != "" {
+		out.Indent(fmt.Sprintf("Environment: %s", archive.Env))
+	}
 	out.Blank()
 
 	filesToShow := archive.Files
@@ -145,14 +146,32 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// listAllArchives lists contents of all available archives
-func listAllArchives(out *Output, app *types.App, passwordOpts password.Options, verbose bool) error { //nolint:unparam // error return kept for consistency
+// listAllArchives lists every archive, or every archive for --env.
+//
+// With --verbose the password is resolved once, up front, from the
+// non-interactive sources only: stdin can be read a single time, and a prompt
+// per archive would be hostile. Without one the listing degrades to names
+// and sizes. Without --verbose nothing is decrypted, so no password is
+// resolved: an unset --password-env or an empty stdin must not fail a plain
+// listing.
+func listAllArchives(out *Output, app *types.App, opts *ListOpts) error {
 	archives, err := app.Archiver.GetAvailableArchives("")
 	if err != nil {
 		out.Header()
 		out.Blank()
-		out.Error(fmt.Sprintf("Failed to find archives: %v", err))
-		return nil
+		return fmt.Errorf("failed to find archives: %w", err)
+	}
+	if opts.Env != "" {
+		archives = archivesForEnv(archives, opts.Env)
+	}
+
+	var key string
+	var haveKey bool
+	if opts.Verbose {
+		if key, haveKey, err = password.ResolveNonInteractive(passwordOptionsFor(opts.PassOpts, opts.Env, false)); err != nil {
+			return err
+		}
+		defer password.ClearPassword(&key)
 	}
 
 	out.Header()
@@ -178,27 +197,33 @@ func listAllArchives(out *Output, app *types.App, passwordOpts password.Options,
 		out.Indent(fmt.Sprintf("    Size: %s", utils.FormatSize(info.Size())))
 		out.Indent(fmt.Sprintf("    Modified: %s", info.ModTime().Format(constants.DateTimeFormat)))
 
-		if verbose && passwordOpts.PasswordEnv != "" {
-			if key, keyErr := password.GetPassword(passwordOpts); keyErr == nil {
-				archive, listErr := app.Archiver.List(archivePath, key)
-				password.ClearPassword(&key)
-				if listErr == nil {
-					out.Indent(fmt.Sprintf("    Files: %d", len(archive.Files)))
-					out.Indent(fmt.Sprintf("    Total size: %s", utils.FormatSize(archive.TotalSize)))
-				} else {
-					out.Indent("    Status: Cannot read (wrong password or corrupted)")
-				}
-			}
+		if opts.Verbose && haveKey {
+			describeArchive(out, app, archivePath, key)
 		}
 
 		out.Blank()
 	}
 
-	if passwordOpts.PasswordEnv == "" && verbose {
-		out.Hint("Provide a password with --password-env to see detailed archive information")
+	if opts.Verbose && !haveKey {
+		out.Hint("Provide a password with --password-env or --password-stdin to see detailed archive information")
 	}
 
 	return nil
+}
+
+// describeArchive adds the decrypted summary lines for one archive in the
+// --all --verbose listing.
+func describeArchive(out *Output, app *types.App, archivePath, key string) {
+	archive, listErr := app.Archiver.List(archivePath, key)
+	if listErr != nil {
+		out.Indent(fmt.Sprintf("    Status: cannot read (%v)", describeDecryptError(listErr)))
+		return
+	}
+	out.Indent(fmt.Sprintf("    Files: %d", len(archive.Files)))
+	out.Indent(fmt.Sprintf("    Total size: %s", utils.FormatSize(archive.TotalSize)))
+	if archive.Env != "" {
+		out.Indent(fmt.Sprintf("    Environment: %s", archive.Env))
+	}
 }
 
 // displayFilesTable displays files in table format
@@ -311,6 +336,7 @@ func emitListResult(out *Output, archive *types.Archive, files []types.EnvFile, 
 				CreatedAt:   archive.CreatedAt,
 				Version:     archive.Version,
 				Description: archive.Description,
+				Env:         archive.Env,
 			},
 			Files: toFileInfos(files),
 			Count: len(files),

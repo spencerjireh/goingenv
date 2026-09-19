@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"goingenv/internal/crypto"
 	"goingenv/pkg/types"
+	"goingenv/test/testutils"
 )
 
 func TestService_Pack(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory for test files
@@ -103,7 +103,7 @@ func TestService_Pack(t *testing.T) {
 }
 
 func TestService_Unpack(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory for test files
@@ -208,7 +208,7 @@ func TestService_Unpack(t *testing.T) {
 }
 
 func TestService_List(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory for test files
@@ -297,7 +297,7 @@ func TestService_List(t *testing.T) {
 }
 
 func TestService_GetAvailableArchives(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory
@@ -337,7 +337,7 @@ func TestService_GetAvailableArchives(t *testing.T) {
 }
 
 func TestService_GetAvailableArchives_NonExistentDir(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	archives, err := service.GetAvailableArchives("/nonexistent/path")
@@ -410,7 +410,7 @@ func TestSafePath(t *testing.T) {
 }
 
 func TestService_Unpack_PathTraversalPrevention(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory
@@ -476,7 +476,7 @@ func TestService_Unpack_PathTraversalPrevention(t *testing.T) {
 }
 
 func TestService_Unpack_AbsolutePathPrevention(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory
@@ -541,7 +541,7 @@ func TestService_Unpack_AbsolutePathPrevention(t *testing.T) {
 }
 
 func TestService_PackUnpack_RoundTrip(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory
@@ -626,7 +626,7 @@ func TestService_PackUnpack_RoundTrip(t *testing.T) {
 }
 
 func TestService_Unpack_OverwriteAndBackup(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory
@@ -710,7 +710,7 @@ func TestService_Unpack_OverwriteAndBackup(t *testing.T) {
 // to the user: a file left alone because it already exists must be reported
 // as skipped, not counted as restored.
 func TestService_Unpack_ReportsExtractedAndSkipped(t *testing.T) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 	tmpDir := t.TempDir()
 	password := "testpassword123"
@@ -798,7 +798,7 @@ func TestService_Unpack_IncludeExclude(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := NewService(crypto.NewService())
+			service := NewService(testutils.FastCrypto())
 			tmpDir := t.TempDir()
 			const password = "testpassword123"
 			archivePath := packThreeFiles(t, service, tmpDir, password)
@@ -840,7 +840,7 @@ func TestService_Unpack_IncludeExclude(t *testing.T) {
 }
 
 func BenchmarkPack(b *testing.B) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory
@@ -881,7 +881,7 @@ func BenchmarkPack(b *testing.B) {
 }
 
 func BenchmarkUnpack(b *testing.B) {
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	service := NewService(cryptoService)
 
 	// Create temp directory

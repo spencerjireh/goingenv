@@ -126,7 +126,7 @@ goingenv/
 | `internal/cli/` | Cobra commands: `init`, `pack`, `unpack`, `list`, `status` |
 | `internal/tui/` | Bubbletea tabbed UI; one `tab_*.go` per tab, no screen state machine |
 | `internal/archive/` | Tar compression, delegates encryption to crypto |
-| `internal/crypto/` | AES-256-GCM with PBKDF2 key derivation |
+| `internal/crypto/` | AES-256-GCM with Argon2id key derivation behind a versioned header |
 | `internal/scanner/` | Regex pattern matching with depth-limited `filepath.Walk` |
 | `internal/config/` | Resolves and loads project/user config, saves to `~/.goingenv.json` |
 | `pkg/types/` | Interfaces (`Scanner`, `Archiver`, `Cryptor`, `ConfigManager`) + func-field mocks |
@@ -200,12 +200,12 @@ state rather than model state, so it still needs a human at `make tui`.
 
 | # | Check | Covered by |
 |---|---|---|
-| 1 | Header, footer and tab bar render; all five tab names visible | `TestModel_ViewRendersAllTabs` |
-| 2 | `1`-`5` select tabs; `tab`/`shift+tab` cycle and wrap | `TestModel_TabNavigation` |
+| 1 | Header, footer and tab bar render; all six tab names visible | `TestModel_ViewRendersAllTabs` |
+| 2 | `1`-`6` select tabs; `tab`/`shift+tab` cycle and wrap | `TestModel_TabNavigation` |
 | 3 | Clicking a tab selects it; dragging across the bar with the button held does not | `TestModel_MouseTabClick`, `TestModel_DragAcrossTabBarKeepsTheSelection` |
 | 4 | The wheel does not switch tabs | `TestModel_WheelDoesNotSelectTabs` |
-| 5 | Unpack picker: opens in `.goingenv`, lists every archive, selection advances | `TestUnpackTab_*` in `filepicker_test.go` |
-| 6 | List picker: the same, as a separate instance | `TestListTab_*` in `filepicker_test.go` |
+| 5 | Unpack list: lists every archive, the environment filter narrows it on the `env-` prefix, typing into it never switches tabs, selection advances | `TestUnpackTab_*` in `unpack_filter_test.go` |
+| 6 | List and Diff pickers: open in `.goingenv`, list every archive, selection advances | `TestListTab_*`, `TestDiffTab_*` in `filepicker_test.go` |
 | 7 | Password fields mask what is typed, including the Pack confirm field | `TestPasswordFieldsAreMasked`, `TestEveryPasswordInputUsesEchoPassword` |
 | 8 | `?` toggles help; any key closes it; suppressed while typing | `TestModel_HelpOverlay` |
 | 9 | Confirmation modal: `y` confirms, `n`/`esc` cancel, other keys are swallowed | `TestModel_ConfirmModal` |
@@ -213,6 +213,8 @@ state rather than model state, so it still needs a human at `make tui`.
 | 11 | No panic from 0x0 up to 300x100 | `TestModel_ViewAtExtremeSizes` |
 | 12 | **`q` quits and the alt-screen is restored** | `TestModel_Quit` covers the quit; **alt-screen restore is manual** |
 | 13 | Pack and unpack results list every file, scrollable, never truncated | `TestPackResultListsEveryFile`, `TestUnpackResultListsExtractedAndSkipped` |
+| 14 | Pack options: digits typed into the environment field do not switch tabs, an invalid name is refused with a reason, the manifest toggle starts at the config value and space flips it, the name reaches the archiver as the file prefix | `TestPackOptions*`, `TestPackManifest*`, `TestPackFilesCmdUsesEnvAndManifest` |
+| 15 | Diff tab: pick A, pick B or `w` for the working tree, one password, the report names keys and never values, an error lands on the tab after switching away | `TestDiffTab_*`, `TestDiffErrorReachesTabAfterSwitch` in `diff_test.go` |
 
 Item 12 is the whole manual pass. `tea.WithAltScreen()` is applied in
 `internal/cli/root.go`, outside the model, so nothing a headless test can reach
@@ -289,6 +291,17 @@ func (t *NewFeatureTab) View(width, height int) string     { ... }
 
 // Register the TabID and construct it in model.go
 ```
+
+Registration touches more than `model.go`, and the pieces must agree or the
+tab bar, number keys and mouse hit-testing silently disagree:
+
+- `model.go`: add the `TabID` before `tabCount` and bump the count; construct
+  the tab in `NewModel`; route its completion message type to it in `Update`
+- `layout.go`: append the name to `tabNames`, in enum order
+- `keys.go`: add a `TabN` binding and list it in `numberKeyTab` in `model.go`
+- `model_test.go`: add the binding to `TestModel_KeyBindingsDoNotPanic` and
+  the tab to `TestModel_TabNavigation`
+- this checklist: a row for what the tab does
 
 For a multi-step (wizard) tab, give each step its own `update<Step>` method and
 keep `Update` as a dispatch switch over `t.step`. `tab_pack.go` is the model to

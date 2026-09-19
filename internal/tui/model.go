@@ -20,7 +20,8 @@ const (
 	TabList
 	TabStatus
 	TabSettings
-	tabCount = 5
+	TabDiff
+	tabCount = 6
 )
 
 // Tab is the interface every tab must implement.
@@ -41,6 +42,7 @@ type (
 	PackCompleteMsg   string
 	UnpackCompleteMsg types.UnpackResult
 	ListCompleteMsg   string
+	DiffCompleteMsg   string
 	ScanCompleteMsg   []types.EnvFile
 	ProgressMsg       float64
 )
@@ -111,6 +113,7 @@ func NewModel(app *types.App, verbose bool, version string) *Model {
 	m.tabs[TabList] = NewListTab(app, debugLogger)
 	m.tabs[TabStatus] = NewStatusTab(app, debugLogger)
 	m.tabs[TabSettings] = NewSettingsTab(app, debugLogger)
+	m.tabs[TabDiff] = NewDiffTab(app, debugLogger)
 
 	debugLogger.Log("TUI Model initialized (tabbed layout) with verbose logging: %v", verbose)
 	if verbose {
@@ -134,7 +137,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.help.Width = msg.Width
 		m.debugLogger.Log("Window resized: %dx%d", msg.Width, msg.Height)
-		// Tabs need this too. The archive pickers on Unpack and List size
+		// Tabs need this too. The archive pickers on List and Diff size
 		// themselves from it (bubbles filepicker AutoHeight), and until this
 		// was forwarded their height stayed 0, so they listed at most one
 		// archive however many existed.
@@ -169,6 +172,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ListCompleteMsg:
 		return m.routeTo(TabList, msg)
+
+	case DiffCompleteMsg:
+		return m.routeTo(TabDiff, msg)
 
 	case ErrorMsg:
 		return m.routeTo(msg.Tab, msg)
@@ -251,20 +257,9 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.activeTab = (m.activeTab + tabCount - 1) % tabCount
 			m.debugLogger.Log("Tab switched to: %s", tabNames[m.activeTab])
 			return m, nil
-		case key.Matches(msg, GlobalKeys.Tab1):
-			m.activeTab = TabPack
-			return m, nil
-		case key.Matches(msg, GlobalKeys.Tab2):
-			m.activeTab = TabUnpack
-			return m, nil
-		case key.Matches(msg, GlobalKeys.Tab3):
-			m.activeTab = TabList
-			return m, nil
-		case key.Matches(msg, GlobalKeys.Tab4):
-			m.activeTab = TabStatus
-			return m, nil
-		case key.Matches(msg, GlobalKeys.Tab5):
-			m.activeTab = TabSettings
+		}
+		if tab, ok := numberKeyTab(msg); ok {
+			m.activeTab = tab
 			return m, nil
 		}
 
@@ -278,6 +273,27 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	updated, cmd := m.tabs[m.activeTab].Update(msg)
 	m.tabs[m.activeTab] = updated
 	return m, cmd
+}
+
+// numberKeyTab maps the digit bindings to their tab.
+func numberKeyTab(msg tea.KeyMsg) (TabID, bool) {
+	bindings := []struct {
+		binding key.Binding
+		tab     TabID
+	}{
+		{GlobalKeys.Tab1, TabPack},
+		{GlobalKeys.Tab2, TabUnpack},
+		{GlobalKeys.Tab3, TabList},
+		{GlobalKeys.Tab4, TabStatus},
+		{GlobalKeys.Tab5, TabSettings},
+		{GlobalKeys.Tab6, TabDiff},
+	}
+	for _, b := range bindings {
+		if key.Matches(msg, b.binding) {
+			return b.tab, true
+		}
+	}
+	return 0, false
 }
 
 func (m *Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
