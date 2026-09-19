@@ -32,6 +32,9 @@ make ci-full            # Run all CI checks locally -- run this before pushing
 # Release artifacts (goreleaser snapshot, publishes nothing)
 make release-local
 
+# Website background (public/bg.png) from assets/dither.py, via uv
+make bg
+
 # TUI development (sandbox in /tmp/goingenv-sandbox)
 make tui                # Build and launch TUI in the sandbox (password: test1234)
 make tui-watch          # Same as tui but with hot-reload via air
@@ -167,7 +170,9 @@ repo's pinned rules.
   Every test fails loudly when it finds no subjects, rather than passing
   vacuously. `llms_test.go` covers `public/llms.txt` the same way: its
   outline, that every raw GitHub link in it resolves to a file in the repo,
-  and that the page's agent prompt points at it
+  and that the page's agent prompt points at it. `TestSite_CSSImagesExist`
+  resolves every `url()` in the inline CSS against `public/`, since the
+  background image is invisible to the DOM-based asset check
 - Shared helpers in `test/testutils/`:
   - `CreateTempGoingEnvDir()` -- required setup for archive tests (creates `.goingenv/` dir)
   - `CreateTempEnvFiles()` -- generates temp dir with sample .env files and excludable dirs

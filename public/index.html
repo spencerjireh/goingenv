@@ -82,9 +82,20 @@
         scroll-padding-top: 3.5rem;
       }
 
+      /* The field: a dithered collage (assets/dither.py) in the margins
+         outside the frame. Fixed, so the page slides over it; the scroll
+         variant is the three commented lines. Sections paint solid --base
+         over it; the hero lets a tenth through. */
       body {
         margin: 0;
         background-color: var(--base);
+        background-image: url("bg.png");
+        background-size: cover;
+        background-position: center top;
+        background-attachment: fixed;
+        /* background-attachment: scroll;
+           background-size: 100% auto;
+           background-repeat: no-repeat; */
         color: var(--text);
         font-family: var(--font-mono);
         font-size: 15px;
@@ -186,6 +197,7 @@
 
       footer {
         border-top: 1px solid var(--border);
+        background-color: var(--base);
       }
 
       .site-header nav,
@@ -279,6 +291,7 @@
 
       .hero {
         padding-block: 4.5rem 3rem;
+        background-color: rgba(18, 20, 23, 0.9);
       }
 
       /* Capped in ch so the break lands after "archives" at every size the
@@ -302,6 +315,7 @@
       main section {
         padding-block: 2.5rem;
         border-top: 1px solid var(--border);
+        background-color: var(--base);
       }
 
       h2 {
@@ -585,6 +599,11 @@
       @media (prefers-reduced-motion: reduce) {
         html {
           scroll-behavior: auto;
+        }
+
+        /* A fixed background is parallax by another name. */
+        body {
+          background-attachment: scroll;
         }
 
         *,

@@ -271,6 +271,11 @@ shellcheck:
 link-check:
 	lychee --no-progress $(LINK_SOURCES)
 
+# Regenerates the website background (public/bg.png) from assets/dither.py.
+# Needs uv and the network on first run; downloads are cached and verified.
+bg:
+	uv run assets/dither.py
+
 lint:
 	golangci-lint run --config=.golangci.yml
 	actionlint
@@ -401,6 +406,7 @@ help:
 	@printf "  lint              golangci-lint, actionlint and shellcheck\n"
 	@printf "  shellcheck        install.sh and its test suite only\n"
 	@printf "  link-check        lychee over the docs and the website (needs network)\n"
+	@printf "  bg                Regenerate the website background, public/bg.png\n"
 	@printf "  vuln-check        govulncheck\n"
 	@printf "  check             fmt + vet + lint + test\n"
 	@printf "\n"
@@ -431,6 +437,6 @@ help:
         release-local release-check \
         test test-unit test-integration test-cli test-e2e test-install test-site \
         test-complete test-coverage test-coverage-ci coverage-collect test-bench test-clean \
-        fmt vet lint shellcheck link-check vuln-check deps check \
+        fmt vet lint shellcheck link-check bg vuln-check deps check \
         run tui tui-sandbox tui-watch tui-clean \
         stats help

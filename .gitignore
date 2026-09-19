@@ -83,3 +83,6 @@ coverage-data/
 
 # Playwright MCP screenshots and snapshots
 .playwright-mcp/
+
+# Downloads verified and cached by assets/dither.py
+assets/.cache/
