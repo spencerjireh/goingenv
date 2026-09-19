@@ -79,7 +79,7 @@
 
       html {
         scroll-behavior: smooth;
-        scroll-padding-top: 2rem;
+        scroll-padding-top: 3.5rem;
       }
 
       body {
@@ -174,7 +174,13 @@
         font-size: 0.875rem;
       }
 
+      /* Pinned. Opaque rather than blurred: it is the top edge of the
+         frame, and the vertical rules scroll under it. */
       .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background-color: var(--base);
         border-bottom: 1px solid var(--border);
       }
 
@@ -498,6 +504,22 @@
       @media (max-width: 40rem) {
         body {
           font-size: 14px;
+        }
+
+        /* Only the nav row stays pinned: the header sticks with its brand
+           row parked above the viewport. --brand-row is the row's height
+           in both places so they cannot drift apart. */
+        html {
+          --brand-row: 2.75rem;
+          scroll-padding-top: 3rem;
+        }
+
+        .brand {
+          height: var(--brand-row);
+        }
+
+        .site-header {
+          top: calc(-1 * var(--brand-row));
         }
 
         .wrap {
