@@ -151,7 +151,9 @@ func runListCommand(cmd *cobra.Command, args []string) error {
 // With --verbose the password is resolved once, up front, from the
 // non-interactive sources only: stdin can be read a single time, and a prompt
 // per archive would be hostile. Without one the listing degrades to names
-// and sizes.
+// and sizes. Without --verbose nothing is decrypted, so no password is
+// resolved: an unset --password-env or an empty stdin must not fail a plain
+// listing.
 func listAllArchives(out *Output, app *types.App, opts *ListOpts) error {
 	archives, err := app.Archiver.GetAvailableArchives("")
 	if err != nil {
@@ -163,11 +165,14 @@ func listAllArchives(out *Output, app *types.App, opts *ListOpts) error {
 		archives = archivesForEnv(archives, opts.Env)
 	}
 
-	key, haveKey, err := password.ResolveNonInteractive(passwordOptionsFor(opts.PassOpts, opts.Env, false))
-	if err != nil {
-		return err
+	var key string
+	var haveKey bool
+	if opts.Verbose {
+		if key, haveKey, err = password.ResolveNonInteractive(passwordOptionsFor(opts.PassOpts, opts.Env, false)); err != nil {
+			return err
+		}
+		defer password.ClearPassword(&key)
 	}
-	defer password.ClearPassword(&key)
 
 	out.Header()
 	out.Blank()

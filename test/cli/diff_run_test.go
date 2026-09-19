@@ -1,10 +1,14 @@
 package cli_test
 
 import (
+	"bufio"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"goingenv/test/testutils"
 )
@@ -156,5 +160,75 @@ func TestRun_ExitCodesAndStdin(t *testing.T) {
 	testutils.AssertSuccess(t, passthrough)
 	if strings.TrimSpace(passthrough.Stdout) != "hello from stdin" {
 		t.Errorf("child stdin = %q", passthrough.Stdout)
+	}
+}
+
+// runAndSignal starts `goingenv run -- sh -c script`, waits for the script to
+// print "ready", sends sig to goingenv alone, and returns the rest of the
+// child's stdout with goingenv's exit code.
+func runAndSignal(t *testing.T, dir, pw string, sig syscall.Signal, script string) (stdout string, code int) {
+	t.Helper()
+	cmd := testutils.CLICommand(t, dir, map[string]string{"GOINGENV_PASSWORD": pw}, "run", "--", "sh", "-c", script)
+	pipe, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd.Stderr = os.Stderr
+	if err = cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	reader := bufio.NewReader(pipe)
+	ready, err := reader.ReadString('\n')
+	if err != nil || strings.TrimSpace(ready) != "ready" {
+		t.Fatalf("waiting for the child: line %q, err %v", ready, err)
+	}
+	if err = cmd.Process.Signal(sig); err != nil {
+		t.Fatal(err)
+	}
+
+	rest, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err = <-done:
+	case <-time.After(15 * time.Second):
+		if killErr := cmd.Process.Kill(); killErr != nil {
+			t.Log(killErr)
+		}
+		t.Fatal("goingenv did not exit after the signal")
+	}
+	if err == nil {
+		return string(rest), 0
+	}
+	return string(rest), cmd.ProcessState.ExitCode()
+}
+
+// A signal sent to goingenv alone reaches the child; a terminal signal does
+// not get relayed, because the terminal already delivered it to the child.
+func TestRun_SignalForwarding(t *testing.T) {
+	dir, cleanup := testutils.CLITestSetupWithEnvFiles(t)
+	defer cleanup()
+	testutils.InitializeTestDir(t, dir)
+	pw := testutils.GetTestFixtures().Password
+	testutils.AssertSuccess(t, testutils.RunCLIWithPassword(t, dir, pw, "pack"))
+
+	// `sleep & wait` lets the trap run as soon as the signal lands; a
+	// foreground sleep would defer it until the sleep ended.
+	out, code := runAndSignal(t, dir, pw, syscall.SIGTERM,
+		`trap 'kill $! 2>/dev/null; echo got TERM; exit 0' TERM; echo ready; sleep 10 & wait`)
+	if code != 0 || !strings.Contains(out, "got TERM") {
+		t.Errorf("SIGTERM: exit %d, stdout %q; want the child to see the signal", code, out)
+	}
+
+	// SIGINT to goingenv only: the parent must survive and must not pass it
+	// on, so the child runs to completion untouched.
+	out, code = runAndSignal(t, dir, pw, syscall.SIGINT,
+		`trap 'echo got INT' INT; echo ready; sleep 1; echo done`)
+	if code != 0 || strings.Contains(out, "got INT") || !strings.Contains(out, "done") {
+		t.Errorf("SIGINT: exit %d, stdout %q; want the child untouched and goingenv alive", code, out)
 	}
 }

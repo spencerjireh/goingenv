@@ -247,6 +247,31 @@ func TestLegacyArchiveIsRejectedWithRemedy(t *testing.T) {
 	testutils.AssertStderrContains(t, result, "v1.6.0")
 }
 
+// Without --verbose nothing is decrypted, so an unusable password source
+// must not fail the listing.
+func TestList_AllWithoutVerboseNeedsNoPassword(t *testing.T) {
+	dir, cleanup := testutils.CLITestSetupWithEnvFiles(t)
+	defer cleanup()
+	testutils.InitializeTestDir(t, dir)
+	pw := testutils.GetTestFixtures().Password
+	testutils.AssertSuccess(t, testutils.RunCLIWithPassword(t, dir, pw, "pack", "-o", "a.enc"))
+
+	unsetEnv := testutils.RunCLI(t, dir, "list", "--all", "--password-env", "GOINGENV_TEST_UNSET_VAR")
+	testutils.AssertSuccess(t, unsetEnv)
+	testutils.AssertStdoutContains(t, unsetEnv, "a.enc")
+
+	emptyStdin := testutils.RunCLIWithStdin(t, dir, "", nil, "list", "--all", "--password-stdin")
+	testutils.AssertSuccess(t, emptyStdin)
+	testutils.AssertStdoutContains(t, emptyStdin, "a.enc")
+
+	// An ambient password is not read either, so no warning about it appears.
+	ambient := testutils.RunCLIWithPassword(t, dir, pw, "list", "--all")
+	testutils.AssertSuccess(t, ambient)
+	if strings.Contains(ambient.Stderr, "GOINGENV_PASSWORD") {
+		t.Errorf("a plain --all listing warned about a password it never used:\n%s", ambient.Stderr)
+	}
+}
+
 func TestList_AllVerboseReadsStdinOnce(t *testing.T) {
 	dir, cleanup := testutils.CLITestSetupWithEnvFiles(t)
 	defer cleanup()

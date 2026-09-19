@@ -65,7 +65,9 @@ All major services are defined as interfaces enabling mock-based testing:
   salt, nonce, ciphertext; the header is GCM additional data. Params are read
   from the header on decrypt, so tests use `testutils.FastCrypto()` for small
   ones. A headerless 1.x blob surfaces `types.ErrLegacyArchive`, which
-  `cli.describeDecryptError` passes through unchanged
+  `cli.describeDecryptError` passes through unchanged; header errors (newer
+  version, unsupported KDF or params) keep their text too, and only
+  `types.ErrDecryptFailed` collapses to the wrong-password message
 - `ConfigManager` -- loads from `.goingenv/config.json` or `~/.goingenv.json` (first wins), always saves to `~/.goingenv.json`, checks project initialization
 
 Mock implementations live in `pkg/types/mocks.go` (func-field based, not generated).

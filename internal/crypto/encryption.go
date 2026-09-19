@@ -57,6 +57,10 @@ const (
 	TagSize = 16
 	// MinBlobSize is the smallest well-formed blob: prefix plus a tag.
 	MinBlobSize = PrefixSize + TagSize
+	// legacyMinBlobSize is the smallest blob the 1.x format could produce:
+	// salt, nonce and a GCM tag. Anything shorter without the magic is
+	// truncated or empty, not a legacy archive.
+	legacyMinBlobSize = SaltSize + NonceSize + TagSize
 
 	// DefaultArgonTime, DefaultArgonMemoryKiB and DefaultArgonThreads are the
 	// RFC 9106 second recommended option (t=3, m=64 MiB, p=4).
@@ -116,10 +120,15 @@ func encodeHeader(h Header) []byte {
 }
 
 // parseHeader decodes the fixed header. A blob without the magic is reported
-// as ErrLegacyArchive; a blob with the magic but unknown version, KDF or key
-// mode is reported as newer than this build.
+// as ErrLegacyArchive when it is at least as long as a 1.x blob could be, and
+// as too short otherwise, so an empty or truncated file is not sent to an old
+// version that cannot read it either. A blob with the magic but unknown
+// version, KDF or key mode is reported as newer than this build.
 func parseHeader(data []byte) (Header, error) {
 	if len(data) < len(Magic) || string(data[0:4]) != Magic {
+		if len(data) < legacyMinBlobSize {
+			return Header{}, errors.New("invalid encrypted data: too short")
+		}
 		return Header{}, types.ErrLegacyArchive
 	}
 	if len(data) < HeaderSize {

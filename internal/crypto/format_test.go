@@ -84,6 +84,39 @@ func TestFormat_LegacyBlobIsRejectedWithRemedy(t *testing.T) {
 	}
 }
 
+// An empty or truncated file has no magic either, but sending the user to
+// v1.6.0 for it would fail there too: it must read as too short.
+func TestFormat_ShortBlobWithoutMagicIsNotLegacy(t *testing.T) {
+	short := make([]byte, legacyMinBlobSize-1)
+	if _, err := rand.Read(short); err != nil {
+		t.Fatal(err)
+	}
+	if string(short[:4]) == Magic {
+		short[0] ^= 0xFF
+	}
+	for name, blob := range map[string][]byte{"nil": nil, "empty": {}, "short": short} {
+		_, err := newTestService().Decrypt(blob, "pw")
+		if err == nil || errors.Is(err, types.ErrLegacyArchive) {
+			t.Errorf("%s: Decrypt err = %v, want too short and not ErrLegacyArchive", name, err)
+		}
+		if _, err := Inspect(blob); err == nil || errors.Is(err, types.ErrLegacyArchive) {
+			t.Errorf("%s: Inspect err = %v, want too short and not ErrLegacyArchive", name, err)
+		}
+	}
+
+	// The boundary itself is the smallest 1.x blob and keeps the remedy.
+	boundary := make([]byte, legacyMinBlobSize)
+	if _, err := rand.Read(boundary); err != nil {
+		t.Fatal(err)
+	}
+	if string(boundary[:4]) == Magic {
+		boundary[0] ^= 0xFF
+	}
+	if _, err := Inspect(boundary); !errors.Is(err, types.ErrLegacyArchive) {
+		t.Errorf("boundary: err = %v, want ErrLegacyArchive", err)
+	}
+}
+
 func TestFormat_UnknownVersionKDFOrModeIsNotLegacy(t *testing.T) {
 	cases := []struct {
 		name   string

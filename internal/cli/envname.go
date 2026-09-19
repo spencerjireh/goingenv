@@ -85,12 +85,23 @@ func resolveArchiveArg(arg string) string {
 }
 
 // describeDecryptError is what a command returns when an archive would not
-// open. The legacy-format sentinel carries its own remedy and passes through;
-// everything else collapses to the generic message, since a wrong password
-// and a corrupted file are indistinguishable by design.
+// open. Only the authentication failure collapses to the generic message,
+// since a wrong password and a corrupted file are indistinguishable by
+// design. The legacy-format sentinel carries its own remedy and passes
+// through bare; other header errors (a newer format version, an unsupported
+// KDF or key mode, out-of-range parameters) keep their text so the user is
+// told to upgrade rather than to retype the password. Anything else -- a
+// read error, a broken tar -- is already descriptive and is returned as is.
 func describeDecryptError(err error) error {
-	if errors.Is(err, types.ErrLegacyArchive) {
+	switch {
+	case errors.Is(err, types.ErrLegacyArchive):
 		return types.ErrLegacyArchive
+	case errors.Is(err, types.ErrDecryptFailed):
+		return fmt.Errorf("failed to decrypt archive: %w", types.ErrDecryptFailed)
 	}
-	return fmt.Errorf("failed to decrypt archive: %w", types.ErrDecryptFailed)
+	var cryptoErr *types.CryptoError
+	if errors.As(err, &cryptoErr) {
+		return fmt.Errorf("cannot open archive: %w", cryptoErr.Err)
+	}
+	return err
 }

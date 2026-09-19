@@ -144,8 +144,16 @@ func sortedKeys(m map[string][]byte) []string {
 }
 
 // execWithEnv runs argv with vars layered over the current environment and
-// returns an ExitError carrying the child's status. Signals are forwarded so
-// a Ctrl-C or a supervisor's SIGTERM reaches the child.
+// returns an ExitError carrying the child's status.
+//
+// Signals split two ways. SIGTERM, SIGHUP and SIGUSR1/2 are sent to goingenv
+// alone (by a supervisor, or kill), so they are relayed to the child. SIGINT
+// and SIGQUIT come from the terminal, which delivers them to the whole
+// foreground process group: the child already has them, and relaying would
+// hand it a second copy that many programs treat as "force quit". Those two
+// are caught only so goingenv stays alive to report the child's exit status.
+// They are caught rather than ignored because SIG_IGN survives exec and would
+// make the child deaf to Ctrl-C too.
 func execWithEnv(argv []string, vars map[string]string) error {
 	path, err := exec.LookPath(argv[0])
 	if err != nil {
@@ -167,14 +175,19 @@ func execWithEnv(argv []string, vars map[string]string) error {
 
 	signals := make(chan os.Signal, 8)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGUSR1, syscall.SIGUSR2)
-	defer signal.Stop(signals)
 	go func() {
 		for sig := range signals {
+			if sig == os.Interrupt || sig == syscall.SIGQUIT {
+				continue
+			}
 			_ = child.Process.Signal(sig) //nolint:errcheck // the child may already have exited
 		}
 	}()
 
 	err = child.Wait()
+	// Stop before close: Notify sends without blocking, and a send on a
+	// closed channel panics. Stop guarantees no delivery once it returns.
+	signal.Stop(signals)
 	close(signals)
 	return childExit(err)
 }

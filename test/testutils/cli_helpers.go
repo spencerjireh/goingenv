@@ -222,25 +222,31 @@ func runBinaryCommand(t *testing.T, binaryPath, workDir string, env map[string]s
 }
 
 // runBinaryCommandStdin is runBinaryCommand with an explicit standard input.
-func runBinaryCommandStdin(t *testing.T, binaryPath, workDir string, env map[string]string, stdin io.Reader, args ...string) CLIResult {
+// CLICommand returns an unstarted command for the built binary with the same
+// isolation every RunCLI helper applies. Tests that need the process itself
+// (to signal it, or to read its output as it runs) start this directly.
+func CLICommand(t *testing.T, workDir string, env map[string]string, args ...string) *exec.Cmd {
+	t.Helper()
+	return newBinaryCommand(t, BuildBinary(t), workDir, env, args...)
+}
+
+// newBinaryCommand builds the exec.Cmd every spawned binary runs as.
+//
+// HOME is redirected at a per-run temp directory so the binary reads and
+// writes an isolated ~/.goingenv.json instead of the developer's real one.
+// Without this every CLI and E2E test is implicitly parameterised by
+// whatever config happens to be on the machine.
+//
+// os/exec dedupes Cmd.Env and keeps the LAST occurrence of each key, so
+// appending after os.Environ() is a genuine override -- no manual dedupe
+// needed. Caller-supplied env is appended last so it can still win.
+func newBinaryCommand(t *testing.T, binaryPath, workDir string, env map[string]string, args ...string) *exec.Cmd {
 	t.Helper()
 
 	cmd := exec.Command(binaryPath, args...)
 	if workDir != "" {
 		cmd.Dir = workDir
 	}
-	cmd.Stdin = stdin
-
-	// Set up environment.
-	//
-	// HOME is redirected at a per-run temp directory so the binary reads and
-	// writes an isolated ~/.goingenv.json instead of the developer's real one.
-	// Without this every CLI and E2E test is implicitly parameterised by
-	// whatever config happens to be on the machine.
-	//
-	// os/exec dedupes Cmd.Env and keeps the LAST occurrence of each key, so
-	// appending after os.Environ() is a genuine override -- no manual dedupe
-	// needed. Caller-supplied env is appended last so it can still win.
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "HOME="+TestHome(t))
 	if dir := coverDir(); dir != "" {
@@ -251,6 +257,14 @@ func runBinaryCommandStdin(t *testing.T, binaryPath, workDir string, env map[str
 	for k, v := range env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
+	return cmd
+}
+
+func runBinaryCommandStdin(t *testing.T, binaryPath, workDir string, env map[string]string, stdin io.Reader, args ...string) CLIResult {
+	t.Helper()
+
+	cmd := newBinaryCommand(t, binaryPath, workDir, env, args...)
+	cmd.Stdin = stdin
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

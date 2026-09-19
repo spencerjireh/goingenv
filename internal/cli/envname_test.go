@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"goingenv/pkg/types"
@@ -92,6 +93,21 @@ func TestDescribeDecryptError(t *testing.T) {
 	other := &types.ArchiveError{Operation: "list", Err: types.ErrDecryptFailed}
 	if got := describeDecryptError(other); !errors.Is(got, types.ErrDecryptFailed) {
 		t.Errorf("other: got %v", got)
+	}
+
+	// A header the build cannot read is a reason to upgrade, not a wrong
+	// password: the text must survive and the generic message must not appear.
+	newer := &types.ArchiveError{Operation: "list", Err: fmt.Errorf("failed to decrypt archive: %w",
+		&types.CryptoError{Operation: "decrypt", Err: errors.New("archive format version 2 is newer than this goingenv")})}
+	got := describeDecryptError(newer)
+	if errors.Is(got, types.ErrDecryptFailed) || !strings.Contains(got.Error(), "version 2 is newer") {
+		t.Errorf("newer: got %v", got)
+	}
+
+	// Errors from outside the crypto layer are already descriptive.
+	readErr := &types.ArchiveError{Operation: "list", Err: fmt.Errorf("failed to read archive: %w", os.ErrPermission)}
+	if got := describeDecryptError(readErr); got != readErr {
+		t.Errorf("read: got %v, want the error unchanged", got)
 	}
 }
 
