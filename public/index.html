@@ -651,8 +651,19 @@ Environment Files (3)
         <p class="section-intro">
           Linux and macOS, x86_64 and ARM64. On Windows, use
           <a href="https://docs.microsoft.com/en-us/windows/wsl/install">WSL</a>.
-          The script above verifies the download against the release checksums and
-          refuses to install if they do not match.
+        </p>
+
+        <div class="code">
+          <pre><code>curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash</code></pre>
+          <button class="copy" type="button" aria-label="Copy install command"
+            data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
+        <p class="note">
+          The script verifies the download against the release checksums and refuses to
+          install if they do not match.
         </p>
 
         <h3>A specific version</h3>
