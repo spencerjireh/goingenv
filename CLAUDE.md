@@ -165,7 +165,9 @@ repo's pinned rules.
   assert structure, accessibility and the claims the page makes. The site has
   no build step, so these are the only check between an edit and production.
   Every test fails loudly when it finds no subjects, rather than passing
-  vacuously
+  vacuously. `llms_test.go` covers `public/llms.txt` the same way: its
+  outline, that every raw GitHub link in it resolves to a file in the repo,
+  and that the page's agent prompt points at it
 - Shared helpers in `test/testutils/`:
   - `CreateTempGoingEnvDir()` -- required setup for archive tests (creates `.goingenv/` dir)
   - `CreateTempEnvFiles()` -- generates temp dir with sample .env files and excludable dirs

@@ -50,7 +50,8 @@
          CLI, so the page is set in it too. Two widths: --frame is the page
          (the headline, code, the transcript and tables span it) and
          --measure caps running text inside it, since 60 characters of
-         monospace is as wide as a paragraph should get.
+         monospace is as wide as a paragraph should get. The header and
+         footer sit outside the frame, on the viewport edges.
          --------------------------------------------------------------- */
       :root {
         --base: #121417;
@@ -65,7 +66,7 @@
 
         --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
-        --frame: 54rem;
+        --frame: 64rem;
         --measure: 60ch;
         --gutter: 1.5rem;
       }
@@ -135,7 +136,6 @@
       /* Running text is capped at --measure; everything else spans the
          frame. One rule, so it never fights the per-element margins. */
       .lede,
-      .disclaimer,
       .section-intro,
       .note,
       section > p,
@@ -159,59 +159,69 @@
         top: 1rem;
       }
 
-      /* --- Header ---------------------------------------------------- */
+      /* --- Header and footer ------------------------------------------
+         Both are rows of cells on the viewport edges, divided by the same
+         hairline the tables and section rules use. The frame's vertical
+         rules drop from the header's bottom line and land on the footer's
+         top line, so the four lines close a rectangle.
+         --------------------------------------------------------------- */
+
+      .site-header,
+      footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        font-size: 0.875rem;
+      }
 
       .site-header {
         border-bottom: 1px solid var(--border);
       }
 
-      .site-header .wrap {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding-block: 0.75rem;
+      footer {
+        border-top: 1px solid var(--border);
       }
 
-      /* Nav items are drawn cells that share their edges, the same
-         hairline the tables and section rules use. */
-      .site-header nav {
+      .site-header nav,
+      footer nav {
         display: flex;
         flex-wrap: wrap;
-        font-size: 0.875rem;
+        margin-left: auto;
       }
 
-      .site-header nav a {
-        color: var(--muted);
-        border: 1px solid var(--border);
-        padding: 0.3rem 0.75rem;
-        margin-left: -1px;
+      .site-header nav a,
+      footer nav a,
+      .brand,
+      footer p {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.6rem 1rem;
         line-height: 1.5;
       }
 
-      .site-header nav a:first-child {
-        margin-left: 0;
+      .site-header nav a,
+      footer nav a {
+        color: var(--muted);
+        border-left: 1px solid var(--border);
       }
 
-      .site-header nav a:hover {
+      .site-header nav a:hover,
+      footer nav a:hover {
         color: var(--text);
-        border-color: var(--slate);
         text-decoration: none;
-        position: relative;
       }
 
-      .site-header nav a:focus-visible {
-        position: relative;
-        outline-offset: 0;
+      .site-header nav a:focus-visible,
+      footer nav a:focus-visible {
+        outline-offset: -2px;
       }
 
       .brand {
-        display: inline-flex;
-        align-items: center;
         gap: 0.5rem;
         color: var(--text);
         font-size: 0.9375rem;
         font-weight: 500;
+        border-right: 1px solid var(--border);
       }
 
       .brand:hover {
@@ -224,59 +234,37 @@
         flex: none;
       }
 
-      /* --- Frame corners ---------------------------------------------
-         The logomark is [●]; the page is bracketed the same way. main
-         draws the top pair and footer the bottom pair, at the frame edge
-         outside the gutter. Hidden where the viewport has no margin to
-         draw in.
+      /* --- Frame rules -------------------------------------------------
+         Two vertical hairlines at the frame edges, running the full height
+         of main. Shown only where the viewport leaves a margin to draw in.
          --------------------------------------------------------------- */
 
-      main,
-      footer {
+      main {
         position: relative;
       }
 
       main::before,
-      main::after,
-      footer::before,
-      footer::after {
+      main::after {
         content: "";
         position: absolute;
-        width: 12px;
-        height: 12px;
-        border: 0 solid var(--slate);
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background-color: var(--border);
         display: none;
       }
 
-      main::before,
-      main::after {
-        top: 2rem;
-        border-top-width: 1px;
-      }
-
-      footer::before,
-      footer::after {
-        bottom: 1.5rem;
-        border-bottom-width: 1px;
-      }
-
-      main::before,
-      footer::before {
+      main::before {
         left: calc(50% - var(--frame) / 2);
-        border-left-width: 1px;
       }
 
-      main::after,
-      footer::after {
+      main::after {
         right: calc(50% - var(--frame) / 2);
-        border-right-width: 1px;
       }
 
-      @media (min-width: 58rem) {
+      @media (min-width: 68rem) {
         main::before,
-        main::after,
-        footer::before,
-        footer::after {
+        main::after {
           display: block;
         }
       }
@@ -287,11 +275,14 @@
         padding-block: 4.5rem 3rem;
       }
 
+      /* Capped in ch so the break lands after "archives" at every size the
+         frame allows, rather than leaving "can commit" alone on line two. */
       .hero h1 {
         font-size: clamp(1.75rem, 6vw, 3.5rem);
         line-height: 1.1;
         letter-spacing: -0.02em;
         margin: 0 0 1.5rem;
+        max-width: 25ch;
       }
 
       .hero .lede {
@@ -300,17 +291,8 @@
         margin: 0 0 2rem;
       }
 
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.5rem;
-        align-items: center;
-        margin-top: 2rem;
-      }
-
-      .cta {
-        color: var(--signal);
-        font-weight: 500;
+      .hero .code {
+        margin-bottom: 2rem;
       }
 
       /* --- Sections -------------------------------------------------- */
@@ -371,14 +353,6 @@
         margin-top: 0.5rem;
       }
 
-      .disclaimer {
-        font-size: 0.875rem;
-        color: var(--dim);
-        border-left: 2px solid var(--slate);
-        padding-left: 0.75rem;
-        margin: 1rem 0 0;
-      }
-
       /* --- Code blocks ----------------------------------------------- */
 
       .code {
@@ -399,6 +373,13 @@
         overflow-x: auto;
         font-size: 0.875rem;
         color: var(--text);
+      }
+
+      /* A block of prose to paste, not a command: it wraps, and a long URL
+         breaks rather than pushing the block past the frame. */
+      .code-prose pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
       }
 
       .copy {
@@ -441,7 +422,7 @@
 
       .terminal {
         background-color: var(--surface);
-        margin: 2rem 0;
+        margin: 0 0 1rem;
       }
 
       .terminal pre {
@@ -509,28 +490,6 @@
         margin-right: 0.5rem;
       }
 
-      /* --- Footer ---------------------------------------------------- */
-
-      footer {
-        border-top: 1px solid var(--border);
-        padding-block: 2rem 3.5rem;
-        font-size: 0.875rem;
-      }
-
-      footer .wrap {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem 1.5rem;
-        align-items: center;
-        justify-content: space-between;
-      }
-
-      footer nav {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.25rem;
-      }
-
       footer p {
         margin: 0;
         max-width: none;
@@ -561,12 +520,37 @@
           padding-block: 2rem;
         }
 
-        .actions {
-          gap: 1rem;
+        /* Brand and nav become two rows; the nav row gets its own top
+           line and its cells spread across it. */
+        .brand {
+          border-right: 0;
         }
 
-        .site-header nav a {
-          padding: 0.25rem 0.5rem;
+        .site-header nav,
+        footer nav {
+          flex: 1 0 100%;
+          border-top: 1px solid var(--border);
+        }
+
+        /* Each cell carries its own top line, overlapping the nav's, so a
+           cell that wraps to a second row still has a line above it. */
+        .site-header nav a,
+        footer nav a {
+          flex: 1 1 auto;
+          justify-content: center;
+          padding: 0.5rem 0.5rem;
+          font-size: 0.8125rem;
+          border-top: 1px solid var(--border);
+          margin-top: -1px;
+        }
+
+        .site-header nav a:first-child,
+        footer nav a:first-child {
+          border-left: 0;
+        }
+
+        footer p {
+          flex: 1 0 100%;
         }
 
         .terminal pre {
@@ -578,10 +562,6 @@
           white-space: normal;
         }
 
-        /* The brand wordmark is redundant with the nav on a narrow screen. */
-        .brand span {
-          display: none;
-        }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -620,18 +600,17 @@
     </svg>
 
     <header class="site-header">
-      <div class="wrap">
-        <a class="brand" href="#main">
-          <svg aria-hidden="true" focusable="false"><use href="#i-logo" /></svg>
-          <span>goingenv</span>
-        </a>
-        <nav aria-label="Sections">
-          <a href="#install">Install</a>
-          <a href="#usage">Usage</a>
-          <a href="#scripting">Scripting</a>
-          <a href="#configuration">Config</a>
-        </nav>
-      </div>
+      <a class="brand" href="#main">
+        <svg aria-hidden="true" focusable="false"><use href="#i-logo" /></svg>
+        <span>goingenv</span>
+      </a>
+      <nav aria-label="Sections">
+        <a href="#install">Install</a>
+        <a href="#agents">Agents</a>
+        <a href="#usage">Usage</a>
+        <a href="#scripting">Scripting</a>
+        <a href="#configuration">Config</a>
+      </nav>
     </header>
 
     <main id="main">
@@ -643,11 +622,14 @@
           terminal UI over the same commands.
         </p>
 
-        <p class="disclaimer">
-          Developed with AI assistance, and not formally
-          <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">security
-          audited</a>. Assess it yourself before using it with sensitive data.
-        </p>
+        <div class="code">
+          <pre><code>curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash</code></pre>
+          <button class="copy" type="button" aria-label="Copy install command"
+            data-copy="curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
 
         <div class="terminal">
           <pre><code><span class="p">$</span> <span class="u">goingenv status</span>
@@ -661,12 +643,6 @@ Environment Files (3)
 
 <span class="p">[&gt;]</span> Packing 3 files...
 <span class="ok">[+]</span> Created .goingenv/archive-20260910-124213.enc</code></pre>
-        </div>
-
-        <div class="actions">
-          <a class="cta" href="#install">Install</a>
-          <a href="https://github.com/spencerjireh/goingenv">GitHub</a>
-          <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">Security</a>
         </div>
       </div>
 
@@ -720,6 +696,36 @@ Environment Files (3)
           <a href="https://github.com/spencerjireh/goingenv/releases/tag/v1.6.0">v1.6.0</a>
           (install it with <code>--version v1.6.0</code> above), then re-pack with 2.0.0. The tool
           says exactly this when it meets an old archive.
+        </p>
+      </section>
+
+      <section id="agents" class="wrap">
+        <h2>Agents</h2>
+        <p class="section-intro">
+          Paste this into your coding agent. It installs the tool, reads the
+          documentation and sets the rules for handling secrets.
+        </p>
+        <div class="code code-prose">
+          <pre><code>Install goingenv:
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
+Then read https://spencerjireh.github.io/goingenv/llms.txt and the documents it links.
+Use it to pack, unpack, diff and run this project's .env files. Never print, log or
+commit decrypted values. The password comes from GOINGENV_PASSWORD or a prompt, never
+from the repository.</code></pre>
+          <button class="copy" type="button" aria-label="Copy agent prompt"
+            data-copy="Install goingenv:
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
+Then read https://spencerjireh.github.io/goingenv/llms.txt and the documents it links.
+Use it to pack, unpack, diff and run this project's .env files. Never print, log or
+commit decrypted values. The password comes from GOINGENV_PASSWORD or a prompt, never
+from the repository.">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
+        <p class="note">
+          The same summary is served as <a href="llms.txt">llms.txt</a> for tools
+          that look for one.
         </p>
       </section>
 
@@ -957,15 +963,13 @@ Environment Files (3)
     </main>
 
     <footer>
-      <div class="wrap">
-        <p>MIT licensed. Built with Go.</p>
-        <nav aria-label="Project links">
-          <a href="https://github.com/spencerjireh/goingenv">GitHub</a>
-          <a href="https://github.com/spencerjireh/goingenv/releases">Releases</a>
-          <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">Security</a>
-          <a href="https://github.com/spencerjireh/goingenv/issues">Issues</a>
-        </nav>
-      </div>
+      <p>MIT licensed. Built with Go.</p>
+      <nav aria-label="Project links">
+        <a href="https://github.com/spencerjireh/goingenv">GitHub</a>
+        <a href="https://github.com/spencerjireh/goingenv/releases">Releases</a>
+        <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/spencerjireh/goingenv/issues">Issues</a>
+      </nav>
     </footer>
 
     <script>
