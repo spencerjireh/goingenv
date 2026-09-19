@@ -633,11 +633,18 @@ Environment Files (3)
           <li><strong>From source:</strong> needs Go 1.26 or newer, then <code>go build ./cmd/goingenv</code>.</li>
           <li>Re-running the installer upgrades in place. Add <code>--cleanup-all</code> to remove old backups and duplicate installations.</li>
         </ul>
+        <p class="note">
+          <strong>Upgrading from 1.x:</strong> 2.0.0 uses a new archive format and does not read
+          archives packed by earlier versions. Unpack those with
+          <a href="https://github.com/spencerjireh/goingenv/releases/tag/v1.6.0">v1.6.0</a>
+          (install it with <code>--version v1.6.0</code> above), then re-pack with 2.0.0. The tool
+          says exactly this when it meets an old archive.
+        </p>
       </section>
 
       <section id="usage" class="wrap">
         <h2><span class="prompt" aria-hidden="true">&gt;_</span>Usage</h2>
-        <p class="section-intro">Four commands cover the whole workflow.</p>
+        <p class="section-intro">Four commands cover the basic workflow; two more review and use an archive without unpacking it.</p>
 
         <div class="step">
           <p><span class="step-n">01</span>Set up <code>.goingenv/</code> in your project.</p>
@@ -688,6 +695,36 @@ Environment Files (3)
           </p>
         </div>
 
+        <h3>Review and run</h3>
+        <p>Once an archive is committed, two commands work on it without writing anything to disk.</p>
+        <div class="code">
+          <pre><code>goingenv diff</code></pre>
+          <button class="copy" type="button" aria-label="Copy: goingenv diff" data-copy="goingenv diff">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
+        <p class="note">
+          Which keys the newest archive and the working tree disagree on — names only, never
+          values. Add <code>--exit-code</code> to fail a CI job when they differ.
+        </p>
+        <div class="code">
+          <pre><code>goingenv run -- npm start</code></pre>
+          <button class="copy" type="button" aria-label="Copy: goingenv run" data-copy="goingenv run -- npm start">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
+        <p class="note">
+          Runs the command with the archive's variables in its environment. The archive is
+          decrypted in memory; no file is written.
+        </p>
+        <p class="note">
+          <code>--env prod</code> on any command names the archive
+          <code>prod-&lt;timestamp&gt;.enc</code>, picks the newest one when reading, and looks
+          for the password in <code>GOINGENV_PASSWORD_PROD</code> first.
+        </p>
+
         <h3>Every command</h3>
         <div class="table-scroll">
           <table>
@@ -701,6 +738,8 @@ Environment Files (3)
               <tr><td><code>goingenv pack</code></td><td>Encrypt env files into an archive</td></tr>
               <tr><td><code>goingenv unpack</code></td><td>Decrypt an archive and restore files</td></tr>
               <tr><td><code>goingenv list</code></td><td>Show an archive's contents without extracting</td></tr>
+              <tr><td><code>goingenv diff</code></td><td>Show which keys differ between archives, or an archive and the working tree</td></tr>
+              <tr><td><code>goingenv run -- CMD</code></td><td>Run a command with an archive's variables in its environment</td></tr>
             </tbody>
           </table>
         </div>
