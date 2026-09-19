@@ -101,15 +101,15 @@ For TUI implementation using 256-color or ANSI:
 
 ### Font Stack
 
-**Monospace (Primary):**
+**Monospace (the only family):**
 ```
 JetBrains Mono, IBM Plex Mono, SF Mono, Consolas, monospace
 ```
 
-**Sans-serif (Secondary, documentation only):**
-```
-Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif
-```
+The website is set entirely in the monospace stack, running text included,
+so the page reads in the same face as the wordmark, the TUI and the CLI.
+Paragraphs are capped at 60 characters; headings, code and tables span the
+full page frame.
 
 ### Usage Guidelines
 
@@ -117,8 +117,9 @@ Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif
 |------------------|-----------------|---------|-------------|
 | Logo wordmark    | JetBrains Mono  | Medium  | —           |
 | TUI all text     | Terminal default| Regular | Terminal    |
-| Website headers  | Inter           | Medium  | 1.5-2rem    |
-| Website body     | Inter           | Regular | 1rem        |
+| Website headline | JetBrains Mono  | Medium  | 1.75-3.5rem |
+| Website headers  | JetBrains Mono  | Medium  | 1-1.5rem    |
+| Website body     | JetBrains Mono  | Regular | 0.9375rem   |
 | Code blocks      | JetBrains Mono  | Regular | 0.875rem    |
 
 ---

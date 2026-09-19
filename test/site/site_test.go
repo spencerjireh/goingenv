@@ -14,6 +14,7 @@ package site_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -282,6 +283,32 @@ func TestSite_LocalAssetsExist(t *testing.T) {
 // The page used to load the Tailwind play CDN, which is a JIT compiler that
 // Tailwind's own documentation says not to ship. Every script is now inline, so
 // any <script src> pointing off-origin is a regression.
+// TestSite_CSSImagesExist resolves every url() in the inline CSS against
+// public/, the way TestSite_LocalAssetsExist does for href and src. A
+// background image is the one asset the DOM checks cannot see.
+func TestSite_CSSImagesExist(t *testing.T) {
+	css := inlineCSS(loadPage(t))
+
+	refs := cssURL.FindAllStringSubmatch(css, -1)
+	if len(refs) == 0 {
+		t.Fatal("the CSS references no url(); this test is not checking anything")
+	}
+
+	for _, m := range refs {
+		ref := m[1]
+		if isExternal(ref) || strings.HasPrefix(ref, "data:") {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(publicDir, ref)); err != nil {
+			t.Errorf("CSS references %q, which is not in public/: %v", ref, err)
+		}
+	}
+	t.Logf("checked %d CSS url() references", len(refs))
+}
+
+// cssURL matches url("x"), url('x') and url(x) and captures x.
+var cssURL = regexp.MustCompile(`url\(\s*["']?([^"')\s]+)["']?\s*\)`)
+
 func TestSite_NoRenderBlockingCDN(t *testing.T) {
 	doc := loadPage(t)
 

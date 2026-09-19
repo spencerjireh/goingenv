@@ -33,7 +33,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
 
@@ -45,6 +45,13 @@
          --slate is used for BORDERS ONLY: at 4.22:1 on --base it does not
          meet WCAG AA for text. --dim (6.4:1) is the readable equivalent and
          is what every small or secondary text style uses.
+
+         One typeface. JetBrains Mono sets the wordmark, the TUI and the
+         CLI, so the page is set in it too. Two widths: --frame is the page
+         (the headline, code, the transcript and tables span it) and
+         --measure caps running text inside it, since 60 characters of
+         monospace is as wide as a paragraph should get. The header and
+         footer sit outside the frame, on the viewport edges.
          --------------------------------------------------------------- */
       :root {
         --base: #121417;
@@ -57,11 +64,11 @@
         --link: #7c9cbc;
         --signal: #22d3a7;
 
-        --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
         --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
-        --measure: 70ch;
-        --radius: 3px;
+        --frame: 64rem;
+        --measure: 60ch;
+        --gutter: 1.5rem;
       }
 
       *,
@@ -72,30 +79,37 @@
 
       html {
         scroll-behavior: smooth;
-        scroll-padding-top: 5rem;
+        scroll-padding-top: 3.5rem;
       }
 
+      /* The field: a dithered collage (assets/dither.py) sized to the
+         viewport and fixed, so the page slides over it and it shows in the
+         margins outside the frame. Sections paint solid --base over it;
+         the hero lets a tenth through. */
       body {
         margin: 0;
         background-color: var(--base);
+        background-image: url("bg.png");
+        background-size: cover;
+        background-position: center top;
+        background-attachment: fixed;
         color: var(--text);
-        font-family: var(--font-sans);
-        font-size: 16px;
-        line-height: 1.65;
+        font-family: var(--font-mono);
+        font-size: 15px;
+        line-height: 1.7;
         -webkit-font-smoothing: antialiased;
       }
 
       code,
       pre,
       kbd {
-        font-family: var(--font-mono);
+        font-family: inherit;
         line-height: 1.5;
       }
 
       h1,
       h2,
       h3 {
-        line-height: 1.25;
         font-weight: 500;
       }
 
@@ -113,7 +127,6 @@
       button:focus-visible {
         outline: 2px solid var(--signal);
         outline-offset: 3px;
-        border-radius: 2px;
       }
 
       ::selection {
@@ -123,9 +136,20 @@
 
       .wrap {
         width: 100%;
-        max-width: var(--measure);
+        max-width: var(--frame);
         margin-inline: auto;
-        padding-inline: 1.5rem;
+        padding-inline: var(--gutter);
+      }
+
+      /* Running text is capped at --measure; everything else spans the
+         frame. One rule, so it never fights the per-element margins. */
+      .lede,
+      .section-intro,
+      .note,
+      section > p,
+      .step > p,
+      ul {
+        max-width: var(--measure);
       }
 
       .skip-link {
@@ -143,48 +167,76 @@
         top: 1rem;
       }
 
-      /* --- Header ---------------------------------------------------- */
+      /* --- Header and footer ------------------------------------------
+         Both are rows of cells on the viewport edges, divided by the same
+         hairline the tables and section rules use. The frame's vertical
+         rules drop from the header's bottom line and land on the footer's
+         top line, so the four lines close a rectangle.
+         --------------------------------------------------------------- */
 
+      .site-header,
+      footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        font-size: 0.875rem;
+      }
+
+      /* Pinned. Opaque rather than blurred: it is the top edge of the
+         frame, and the vertical rules scroll under it. */
       .site-header {
         position: sticky;
         top: 0;
         z-index: 20;
-        background-color: rgba(18, 20, 23, 0.85);
-        backdrop-filter: blur(8px);
+        background-color: var(--base);
         border-bottom: 1px solid var(--border);
       }
 
-      .site-header .wrap {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding-block: 0.75rem;
+      footer {
+        border-top: 1px solid var(--border);
+        background-color: var(--base);
       }
 
-      .site-header nav {
+      .site-header nav,
+      footer nav {
         display: flex;
         flex-wrap: wrap;
-        gap: 1.25rem;
-        font-size: 0.9375rem;
+        margin-left: auto;
       }
 
-      .site-header nav a {
+      .site-header nav a,
+      footer nav a,
+      .brand,
+      footer p {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.6rem 1rem;
+        line-height: 1.5;
+      }
+
+      .site-header nav a,
+      footer nav a {
         color: var(--muted);
+        border-left: 1px solid var(--border);
       }
 
-      .site-header nav a:hover {
+      .site-header nav a:hover,
+      footer nav a:hover {
         color: var(--text);
         text-decoration: none;
       }
 
+      .site-header nav a:focus-visible,
+      footer nav a:focus-visible {
+        outline-offset: -2px;
+      }
+
       .brand {
-        display: inline-flex;
-        align-items: center;
         gap: 0.5rem;
         color: var(--text);
-        font-family: var(--font-mono);
         font-size: 0.9375rem;
+        font-weight: 500;
+        border-right: 1px solid var(--border);
       }
 
       .brand:hover {
@@ -197,35 +249,62 @@
         flex: none;
       }
 
+      /* --- Frame rules -------------------------------------------------
+         Two vertical hairlines at the frame edges, running the full height
+         of main. Shown only where the viewport leaves a margin to draw in.
+         --------------------------------------------------------------- */
+
+      main {
+        position: relative;
+      }
+
+      main::before,
+      main::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background-color: var(--border);
+        display: none;
+      }
+
+      main::before {
+        left: calc(50% - var(--frame) / 2);
+      }
+
+      main::after {
+        right: calc(50% - var(--frame) / 2);
+      }
+
+      @media (min-width: 68rem) {
+        main::before,
+        main::after {
+          display: block;
+        }
+      }
+
       /* --- Hero ------------------------------------------------------ */
 
       .hero {
         padding-block: 4.5rem 3rem;
+        background-color: rgba(18, 20, 23, 0.9);
       }
 
+      /* Capped in ch so the break lands after "archives" at every size the
+         frame allows, rather than leaving "can commit" alone on line two. */
       .hero h1 {
-        font-size: clamp(1.75rem, 5vw, 2.5rem);
-        margin: 0 0 1rem;
-        letter-spacing: -0.01em;
+        font-size: clamp(1.75rem, 6vw, 3.5rem);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        margin: 0 0 1.5rem;
+        max-width: 25ch;
       }
 
       .hero .lede {
         color: var(--muted);
-        font-size: 1.0625rem;
+        font-size: 1rem;
         margin: 0 0 2rem;
-      }
-
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.5rem;
-        align-items: center;
-        margin-top: 2rem;
-      }
-
-      .cta {
-        color: var(--signal);
-        font-weight: 500;
       }
 
       /* --- Sections -------------------------------------------------- */
@@ -233,21 +312,19 @@
       main section {
         padding-block: 2.5rem;
         border-top: 1px solid var(--border);
+        background-color: var(--base);
       }
 
       h2 {
-        font-size: 1.375rem;
+        font-size: 1.5rem;
+        line-height: 1.25;
+        letter-spacing: -0.01em;
         margin: 0 0 0.5rem;
       }
 
-      h2 .prompt {
-        color: var(--dim);
-        font-family: var(--font-mono);
-        margin-right: 0.5rem;
-      }
-
       h3 {
-        font-size: 1.0625rem;
+        font-size: 1rem;
+        line-height: 1.4;
         margin: 2rem 0 0.75rem;
       }
 
@@ -269,27 +346,24 @@
         margin-bottom: 0.375rem;
       }
 
+      /* Inline chips do not break mid-token where the column is wide
+         enough: a flag split across two lines reads as two flags. Where it
+         is not (see the narrow-screen rules), each fragment keeps its own
+         box so the split at least looks deliberate. */
       li code,
       p code,
       td code {
         background-color: var(--surface);
         padding: 0.1em 0.35em;
-        border-radius: 2px;
-        font-size: 0.9em;
         color: var(--text);
+        white-space: nowrap;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
       }
 
       .note {
-        font-size: 0.9375rem;
+        font-size: 0.875rem;
         margin-top: 0.5rem;
-      }
-
-      .disclaimer {
-        font-size: 0.9375rem;
-        color: var(--dim);
-        border-left: 2px solid var(--slate);
-        padding-left: 0.75rem;
-        margin: 1rem 0 0;
       }
 
       /* --- Code blocks ----------------------------------------------- */
@@ -301,7 +375,6 @@
         gap: 0.75rem;
         background-color: var(--surface);
         border-left: 2px solid var(--slate);
-        border-radius: var(--radius);
         padding: 0.875rem 1rem;
         margin-bottom: 0.5rem;
       }
@@ -315,6 +388,13 @@
         color: var(--text);
       }
 
+      /* A block of prose to paste, not a command: it wraps, and a long URL
+         breaks rather than pushing the block past the frame. */
+      .code-prose pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
       .copy {
         flex: none;
         background: none;
@@ -323,7 +403,6 @@
         margin: -0.25rem;
         color: var(--dim);
         cursor: pointer;
-        border-radius: 2px;
       }
 
       .copy:hover {
@@ -349,35 +428,20 @@
         color: var(--signal);
       }
 
-      /* --- Terminal -------------------------------------------------- */
+      /* --- Terminal --------------------------------------------------
+         The transcript is the product shown at work. It is a flat surface
+         on the page, not a window: no bar, no border, no rounded corners.
+         --------------------------------------------------------------- */
 
       .terminal {
         background-color: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        margin-bottom: 2rem;
-      }
-
-      .terminal-bar {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.6rem 0.875rem;
-        border-bottom: 1px solid var(--border);
-      }
-
-      .terminal-bar span {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background-color: #3a3f47;
+        margin: 0 0 1rem;
       }
 
       .terminal pre {
         margin: 0;
-        padding: 1rem;
-        font-size: 0.8125rem;
+        padding: 1.25rem;
+        font-size: 0.875rem;
         overflow-x: auto;
         color: var(--muted);
       }
@@ -404,7 +468,8 @@
       table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.9375rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.875rem;
       }
 
       th,
@@ -434,36 +499,13 @@
 
       .step-n {
         color: var(--dim);
-        font-family: var(--font-mono);
         font-size: 0.875rem;
         margin-right: 0.5rem;
       }
 
-      /* --- Footer ---------------------------------------------------- */
-
-      footer {
-        border-top: 1px solid var(--border);
-        padding-block: 2rem 3rem;
-        font-size: 0.9375rem;
-      }
-
-      footer .wrap {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem 1.5rem;
-        align-items: center;
-        justify-content: space-between;
-      }
-
-      footer nav {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.25rem;
-      }
-
       footer p {
         margin: 0;
-        font-size: 0.875rem;
+        max-width: none;
       }
 
       /* --- Responsive ------------------------------------------------
@@ -472,7 +514,23 @@
 
       @media (max-width: 40rem) {
         body {
-          font-size: 15px;
+          font-size: 14px;
+        }
+
+        /* Only the nav row stays pinned: the header sticks with its brand
+           row parked above the viewport. --brand-row is the row's height
+           in both places so they cannot drift apart. */
+        html {
+          --brand-row: 2.75rem;
+          scroll-padding-top: 3rem;
+        }
+
+        .brand {
+          height: var(--brand-row);
+        }
+
+        .site-header {
+          top: calc(-1 * var(--brand-row));
         }
 
         .wrap {
@@ -483,23 +541,56 @@
           padding-block: 2.5rem 2rem;
         }
 
+        .hero h1 {
+          margin-bottom: 1.25rem;
+        }
+
         main section {
           padding-block: 2rem;
         }
 
-        .actions {
-          gap: 1rem;
+        /* Brand and nav become two rows; the nav row gets its own top
+           line and its cells spread across it. */
+        .brand {
+          border-right: 0;
         }
 
-        .site-header nav {
-          gap: 0.875rem;
-          font-size: 0.875rem;
+        .site-header nav,
+        footer nav {
+          flex: 1 0 100%;
+          border-top: 1px solid var(--border);
         }
 
-        /* The brand wordmark is redundant with the nav on a narrow screen. */
-        .brand span {
-          display: none;
+        /* Each cell carries its own top line, overlapping the nav's, so a
+           cell that wraps to a second row still has a line above it. */
+        .site-header nav a,
+        footer nav a {
+          flex: 1 1 auto;
+          justify-content: center;
+          padding: 0.5rem 0.5rem;
+          font-size: 0.8125rem;
+          border-top: 1px solid var(--border);
+          margin-top: -1px;
         }
+
+        .site-header nav a:first-child,
+        footer nav a:first-child {
+          border-left: 0;
+        }
+
+        footer p {
+          flex: 1 0 100%;
+        }
+
+        .terminal pre {
+          padding: 1rem;
+        }
+
+        li code,
+        p code {
+          white-space: normal;
+        }
+
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -538,18 +629,17 @@
     </svg>
 
     <header class="site-header">
-      <div class="wrap">
-        <a class="brand" href="#main">
-          <svg aria-hidden="true" focusable="false"><use href="#i-logo" /></svg>
-          <span>goingenv</span>
-        </a>
-        <nav aria-label="Sections">
-          <a href="#install">Install</a>
-          <a href="#usage">Usage</a>
-          <a href="#scripting">Scripting</a>
-          <a href="#configuration">Config</a>
-        </nav>
-      </div>
+      <a class="brand" href="#main">
+        <svg aria-hidden="true" focusable="false"><use href="#i-logo" /></svg>
+        <span>goingenv</span>
+      </a>
+      <nav aria-label="Sections">
+        <a href="#install">Install</a>
+        <a href="#agents">Agents</a>
+        <a href="#usage">Usage</a>
+        <a href="#scripting">Scripting</a>
+        <a href="#configuration">Config</a>
+      </nav>
     </header>
 
     <main id="main">
@@ -561,14 +651,7 @@
           terminal UI over the same commands.
         </p>
 
-        <p class="disclaimer">
-          Developed with AI assistance, and not formally
-          <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">security
-          audited</a>. Assess it yourself before using it with sensitive data.
-        </p>
-
         <div class="terminal">
-          <div class="terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
           <pre><code><span class="p">$</span> <span class="u">goingenv status</span>
 
 Environment Files (3)
@@ -581,16 +664,10 @@ Environment Files (3)
 <span class="p">[&gt;]</span> Packing 3 files...
 <span class="ok">[+]</span> Created .goingenv/archive-20260910-124213.enc</code></pre>
         </div>
-
-        <div class="actions">
-          <a class="cta" href="#install">Install</a>
-          <a href="https://github.com/spencerjireh/goingenv">GitHub</a>
-          <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">Security</a>
-        </div>
       </div>
 
       <section id="install" class="wrap">
-        <h2><span class="prompt" aria-hidden="true">&gt;_</span>Install</h2>
+        <h2>Install</h2>
         <p class="section-intro">
           Linux and macOS, x86_64 and ARM64. On Windows, use
           <a href="https://docs.microsoft.com/en-us/windows/wsl/install">WSL</a>.
@@ -642,8 +719,38 @@ Environment Files (3)
         </p>
       </section>
 
+      <section id="agents" class="wrap">
+        <h2>Agents</h2>
+        <p class="section-intro">
+          Paste this into your coding agent. It installs the tool, reads the
+          documentation and sets the rules for handling secrets.
+        </p>
+        <div class="code code-prose">
+          <pre><code>Install goingenv:
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
+Then read https://spencerjireh.github.io/goingenv/llms.txt and the documents it links.
+Use it to pack, unpack, diff and run this project's .env files. Never print, log or
+commit decrypted values. The password comes from GOINGENV_PASSWORD or a prompt, never
+from the repository.</code></pre>
+          <button class="copy" type="button" aria-label="Copy agent prompt"
+            data-copy="Install goingenv:
+curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
+Then read https://spencerjireh.github.io/goingenv/llms.txt and the documents it links.
+Use it to pack, unpack, diff and run this project's .env files. Never print, log or
+commit decrypted values. The password comes from GOINGENV_PASSWORD or a prompt, never
+from the repository.">
+            <svg class="icon-copy" aria-hidden="true" focusable="false"><use href="#i-copy" /></svg>
+            <svg class="icon-check" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+          </button>
+        </div>
+        <p class="note">
+          The same summary is served as <a href="llms.txt">llms.txt</a> for tools
+          that look for one.
+        </p>
+      </section>
+
       <section id="usage" class="wrap">
-        <h2><span class="prompt" aria-hidden="true">&gt;_</span>Usage</h2>
+        <h2>Usage</h2>
         <p class="section-intro">Four commands cover the basic workflow; two more review and use an archive without unpacking it.</p>
 
         <div class="step">
@@ -747,7 +854,7 @@ Environment Files (3)
       </section>
 
       <section id="scripting" class="wrap">
-        <h2><span class="prompt" aria-hidden="true">&gt;_</span>Scripting</h2>
+        <h2>Scripting</h2>
         <p class="section-intro">
           Every command takes <code>--format</code>. In <code>json</code> and
           <code>porcelain</code>, stdout carries only the payload and all human output moves
@@ -795,7 +902,7 @@ Environment Files (3)
       </section>
 
       <section id="configuration" class="wrap">
-        <h2><span class="prompt" aria-hidden="true">&gt;_</span>Configuration</h2>
+        <h2>Configuration</h2>
         <p class="section-intro">Settings are read from the first of these that exists.</p>
 
         <div class="table-scroll">
@@ -876,15 +983,13 @@ Environment Files (3)
     </main>
 
     <footer>
-      <div class="wrap">
-        <p>MIT licensed. Built with Go.</p>
-        <nav aria-label="Project links">
-          <a href="https://github.com/spencerjireh/goingenv">GitHub</a>
-          <a href="https://github.com/spencerjireh/goingenv/releases">Releases</a>
-          <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">Security</a>
-          <a href="https://github.com/spencerjireh/goingenv/issues">Issues</a>
-        </nav>
-      </div>
+      <p>MIT licensed. Built with Go.</p>
+      <nav aria-label="Project links">
+        <a href="https://github.com/spencerjireh/goingenv">GitHub</a>
+        <a href="https://github.com/spencerjireh/goingenv/releases">Releases</a>
+        <a href="https://github.com/spencerjireh/goingenv/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/spencerjireh/goingenv/issues">Issues</a>
+      </nav>
     </footer>
 
     <script>

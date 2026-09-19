@@ -1,0 +1,51 @@
+# goingenv
+
+> Encrypted .env archives you can commit. A Go command-line tool and terminal UI that bundles a project's environment files into one AES-256-GCM archive (Argon2id key derivation), stores it under .goingenv/, and restores it with a shared password. Linux and macOS, x86_64 and ARM64. The password is never stored; share it through a channel that is not the repository.
+
+Developed with AI assistance and not formally security audited. Assess it before using it with sensitive data.
+
+## Install
+
+    curl -sSL https://raw.githubusercontent.com/spencerjireh/goingenv/main/install.sh | bash
+
+The script verifies the download against the release checksums and refuses to install on a mismatch. Add `-s -- --version <tag>` after `bash` for a specific release.
+
+## Commands
+
+- `goingenv init` sets up .goingenv/ in the current project. `--project-config` also writes a committed .goingenv/config.json that pins how the repository is scanned.
+- `goingenv status` lists the files that would be packed and the existing archives.
+- `goingenv pack` encrypts the env files into .goingenv/archive-<timestamp>.enc. `--manifest` writes <archive>.manifest.json beside it with paths, key names and hashes, never values.
+- `goingenv unpack` decrypts the newest archive and restores its files. `-f FILE` names one.
+- `goingenv list` shows an archive's contents without extracting.
+- `goingenv diff [FROM [TO]]` compares by key and never prints a value. FROM defaults to the newest archive, TO to the working tree. `--exit-code` exits 1 when anything differs, for CI.
+- `goingenv run -- COMMAND [ARGS...]` decrypts in memory and runs the command with the archive's variables set. Nothing is written to disk.
+- `goingenv` with no arguments launches the terminal UI, which covers the same operations.
+
+`--env NAME` on any command keeps a separate archive stream (NAME-<timestamp>.enc), picks the newest of that stream when reading, and looks for the password in GOINGENV_PASSWORD_<NAME> first.
+
+## Passwords
+
+Resolved in this order: `--password-stdin` (first line of stdin, never prompts), `--password-env VAR`, `GOINGENV_PASSWORD_<ENV>` then `GOINGENV_PASSWORD`, an interactive prompt. Use `--password-env` or the variable in CI.
+
+## Output formats
+
+Every command takes `--format text|json|porcelain`; `list` also takes `csv`. `text` is the default and not stable. In `json` and `porcelain`, stdout carries only the payload and every human message goes to stderr, so the result pipes cleanly. Errors are reported once on stderr, in the requested format, and the exit code is the primary signal.
+
+## Rules for agents
+
+- Never print, log or commit decrypted values. Use `diff` and the manifest to review changes; both show key names only.
+- Never write the password into the repository, a config file or a committed script. It comes from GOINGENV_PASSWORD or a prompt.
+- Prefer `run` over `unpack` when a command only needs the variables: it leaves nothing on disk.
+- Commit the .enc file. Keep the plaintext .env files out of the repository with the project's own .gitignore.
+
+## Documentation
+
+- [README](https://raw.githubusercontent.com/spencerjireh/goingenv/main/README.md): install, commands, workflow
+- [Usage guide](https://raw.githubusercontent.com/spencerjireh/goingenv/main/docs/usage.md): passwords, environments, review tools, output formats, scripting, file selection, configuration
+- [Security](https://raw.githubusercontent.com/spencerjireh/goingenv/main/SECURITY.md): threat model, encryption details, verifying a download
+
+## Optional
+
+- [Developer guide](https://raw.githubusercontent.com/spencerjireh/goingenv/main/docs/development.md): building, testing, contributing
+- [Source](https://github.com/spencerjireh/goingenv)
+- [Website](https://spencerjireh.github.io/goingenv/)
