@@ -4,10 +4,12 @@
 # ///
 """Render public/bg.png, the page background of the website.
 
-A two-colour dithered collage, Signal ink on the base colour, of four
-subjects that belong to the product: a hex dump of a real archive with
-its GENV header at the top-left, the pack flow as a line schematic, the
-[o] logomark, and a public-domain photograph of punched paper tape.
+A two-colour dithered collage, Signal ink on the base colour, tall enough
+to scroll with the page. The frame in the middle is opaque, so the image
+is designed for what shows: the two margins and a faint hero. Down the
+left, a hex dump of a real archive with its GENV header on the first row.
+Down the right, three objects: an IBM 80-column punched card stood on
+end, the pack flow as a line schematic, and a card-storage warehouse.
 
 Run with `make bg` (which is `uv run assets/dither.py`). Downloads land in
 assets/.cache/ and are verified against the hashes below, the way
@@ -17,15 +19,15 @@ ciphertext and nothing from this machine is in the image.
 
 Layout is deterministic; only the ciphertext bytes change between runs.
 
-Photo: "PaperTapes-5and8Hole.jpg" by TedColes, public domain, via
-Wikimedia Commons. Font: JetBrains Mono, OFL-1.1, JetBrains.
+Photos, both public domain via Wikimedia Commons:
+  "Blue-punch-card-front-horiz.png", Gwern, derivative by agr.
+  "IBM card storage.NARA.jpg", US National Archives, catalog 12169529.
+Font: JetBrains Mono, OFL-1.1, JetBrains.
 """
 
 from __future__ import annotations
 
 import hashlib
-import io
-import math
 import os
 import secrets
 import subprocess
@@ -43,8 +45,11 @@ OUT = ROOT / "public" / "bg.png"
 
 USER_AGENT = "goingenv-assets/1.0 (https://github.com/spencerjireh/goingenv)"
 
-PHOTO_URL = "https://upload.wikimedia.org/wikipedia/commons/0/00/PaperTapes-5and8Hole.jpg"
-PHOTO_SHA1 = "3df7b2ab3225f87377ad7e972bd7d2cb039df68d"
+CARD_URL = "https://upload.wikimedia.org/wikipedia/commons/4/4c/Blue-punch-card-front-horiz.png"
+CARD_SHA1 = "14addcbc3e0def4a92ff8e916c07a7731d149e54"
+
+STORAGE_URL = "https://upload.wikimedia.org/wikipedia/commons/8/87/IBM_card_storage.NARA.jpg"
+STORAGE_SHA1 = "d87513cd01396833f41ad240115d86c6f72685b9"
 
 FONT_ZIP_URL = "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip"
 FONT_ZIP_SHA256 = "6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf"
@@ -58,13 +63,16 @@ INK = (0x1E, 0x7A, 0x63)
 
 # The canvas is rendered at half size and scaled up 2x with nearest
 # neighbour, so every dither cell is a 2px square. Browser scaling of a
-# 1px dither turns it into grey mush; 2px cells survive it.
-W, H = 960, 600
+# 1px dither turns it into grey mush; 2px cells survive it. 1920x7200
+# covers the page at any width from 1280 up; the bottom fades to base.
+W, H = 960, 3600
 SCALE = 2
 
 # How much of the field the frame occupies at 1920px wide (64rem of 1920),
 # used to keep the centre quiet and the margins loud.
 FRAME_FRACTION = 1024 / 1920
+
+HEX_ROW = 24  # canvas px per hex dump row
 
 
 def fetch(url: str, dest: Path, digest: str, algo: str) -> Path:
@@ -90,6 +98,15 @@ def font_path() -> Path:
     return ttf
 
 
+def fake_env(prefix: str, n: int) -> str:
+    """Enough made-up keys that the archive runs to a few kilobytes."""
+    lines = []
+    for i in range(n):
+        lines.append(f"{prefix}_{i:02d}_URL=https://service-{i}.internal.example/v1")
+        lines.append(f"{prefix}_{i:02d}_TOKEN={secrets.token_hex(12)}")
+    return "\n".join(lines) + "\n"
+
+
 def archive_bytes(n: int) -> bytes:
     """Pack a throwaway project and return the first n bytes of the archive."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -101,9 +118,9 @@ def archive_bytes(n: int) -> bytes:
         )
         project = tmpdir / "project"
         project.mkdir()
-        (project / ".env").write_text("DATABASE_URL=postgres://localhost/app\nPORT=3000\n")
-        (project / ".env.local").write_text("DEBUG=true\n")
-        (project / ".env.production").write_text("PORT=8080\n")
+        (project / ".env").write_text(fake_env("APP", 24))
+        (project / ".env.local").write_text(fake_env("LOCAL", 12))
+        (project / ".env.production").write_text(fake_env("PROD", 24))
 
         env = dict(os.environ, GOINGENV_BG_PASSWORD=secrets.token_hex(16))
         quiet = {"stdout": subprocess.DEVNULL, "stderr": subprocess.PIPE}
@@ -115,7 +132,10 @@ def archive_bytes(n: int) -> bytes:
         archives = sorted((project / ".goingenv").glob("*.enc"))
         if not archives:
             sys.exit("pack produced no archive")
-        return archives[-1].read_bytes()[:n]
+        data = archives[-1].read_bytes()
+        if len(data) < n:
+            sys.exit(f"archive is {len(data)} bytes; need {n} for the dump")
+        return data[:n]
 
 
 def hexdump(data: bytes, width: int = 16) -> list[str]:
@@ -132,105 +152,111 @@ def layer() -> Image.Image:
     return Image.new("L", (W, H), 0)
 
 
-def photo_layer() -> Image.Image:
-    src = fetch(PHOTO_URL, CACHE / "papertape.jpg", PHOTO_SHA1, "sha1")
-    im = Image.open(src).convert("L")
-    # Inverted: the studio backdrop goes dark and disappears into the base;
-    # the holes and the tape's shadow edges become the ink.
-    im = ImageOps.invert(ImageOps.autocontrast(im, cutoff=1))
-    # Crop to the rolls: the bottom third of the frame is empty table.
-    w, h = im.size
-    im = im.crop((0, int(h * 0.30), w, int(h * 0.75)))
-    target_w = int(W * 0.72)
-    im = im.resize((target_w, int(im.height * target_w / im.width)), Image.LANCZOS)
-    # Gamma up: the mid greys (the backdrop's soft shadow) drop away and
-    # only the holes and the rolls' edges keep enough ink to print.
-    im = im.point(lambda v: int(255 * (v / 255) ** 1.7 * 0.95))
+def load_photo(src: Path, gamma: float, invert: bool) -> Image.Image:
+    im = ImageOps.autocontrast(Image.open(src).convert("L"), cutoff=1)
+    if invert:
+        im = ImageOps.invert(im)
+    # Gamma up: mid greys (paper grain, soft shadow) drop away and only
+    # the real marks keep enough ink to print.
+    return im.point(lambda v: int(255 * (v / 255) ** gamma))
 
-    # Fade the left edge so it does not end in a hard line.
+
+def fade_left(im: Image.Image, width_fraction: float = 0.45) -> Image.Image:
+    """Fade the left edge into the field so it does not end in a line."""
     fade = Image.linear_gradient("L").rotate(90, expand=True).resize(im.size)
-    fade = fade.point(lambda v: 255 if v > 140 else int(v * 255 / 140))
-    im = ImageChops.multiply(im, fade)
-
-    out = layer()
-    out.paste(im, (W - im.width, H - im.height - 20))
-    return out
+    knee = int(255 * width_fraction)
+    fade = fade.point(lambda v: 255 if v > knee else int(v * 255 / knee))
+    return ImageChops.multiply(im, fade)
 
 
 def hex_layer(font: ImageFont.FreeTypeFont) -> Image.Image:
-    rows = hexdump(archive_bytes(16 * 14))
+    """The archive, dumped down the left edge for the height of the page."""
+    rows_that_fit = (H - 26) // HEX_ROW
+    rows = hexdump(archive_bytes(16 * rows_that_fit))
     out = layer()
     d = ImageDraw.Draw(out)
-    x, y = 28, 26
-    step = 24
     for i, row in enumerate(rows):
-        # Brightest at the header row, fading down the dump.
-        v = int(210 - i * 12)
-        d.text((x, y + i * step), row, fill=v, font=font)
+        # Brightest at the header row, settling to a steady value so the
+        # column reads all the way down rather than fading to nothing.
+        v = max(120, 210 - i * 8)
+        d.text((28, 26 + i * HEX_ROW), row, fill=v, font=font)
+    return out
+
+
+def card_layer() -> Image.Image:
+    """An 80-column card stood on end, flush with the right edge."""
+    src = fetch(CARD_URL, CACHE / "punchcard.png", CARD_SHA1, "sha1")
+    # Not inverted, and a steep gamma: the card's blue field falls to a
+    # faint tone, the printed digits vanish into it, and the holes, which
+    # scan white, are what prints. The scan's white surround is cropped
+    # off first or it would print as a solid border.
+    im = Image.open(src).convert("L")
+    w, h = im.size
+    im = im.crop((int(w * 0.012), int(h * 0.025), int(w * 0.988), int(h * 0.975)))
+    im = ImageOps.autocontrast(im, cutoff=1).point(lambda v: int(255 * (v / 255) ** 2.4))
+    im = im.rotate(90, expand=True)
+    target_w = 250
+    im = im.resize((target_w, int(im.height * target_w / im.width)), Image.LANCZOS)
+    out = layer()
+    out.paste(im, (W - im.width + 12, 170))
     return out
 
 
 def schematic_layer(font: ImageFont.FreeTypeFont) -> Image.Image:
+    """The pack flow, stacked so it fits the right margin: three files, a
+    bus, the archive, and a dimension line, the way a drawing sizes a part."""
     out = layer()
     d = ImageDraw.Draw(out)
     v = 175
-    x0, y0 = 40, 392
-    fw, fh, gap = 118, 40, 14
-    files = [".env", ".env.local", ".env.production"]
-    for i, name in enumerate(files):
-        y = y0 + i * (fh + gap)
-        d.rectangle((x0, y, x0 + fw, y + fh), outline=v, width=1)
-        d.text((x0 + 10, y + 11), name, fill=v, font=font)
-        # Connector into the bus.
-        d.line((x0 + fw, y + fh // 2, x0 + fw + 34, y + fh // 2), fill=v, width=1)
-    bus_x = x0 + fw + 34
-    top = y0 + fh // 2
-    bot = y0 + 2 * (fh + gap) + fh // 2
-    mid = (top + bot) // 2
+    bw, bh, gap = 134, 34, 12
+    x0 = W - bw - 10
+    y = 1420
+    for name in (".env", ".env.local", ".env.production"):
+        d.rectangle((x0, y, x0 + bw, y + bh), outline=v, width=1)
+        d.text((x0 + 8, y + 9), name, fill=v, font=font)
+        # Connector out of the box into the bus on its left.
+        d.line((x0, y + bh // 2, x0 - 22, y + bh // 2), fill=v, width=1)
+        y += bh + gap
+    bus_x = x0 - 22
+    top = 1420 + bh // 2
+    bot = y - gap - bh // 2
     d.line((bus_x, top, bus_x, bot), fill=v, width=1)
-    ax = bus_x + 70
-    d.line((bus_x, mid, ax, mid), fill=v, width=1)
-    d.polygon([(ax, mid), (ax - 10, mid - 5), (ax - 10, mid + 5)], fill=v)
-    # The archive.
-    aw, ah = 190, 62
-    d.rectangle((ax + 8, mid - ah // 2, ax + 8 + aw, mid + ah // 2), outline=v, width=1)
-    d.text((ax + 20, mid - 10), "archive-<ts>.enc", fill=v, font=font)
-    # Dimension line under the archive, the way a drawing sizes a part.
-    dy = mid + ah // 2 + 18
-    d.line((ax + 8, dy, ax + 8 + aw, dy), fill=v, width=1)
-    for xx in (ax + 8, ax + 8 + aw):
+    # Down from the bus, then back in to the archive.
+    ay = y + 26
+    d.line((bus_x, bot, bus_x, ay + 31), fill=v, width=1)
+    d.line((bus_x, ay + 31, x0, ay + 31), fill=v, width=1)
+    d.polygon([(x0, ay + 31), (x0 - 9, ay + 26), (x0 - 9, ay + 36)], fill=v)
+    d.rectangle((x0, ay, x0 + bw, ay + 62), outline=v, width=1)
+    d.text((x0 + 8, ay + 12), "archive-", fill=v, font=font)
+    d.text((x0 + 8, ay + 32), "<ts>.enc", fill=v, font=font)
+    dy = ay + 62 + 16
+    d.line((x0, dy, x0 + bw, dy), fill=v, width=1)
+    for xx in (x0, x0 + bw):
         d.line((xx, dy - 5, xx, dy + 5), fill=v, width=1)
-    d.text((ax + 8 + aw // 2 - 42, dy + 6), "AES-256-GCM", fill=v, font=font)
+    d.text((x0 + 14, dy + 6), "AES-256-GCM", fill=v, font=font)
     return out
 
 
-def logomark_layer() -> Image.Image:
-    """The [o] mark from the SVG sprite in public/index.html, viewBox 0 0 200."""
+def storage_layer() -> Image.Image:
+    """Boxed cards to the horizon: an archive, lower right."""
+    src = fetch(STORAGE_URL, CACHE / "cardstorage.jpg", STORAGE_SHA1, "sha1")
+    im = load_photo(src, gamma=1.6, invert=False)
+    w, h = im.size
+    # Crop off the railing at the left and the ceiling at the top.
+    im = im.crop((int(w * 0.18), int(h * 0.10), w, h))
+    target_w = 520
+    im = im.resize((target_w, int(im.height * target_w / im.width)), Image.LANCZOS)
+    im = fade_left(im.point(lambda v: int(v * 0.9)))
     out = layer()
-    d = ImageDraw.Draw(out)
-    size = 430
-    ox, oy = W - size * 0.86, -30
-    s = size / 200
-
-    def pt(x, y):
-        return (ox + x * s, oy + y * s)
-
-    left = [(30, 40), (62, 40), (62, 58), (48, 58), (48, 142), (62, 142), (62, 160), (30, 160)]
-    right = [(138, 40), (170, 40), (170, 160), (138, 160), (138, 142), (152, 142), (152, 58), (138, 58)]
-    v = 95
-    d.polygon([pt(*p) for p in left], fill=v)
-    d.polygon([pt(*p) for p in right], fill=v)
-    cx, cy = pt(100, 100)
-    r = 26 * s
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=150)
+    out.paste(im, (W - im.width, 2320))
     return out
 
 
 def vignette(im: Image.Image) -> Image.Image:
     """Quiet the centre, where the frame sits, and leave the margins loud.
 
-    The bottom eighth fades to nothing so the image ends cleanly when the
-    page uses it as a scrolling (non-fixed) background.
+    The bottom eighth fades to nothing so the image ends in the base
+    colour before the page does.
     """
     half = FRAME_FRACTION / 2
     mask = Image.new("L", (W, H), 0)
@@ -255,7 +281,7 @@ def main() -> None:
     small = ImageFont.truetype(str(font_path()), 13)
 
     field = layer()
-    for lyr in (photo_layer(), logomark_layer(), hex_layer(mono), schematic_layer(small)):
+    for lyr in (card_layer(), storage_layer(), hex_layer(mono), schematic_layer(small)):
         field = ImageChops.lighter(field, lyr)
     field = vignette(field)
 

@@ -64,17 +64,25 @@ Use for favicon, app icons, small contexts.
 
 ## Website Background
 
-`public/bg.png` is a two-colour dithered collage, Signal ink on the base
-colour, of a hex dump of a real archive, the pack flow as a schematic, the
-logomark, and a photograph of punched paper tape. `make bg` regenerates it
-by running `assets/dither.py` under uv. Downloads land in `assets/.cache/`
-and are checked against pinned hashes; the hex dump comes from an archive
-the script packs itself with a random password, so the bytes are real
+`public/bg.png` is a tall (1920x7200) two-colour dithered collage, Signal
+ink on the base colour, that scrolls with the page and shows in the margins
+outside the content frame. Down the left runs a hex dump of a real archive
+with its `GENV` header on the first row; down the right sit an IBM
+80-column punched card stood on end, the pack flow as a line schematic,
+and a card-storage warehouse. `make bg` regenerates it by running
+`assets/dither.py` under uv. Downloads land in `assets/.cache/` and are
+checked against pinned hashes; the hex dump comes from an archive the
+script packs itself with a random password, so the bytes are real
 ciphertext from no real project.
 
-Photo: [PaperTapes-5and8Hole.jpg](https://commons.wikimedia.org/wiki/File:PaperTapes-5and8Hole.jpg)
-by TedColes, public domain, via Wikimedia Commons. Font: JetBrains Mono,
-SIL Open Font License 1.1.
+Photos, both public domain via Wikimedia Commons:
+
+- [Blue-punch-card-front-horiz.png](https://commons.wikimedia.org/wiki/File:Blue-punch-card-front-horiz.png),
+  Gwern, derivative work by agr.
+- [IBM card storage.NARA.jpg](https://commons.wikimedia.org/wiki/File:IBM_card_storage.NARA.jpg),
+  US National Archives, catalog 12169529.
+
+Font: JetBrains Mono, SIL Open Font License 1.1.
 
 ## Generating Assets
 
