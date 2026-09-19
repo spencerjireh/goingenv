@@ -216,10 +216,11 @@ func TestRun_SignalForwarding(t *testing.T) {
 	pw := testutils.GetTestFixtures().Password
 	testutils.AssertSuccess(t, testutils.RunCLIWithPassword(t, dir, pw, "pack"))
 
-	// `sleep & wait` lets the trap run as soon as the signal lands; a
-	// foreground sleep would defer it until the sleep ended.
+	// The shell runs a trap only once the foreground command returns, so the
+	// child sleeps in short steps. A background `sleep & wait` would react
+	// faster but can leak the sleep, which then holds the stdout pipe open.
 	out, code := runAndSignal(t, dir, pw, syscall.SIGTERM,
-		`trap 'kill $! 2>/dev/null; echo got TERM; exit 0' TERM; echo ready; sleep 10 & wait`)
+		`trap 'echo got TERM; exit 0' TERM; echo ready; while :; do sleep 0.2; done`)
 	if code != 0 || !strings.Contains(out, "got TERM") {
 		t.Errorf("SIGTERM: exit %d, stdout %q; want the child to see the signal", code, out)
 	}

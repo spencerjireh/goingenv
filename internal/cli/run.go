@@ -169,12 +169,17 @@ func execWithEnv(argv []string, vars map[string]string) error {
 		child.Env = append(child.Env, k+"="+vars[k])
 	}
 
+	// Register before Start: a signal landing between the two would kill
+	// goingenv and orphan the child. Anything delivered before the goroutine
+	// below runs waits in the buffer.
+	signals := make(chan os.Signal, 8)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGUSR1, syscall.SIGUSR2)
+
 	if startErr := child.Start(); startErr != nil {
+		signal.Stop(signals)
 		return fmt.Errorf("failed to start %s: %w", argv[0], startErr)
 	}
 
-	signals := make(chan os.Signal, 8)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGUSR1, syscall.SIGUSR2)
 	go func() {
 		for sig := range signals {
 			if sig == os.Interrupt || sig == syscall.SIGQUIT {
