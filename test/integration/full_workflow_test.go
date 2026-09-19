@@ -8,7 +8,6 @@ import (
 
 	"goingenv/internal/archive"
 	"goingenv/internal/config"
-	"goingenv/internal/crypto"
 	"goingenv/internal/scanner"
 	"goingenv/pkg/types"
 	"goingenv/test/testutils"
@@ -25,7 +24,7 @@ func TestFullWorkflow(t *testing.T) {
 
 	// Initialize services
 	cfg := testutils.CreateTestConfig()
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	scannerService := scanner.NewService(cfg)
 	archiverService := archive.NewService(cryptoService)
 
@@ -185,7 +184,7 @@ func TestFullWorkflow(t *testing.T) {
 
 func TestErrorHandling(t *testing.T) {
 	cfg := testutils.CreateTestConfig()
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	archiverService := archive.NewService(cryptoService)
 
 	t.Run("Pack with Invalid Path", func(t *testing.T) {
@@ -447,7 +446,7 @@ func TestConcurrentAccess(t *testing.T) {
 	testutils.CreateTempGoingEnvDir(t, tmpDir)
 
 	cfg := testutils.CreateTestConfig()
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	scannerService := scanner.NewService(cfg)
 	archiverService := archive.NewService(cryptoService)
 
@@ -544,7 +543,7 @@ func TestInitializationRequirement(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := testutils.CreateTestConfig()
-	cryptoService := crypto.NewService()
+	cryptoService := testutils.FastCrypto()
 	scannerService := scanner.NewService(cfg)
 	archiverService := archive.NewService(cryptoService)
 

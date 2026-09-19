@@ -29,6 +29,7 @@ type MockArchiver struct {
 	PackFunc                 func(opts PackOptions) error
 	UnpackFunc               func(opts UnpackOptions) (*UnpackResult, error)
 	ListFunc                 func(archivePath, password string) (*Archive, error)
+	ReadFilesFunc            func(archivePath, password string) (*Archive, map[string][]byte, error)
 	GetAvailableArchivesFunc func(dir string) ([]string, error)
 }
 
@@ -51,6 +52,13 @@ func (m *MockArchiver) List(archivePath, password string) (*Archive, error) {
 		return m.ListFunc(archivePath, password)
 	}
 	return &Archive{}, nil
+}
+
+func (m *MockArchiver) ReadFiles(archivePath, password string) (*Archive, map[string][]byte, error) {
+	if m.ReadFilesFunc != nil {
+		return m.ReadFilesFunc(archivePath, password)
+	}
+	return &Archive{}, map[string][]byte{}, nil
 }
 
 func (m *MockArchiver) GetAvailableArchives(dir string) ([]string, error) {
@@ -147,7 +155,7 @@ func NewMockArchive(description string, files []EnvFile) *Archive {
 		CreatedAt:   time.Now(),
 		Files:       files,
 		TotalSize:   calculateTotalSize(files),
-		Version:     "1.0.0",
+		Version:     "2.0.0",
 	}
 }
 

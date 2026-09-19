@@ -537,7 +537,8 @@ func GetTestFixtures() TestFixtures {
 			"default_depth": 10,
 			"env_patterns": ["\\.env$", "\\.env\\..*$"],
 			"exclude_patterns": ["node_modules/", "\\.git/", "vendor/"],
-			"max_file_size": 10485760
+			"max_file_size": 10485760,
+			"manifest": false
 		}`,
 	}
 }

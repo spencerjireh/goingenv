@@ -102,6 +102,7 @@ func displayConfig(out *Output, app *types.App, verbose bool) {
 	out.Section("Configuration")
 	out.Indent(fmt.Sprintf("Scan depth: %d", app.Config.DefaultDepth))
 	out.Indent(fmt.Sprintf("Max file size: %s", utils.FormatSize(app.Config.MaxFileSize)))
+	out.Indent(fmt.Sprintf("Manifest: %t", app.Config.Manifest))
 	out.Indent(fmt.Sprintf("Config: %s", config.ResolveConfigPath()))
 	out.Blank()
 }
@@ -275,5 +276,6 @@ func describeConfig(app *types.App) ConfigInfo {
 		Patterns:    app.Config.EnvPatterns,
 		Excludes:    app.Config.ExcludePatterns,
 		EnvExcludes: app.Config.EnvExcludePatterns,
+		Manifest:    app.Config.Manifest,
 	}
 }

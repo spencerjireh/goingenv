@@ -119,6 +119,7 @@ func TestModel_KeyBindingsDoNotPanic(t *testing.T) {
 		{"Tab3", GlobalKeys.Tab3.Keys()},
 		{"Tab4", GlobalKeys.Tab4.Keys()},
 		{"Tab5", GlobalKeys.Tab5.Keys()},
+		{"Tab6", GlobalKeys.Tab6.Keys()},
 		{"Help", GlobalKeys.Help.Keys()},
 	}
 
@@ -143,7 +144,7 @@ func TestModel_KeyBindingsDoNotPanic(t *testing.T) {
 // that tab/shift+tab cycle with wraparound.
 func TestModel_TabNavigation(t *testing.T) {
 	t.Run("number keys select", func(t *testing.T) {
-		want := []TabID{TabPack, TabUnpack, TabList, TabStatus, TabSettings}
+		want := []TabID{TabPack, TabUnpack, TabList, TabStatus, TabSettings, TabDiff}
 		for i, tab := range want {
 			m := newTestModel(t)
 			k := string(rune('1' + i))
@@ -272,6 +273,14 @@ func keyMsg(k string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyEsc}
 	case "ctrl+c":
 		return tea.KeyMsg{Type: tea.KeyCtrlC}
+	case "up":
+		return tea.KeyMsg{Type: tea.KeyUp}
+	case "down":
+		return tea.KeyMsg{Type: tea.KeyDown}
+	case "backspace":
+		return tea.KeyMsg{Type: tea.KeyBackspace}
+	case " ":
+		return tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}}
 	default:
 		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 	}

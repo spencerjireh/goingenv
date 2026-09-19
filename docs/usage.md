@@ -1,7 +1,8 @@
 # Usage Guide
 
-Reference for output formats, scripting, file selection and configuration. The
-[README](../README.md) covers installing and the six commands.
+Reference for passwords, environments, the review tools, output formats,
+scripting, file selection and configuration. The [README](../README.md) covers
+installing and the commands.
 
 ## Install options
 
@@ -23,6 +24,122 @@ an install location, `--yes` for non-interactive runs, `--no-sudo`,
 `--skip-shell` to leave your shell profile alone, and `--uninstall`.
 
 Re-running the installer upgrades in place.
+
+## Passwords
+
+Every command that opens an archive takes the password from the first of these
+that supplies one:
+
+1. `--password-stdin` -- the first line of standard input. Never prompts. Only
+   that line is consumed, so `run --password-stdin` leaves the rest of stdin to
+   the command it runs.
+2. `--password-env VAR` -- a variable you name. Set but empty is an error.
+3. `GOINGENV_PASSWORD_<ENV>` when `--env` is given, then `GOINGENV_PASSWORD`.
+   The environment name is upper-cased and hyphens become underscores, so
+   `prod-eu` and `prod_eu` both read `GOINGENV_PASSWORD_PROD_EU`.
+4. An interactive prompt.
+
+```bash
+printf '%s\n' "$PW" | goingenv unpack --password-stdin
+GOINGENV_PASSWORD=... goingenv pack
+GOINGENV_PASSWORD_PROD=... goingenv unpack --env prod
+```
+
+At an interactive prompt, `pack` asks for the password twice and refuses a
+mismatch, since a typo would produce an archive nobody can open. The other
+sources are taken as given.
+
+## Environments
+
+`--env NAME` keeps separate archive streams under one `.goingenv/` directory:
+
+```bash
+goingenv pack --env prod        # writes .goingenv/prod-<timestamp>.enc
+goingenv unpack --env prod      # picks the newest prod-*.enc
+goingenv list --all --env prod  # only the prod archives
+```
+
+Without `--env`, archives are `archive-<timestamp>.enc` and the newest of
+those is picked. A name is `[a-z0-9][a-z0-9_-]*`; `archive` is reserved.
+An archive named explicitly with `-o` keeps that name and is never chosen as
+"newest", so it does not take part in environment selection.
+
+## Reviewing changes
+
+An archive is an opaque blob in a pull request. Two tools make a change
+reviewable without exposing a value.
+
+### Manifest
+
+`pack --manifest` writes `<archive>.manifest.json` beside the archive:
+
+```json
+{
+  "created_at": "2026-09-19T12:00:00Z",
+  "description": "...",
+  "env": "prod",
+  "archive": "prod-20260919-120000.enc",
+  "files": [
+    {"path": ".env", "sha256": "...", "keys": ["DATABASE_URL", "STRIPE_KEY"]}
+  ]
+}
+```
+
+It is meant to be committed, so a diff of it shows that `STRIPE_KEY` was added
+to `.env` without showing what it was set to. It **publishes file paths and key
+names**; if those are themselves sensitive, leave it off. `manifest: true` in
+the config turns it on for every pack; `--no-manifest` turns it off for one.
+
+### diff
+
+`goingenv diff [FROM [TO]]` compares by key and never prints a value. The sides
+follow git: `FROM` defaults to the newest archive for `--env`, `TO` to the env
+files on disk.
+
+```bash
+goingenv diff                     # newest archive -> working tree: what would pack change?
+goingenv diff old.enc             # old.enc -> working tree
+goingenv diff old.enc new.enc     # old.enc -> new.enc
+goingenv diff --exit-code         # exit 1 when anything differs, for CI
+```
+
+Porcelain rows carry a kind tag first, like `status`:
+
+```
+file<TAB>path<TAB>added|removed
+key<TAB>path<TAB>KEY<TAB>added|removed|changed
+```
+
+A file present on one side only lists every key as added or removed; a file on
+both sides lists only the keys that differ. Both archives must open with the
+same password.
+
+## run
+
+`goingenv run [flags] -- COMMAND [ARGS...]` decrypts an archive in memory and
+runs the command with its variables set. Nothing is written to disk.
+
+```bash
+goingenv run -- npm start
+goingenv run --env prod -- ./deploy.sh --region eu
+goingenv run --file apps/api/.env --file .env.local -- go test ./...
+```
+
+- The root `.env` is loaded by default; `--file` names entries by their path
+  inside the archive and may be repeated, later files winning on a duplicate.
+- Archive values override variables already in the environment.
+- Flag parsing stops at `COMMAND`, so its own flags pass through.
+- The command's exit status becomes goingenv's; 127 means it was not found.
+- `--format` has no effect: stdout belongs to the command.
+
+### Env file syntax
+
+`run`, `diff` and the manifest parse env files with these rules and no
+variable expansion: blank lines and `#` comments are skipped; a leading
+`export ` is stripped; the key is everything before the first `=` and must
+match `^[A-Za-z_][A-Za-z0-9_]*$`, otherwise the line is ignored; double-quoted
+values may span lines and understand `\n \r \t \" \\`; single-quoted values
+are literal and may span lines; an unquoted value ends at ` #`.
 
 ## Output formats
 
@@ -58,12 +175,14 @@ goingenv status --format json | jq -r '.config.source'   # "project" or "user"
 goingenv status --format porcelain | awk -F'\t' '$1 == "env" { print $2 }'
 
 # Non-interactive password, for CI
-GOINGENV_PASSWORD=... goingenv pack --password-env GOINGENV_PASSWORD
-```
+GOINGENV_PASSWORD=... goingenv pack
 
-At an interactive prompt, `pack` asks for the password twice and refuses a
-mismatch, since a typo would produce an archive nobody can open. The
-`--password-env` path is taken as given.
+# Fail the job when the committed archive is behind the working tree
+goingenv diff --exit-code --format porcelain
+
+# Which keys does the newest prod archive define, without decrypting anything
+jq -r '.files[] | .path as $p | .keys[] | "\($p)\t\(.)"' .goingenv/prod-*.enc.manifest.json
+```
 
 ## Which files get picked up
 
@@ -107,7 +226,8 @@ what it cares about.
   "env_patterns": ["\\.env.*"],
   "env_exclude_patterns": ["\\.env\\.example$"],
   "exclude_patterns": ["node_modules/", "\\.git/"],
-  "max_file_size": 10485760
+  "max_file_size": 10485760,
+  "manifest": false
 }
 ```
 
@@ -116,6 +236,8 @@ what it cares about.
 - `env_exclude_patterns` -- filename regexes to drop again
 - `exclude_patterns` -- directory paths to skip entirely
 - `max_file_size` -- bytes; larger files are ignored
+- `manifest` -- write `<archive>.manifest.json` on every pack; `--manifest` and
+  `--no-manifest` override it for one run
 
 `goingenv status --verbose` prints the configuration actually in force,
 including which file it came from.

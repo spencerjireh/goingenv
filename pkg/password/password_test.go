@@ -1,6 +1,7 @@
 package password
 
 import (
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -255,5 +256,95 @@ func TestConfirmDoesNotApplyToEnv(t *testing.T) {
 	}
 	if got != "from-env" {
 		t.Errorf("got %q, want the env value", got)
+	}
+}
+
+// scriptStdin replaces standard input with fixed content and returns the
+// reader so a test can check what was left unread.
+func scriptStdin(t *testing.T, content string) *strings.Reader {
+	t.Helper()
+	saved := stdinReader
+	t.Cleanup(func() { stdinReader = saved })
+	r := strings.NewReader(content)
+	stdinReader = r
+	return r
+}
+
+func TestStdinWinsOverEnvAndNeverPrompts(t *testing.T) {
+	t.Setenv("TEST_STDIN_ENV", "from-env")
+	scriptSecrets(t) // any prompt would fail the test
+	scriptStdin(t, "from-stdin\n")
+
+	got, err := GetPassword(Options{Stdin: true, PasswordEnv: "TEST_STDIN_ENV", Confirm: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "from-stdin" {
+		t.Errorf("got %q, want the stdin value", got)
+	}
+}
+
+func TestStdinReadsOneLineOnly(t *testing.T) {
+	r := scriptStdin(t, "secret\r\nrest of input\n")
+
+	got, err := GetPassword(Options{Stdin: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "secret" {
+		t.Errorf("got %q, want secret without the CR", got)
+	}
+	rest, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(rest) != "rest of input\n" {
+		t.Errorf("remaining stdin = %q, want it untouched", rest)
+	}
+}
+
+func TestStdinWithoutNewline(t *testing.T) {
+	scriptStdin(t, "secret")
+	got, err := GetPassword(Options{Stdin: true})
+	if err != nil || got != "secret" {
+		t.Errorf("got %q, %v", got, err)
+	}
+}
+
+func TestStdinEmptyIsAnError(t *testing.T) {
+	scriptStdin(t, "\n")
+	scriptSecrets(t)
+	if _, err := GetPassword(Options{Stdin: true}); err == nil {
+		t.Fatal("expected an error for an empty stdin line")
+	}
+}
+
+func TestFallbackEnvsOrder(t *testing.T) {
+	scriptSecrets(t)
+	t.Setenv("TEST_FB_PROD", "prod-pw")
+	t.Setenv("TEST_FB_DEFAULT", "default-pw")
+
+	got, err := GetPassword(Options{FallbackEnvs: []string{"TEST_FB_UNSET", "TEST_FB_PROD", "TEST_FB_DEFAULT"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "prod-pw" {
+		t.Errorf("got %q, want the first set fallback", got)
+	}
+}
+
+func TestExplicitEnvUnsetIsAnErrorEvenWithFallbacks(t *testing.T) {
+	t.Setenv("TEST_FB_DEFAULT2", "default-pw")
+	_, err := GetPassword(Options{PasswordEnv: "TEST_EXPLICIT_UNSET", FallbackEnvs: []string{"TEST_FB_DEFAULT2"}})
+	if err == nil {
+		t.Fatal("an explicitly named but unset variable must be an error, not a fall-through")
+	}
+}
+
+func TestResolveNonInteractiveDoesNotPrompt(t *testing.T) {
+	scriptSecrets(t)
+	pw, ok, err := ResolveNonInteractive(Options{FallbackEnvs: []string{"TEST_RNI_UNSET"}})
+	if err != nil || ok || pw != "" {
+		t.Errorf("got (%q, %v, %v), want (\"\", false, nil)", pw, ok, err)
 	}
 }

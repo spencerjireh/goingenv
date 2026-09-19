@@ -378,7 +378,8 @@ func focusPackPassword(t *testing.T, m *Model) {
 	tab := packTab(t, m)
 	tab.step = PackStepReview
 
-	send(t, m, keyMsg("enter"))
+	// Review -> Options -> Password; the options step accepts its defaults.
+	send(t, m, keyMsg("enter"), keyMsg("enter"))
 
 	if tab.step != PackStepPassword {
 		t.Fatalf("the Pack tab is at step %d, want PackStepPassword", tab.step)

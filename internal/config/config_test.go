@@ -315,6 +315,11 @@ func TestManager_GetDefault(t *testing.T) {
 		t.Errorf("MaxFileSize = %d, want %d", config.MaxFileSize, DefaultMaxFileSize)
 	}
 
+	// The manifest publishes paths and key names, so it must be opt-in.
+	if config.Manifest {
+		t.Error("Manifest defaults to true; it must be opt-in")
+	}
+
 	if len(config.EnvPatterns) == 0 {
 		t.Error("EnvPatterns should not be empty")
 	}

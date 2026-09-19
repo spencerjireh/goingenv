@@ -2,6 +2,7 @@ package password
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"syscall"
@@ -9,15 +10,31 @@ import (
 	"golang.org/x/term"
 )
 
-// Options contains password input configuration
+// Options contains password input configuration.
+//
+// Sources are tried in this order: Stdin, PasswordEnv, FallbackEnvs, then the
+// interactive prompt. Stdin and PasswordEnv are explicit requests, so an empty
+// result there is an error rather than a fall-through; FallbackEnvs are
+// conventions, so an unset one is skipped silently.
 type Options struct {
-	PasswordEnv string // Environment variable name
+	PasswordEnv string // Environment variable name the caller asked for
+	// FallbackEnvs are tried in order when PasswordEnv is empty. The CLI
+	// passes GOINGENV_PASSWORD_<ENV> then GOINGENV_PASSWORD.
+	FallbackEnvs []string
+	// Stdin reads one line from standard input and never prompts. It wins
+	// over every other source. Only the first line is consumed, so a command
+	// that hands stdin to a child process leaves the rest intact.
+	Stdin bool
 	// Confirm asks for the password a second time at the interactive prompt
 	// and rejects a mismatch. Pack sets it: a typo there produces an archive
 	// nobody can open. It has no effect when the password comes from
 	// PasswordEnv, which is not typed.
 	Confirm bool
 }
+
+// stdinReader is what Stdin reads from. It is a variable so tests can supply
+// scripted input without a pipe.
+var stdinReader io.Reader = os.Stdin
 
 // readSecret reads one hidden line from the terminal. It is a variable so
 // tests can substitute scripted answers; the interactive path is otherwise
@@ -31,26 +48,83 @@ var readSecret = func() (string, error) {
 	return string(passwordBytes), nil
 }
 
-// GetPassword retrieves password using the specified options
-// Priority order: PasswordEnv -> Interactive prompt
-func GetPassword(opts Options) (string, error) {
-	var password string
-	var err error
+// ResolveNonInteractive tries every source that does not need a terminal:
+// stdin, then PasswordEnv, then FallbackEnvs. ok is false when none of them
+// supplied a password and nothing went wrong, so the caller can decide
+// whether to prompt.
+func ResolveNonInteractive(opts Options) (password string, ok bool, err error) {
+	if opts.Stdin {
+		password, err = readPasswordFromStdin(stdinReader)
+		if err != nil {
+			return "", false, fmt.Errorf("failed to read password from stdin: %w", err)
+		}
+		return password, true, nil
+	}
 
-	// Try environment variable first
 	if opts.PasswordEnv != "" {
 		password, err = readPasswordFromEnv(opts.PasswordEnv)
 		if err != nil {
-			return "", fmt.Errorf("failed to read password from environment: %w", err)
+			return "", false, fmt.Errorf("failed to read password from environment: %w", err)
 		}
-		if password != "" {
-			fmt.Fprintf(os.Stderr, "[!] Using the password in %s; environment variables are visible to other processes\n", opts.PasswordEnv)
-			return password, nil
+		warnEnv(opts.PasswordEnv)
+		return password, true, nil
+	}
+
+	for _, name := range opts.FallbackEnvs {
+		if value := os.Getenv(name); value != "" {
+			warnEnv(name)
+			return value, true, nil
 		}
+	}
+
+	return "", false, nil
+}
+
+// GetPassword retrieves password using the specified options
+// Priority order: Stdin -> PasswordEnv -> FallbackEnvs -> Interactive prompt
+func GetPassword(opts Options) (string, error) {
+	password, ok, err := ResolveNonInteractive(opts)
+	if err != nil {
+		return "", err
+	}
+	if ok {
+		return password, nil
 	}
 
 	// Fall back to interactive prompt
 	return readPasswordInteractively(opts.Confirm)
+}
+
+func warnEnv(name string) {
+	fmt.Fprintf(os.Stderr, "[!] Using the password in %s; environment variables are visible to other processes\n", name)
+}
+
+// readPasswordFromStdin reads up to the first newline. It reads one byte at
+// a time on purpose: a buffered reader would swallow input past the newline
+// that belongs to whatever the command runs next.
+func readPasswordFromStdin(r io.Reader) (string, error) {
+	var line []byte
+	buf := make([]byte, 1)
+	for {
+		n, err := r.Read(buf)
+		if n == 1 {
+			if buf[0] == '\n' {
+				break
+			}
+			line = append(line, buf[0])
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	password := strings.TrimSuffix(string(line), "\r")
+	if password == "" {
+		return "", fmt.Errorf("no password on stdin")
+	}
+	return password, nil
 }
 
 // readPasswordFromEnv reads password from environment variable

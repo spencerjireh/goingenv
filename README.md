@@ -55,8 +55,10 @@ goingenv init                # Create .goingenv/ in your project
 goingenv                     # Launch the terminal UI
 goingenv status              # See which files would be packed
 goingenv pack                # Encrypt them into .goingenv/archive-<timestamp>.enc
-goingenv unpack -f <archive> # Decrypt and restore
-goingenv list -f <archive>   # Inspect an archive without extracting
+goingenv unpack              # Decrypt the newest archive and restore its files
+goingenv list                # Inspect an archive without extracting
+goingenv diff                # Which keys changed since the last pack (values never shown)
+goingenv run -- npm start    # Run a command with the archive's variables, nothing on disk
 ```
 
 ```mermaid
@@ -73,6 +75,11 @@ flowchart LR
 
 The password is never stored. Share it through a channel that is not the repository.
 
+One shared password opens an archive: everyone on the team holds the same
+secret, and removing someone means re-packing under a new one. That is the
+trade for having no keys to manage; [SECURITY.md](SECURITY.md) spells out what
+it does and does not protect.
+
 ## Commands
 
 | Command | Description |
@@ -83,6 +90,8 @@ The password is never stored. Share it through a channel that is not the reposit
 | `goingenv pack` | Encrypt env files into an archive |
 | `goingenv unpack` | Decrypt an archive and restore files |
 | `goingenv list` | Show an archive's contents |
+| `goingenv diff` | Show which keys differ between archives, or an archive and the working tree |
+| `goingenv run -- CMD` | Run a command with an archive's variables in its environment |
 | `goingenv status` | Show detected files and existing archives |
 
 Every command takes `--format` -- `text` (default), `json`, `porcelain`, plus

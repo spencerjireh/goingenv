@@ -8,7 +8,7 @@ not, and how to check what you downloaded.
 
 This project was developed with AI assistance and has not undergone a formal
 security audit. The cryptography is Go's `crypto/aes` and `crypto/cipher` with
-`golang.org/x/crypto/pbkdf2`, composed by hand. Nobody qualified has reviewed
+`golang.org/x/crypto/argon2`, composed by hand. Nobody qualified has reviewed
 that composition. Assess it yourself before trusting it with anything you cannot
 afford to leak.
 
@@ -23,7 +23,9 @@ git history, including ones you have since replaced.
   they are written. GCM authenticates as well as encrypts, so tampering with an
   archive causes decryption to fail rather than yield altered plaintext.
 - **File names.** Paths live inside the encrypted tar, not in a plaintext
-  header. An archive reveals nothing about which files it holds.
+  header. An archive reveals nothing about which files it holds. The optional
+  manifest (`pack --manifest`) deliberately publishes paths and key names for
+  review; it is off by default for that reason.
 - **Integrity of the restored files.** SHA-256 is recorded per file before
   encryption and checked on extraction.
 
@@ -34,6 +36,12 @@ git history, including ones you have since replaced.
   with no rate limit. Password strength is the whole of your security.
 - **There is no key rotation.** Re-packing under a new password does not
   invalidate the old archive; it is still in the git history under the old one.
+- **One shared password.** Everyone who can decrypt an archive holds the same
+  secret, and it has to travel to each of them out of band. Removing a
+  teammate means re-packing under a new password and re-sharing it with
+  everyone else. Tools that wrap a per-archive key for each recipient's public
+  key avoid both problems; goingenv reserves a key-mode byte in its header so
+  that can be added later, but today it does not have it.
 - **Metadata leaks through git, not the archive.** The archive's existence, its
   size, and the commit timestamps around it are all visible.
 - **Passwords in memory.** They are zeroed after use, but Go can move a string
@@ -48,37 +56,64 @@ git history, including ones you have since replaced.
 | | |
 |---|---|
 | Cipher | AES-256-GCM |
-| Key derivation | PBKDF2-HMAC-SHA256, 100,000 iterations, fixed |
+| Key derivation | Argon2id, t=3, m=64 MiB, p=4 (RFC 9106 second recommended option) |
 | Key size | 32 bytes |
 | Salt | 32 bytes, random per archive |
 | Nonce | 12 bytes, random per archive |
-| Integrity | GCM tag over the archive; SHA-256 per file inside it |
+| Integrity | GCM tag over the archive and its header; SHA-256 per file inside it |
 | Randomness | `crypto/rand` |
 
-The iteration count is a compile-time constant. No flag, config key or
-environment variable changes it. 100,000 is at the low end for 2026, and PBKDF2
-is not memory-hard, so a well-funded attacker with a committed archive has a
-real advantage over one attacking an interactive login. Raising the count, or
-moving to scrypt or Argon2id, requires a format version bump -- see below for
-why.
+The Argon2id parameters are written into each archive's header and read back
+on decrypt, so a future release can raise them without a format bump. No flag,
+config key or environment variable changes the parameters a build writes.
+Argon2id is memory-hard, which narrows the gap between an attacker with a
+committed archive and one attacking an interactive login, but it does not
+close it: password strength still matters.
+
+Because the key must be derived before the GCM tag can be checked, a hostile
+header could ask for unbounded work. Decrypt therefore refuses parameters
+outside these caps before deriving anything: time 1..32, memory at most 1 GiB
+and at least 8 KiB per thread, threads 1..32. The caps are part of the format
+contract.
 
 ## Archive format
 
+Format v1, big-endian:
+
 ```
-salt (32 bytes) || nonce (12 bytes) || AES-256-GCM(tar)
+offset size field
+0      4    magic "GENV"
+4      1    format version (1)
+5      1    KDF id (1 = Argon2id)
+6      4    Argon2 time
+10     4    Argon2 memory in KiB
+14     1    Argon2 threads
+15     1    key mode (0 = password; reserved for per-recipient wrapping)
+16     32   salt
+48     12   GCM nonce
+60     ..   AES-256-GCM(tar) followed by the 16-byte tag
 ```
 
-One seal covers the entire tar; files are not encrypted individually. Inside the
-tar, the first entry is `metadata.json` -- archive version, creation time,
-description, and per-file path, size, modification time and SHA-256. The
-remaining entries are the files themselves at their paths relative to the
-project root. Nothing is compressed.
+Bytes 0..59 are the GCM additional data, so a change to the header, salt or
+nonce fails authentication rather than altering how the key is derived.
 
-There are no magic bytes and no plaintext version field. An archive is
-indistinguishable from random data, which is good, but it also means the format
-cannot be identified without the password: a reader has to assume the
-parameters above. That is why changing the KDF is a breaking change rather than
-a negotiated upgrade.
+One seal covers the entire tar; files are not encrypted individually. Inside
+the tar, the first entry is `metadata.json` -- metadata schema version,
+environment name, creation time, description, and per-file path, size,
+modification time and SHA-256. The remaining entries are the files themselves
+at their paths relative to the project root. Nothing is compressed.
+
+The header identifies an archive as goingenv's and states its parameters
+without the password. An archive is therefore not indistinguishable from random
+data; the format version and KDF id are what let the tool refuse something it
+cannot read with a specific message instead of a generic decryption failure.
+
+### Compatibility
+
+Archives written by goingenv 1.x have no header: they are
+`salt || nonce || ciphertext` with PBKDF2-HMAC-SHA256 at 100,000 iterations.
+Version 2.0.0 does not read them. Unpack them with goingenv v1.6.0, then
+re-pack with this version; the error message says so when it meets one.
 
 ## Verifying a download
 

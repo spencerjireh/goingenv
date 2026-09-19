@@ -29,7 +29,7 @@ func ContentHeight(totalHeight int) int {
 }
 
 // tabNames maps TabID to display names.
-var tabNames = [5]string{"Pack", "Unpack", "List", "Status", "Settings"}
+var tabNames = [tabCount]string{"Pack", "Unpack", "List", "Status", "Settings", "Diff"}
 
 // renderTabBar renders the tab bar with active tab indicator.
 func renderTabBar(active TabID, width int) string {
@@ -154,12 +154,18 @@ func renderScrollable(vp *viewport.Model, ready *bool, width, height int, footer
 	return vp.View() + "\n\n" + footer
 }
 
-// newPasswordInput builds the masked text input every password step uses.
-func newPasswordInput(placeholder string) textinput.Model {
+// newTextInput builds the plain text input the option fields use.
+func newTextInput(placeholder string) textinput.Model {
 	ti := textinput.New()
 	ti.Placeholder = placeholder
-	ti.EchoMode = textinput.EchoPassword
 	ti.CharLimit = 256
+	return ti
+}
+
+// newPasswordInput builds the masked text input every password step uses.
+func newPasswordInput(placeholder string) textinput.Model {
+	ti := newTextInput(placeholder)
+	ti.EchoMode = textinput.EchoPassword
 	return ti
 }
 

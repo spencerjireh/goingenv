@@ -58,8 +58,14 @@ ConfigManager.Load() → Config
 
 All major services are defined as interfaces enabling mock-based testing:
 - `Scanner` -- file detection via regex patterns with depth-limited `filepath.Walk`
-- `Archiver` -- tar-based pack/unpack, delegates encryption to Cryptor
-- `Cryptor` -- AES-256-GCM encrypt/decrypt (salt + nonce + ciphertext binary format)
+- `Archiver` -- tar-based pack/unpack/list, plus `ReadFiles` which decrypts
+  entirely in memory for `run` and `diff`; delegates encryption to Cryptor
+- `Cryptor` -- AES-256-GCM with Argon2id. Blob format v1 is a 16-byte header
+  (magic `GENV`, version, KDF id, Argon2 params, reserved key-mode byte) then
+  salt, nonce, ciphertext; the header is GCM additional data. Params are read
+  from the header on decrypt, so tests use `testutils.FastCrypto()` for small
+  ones. A headerless 1.x blob surfaces `types.ErrLegacyArchive`, which
+  `cli.describeDecryptError` passes through unchanged
 - `ConfigManager` -- loads from `.goingenv/config.json` or `~/.goingenv.json` (first wins), always saves to `~/.goingenv.json`, checks project initialization
 
 Mock implementations live in `pkg/types/mocks.go` (func-field based, not generated).
@@ -74,7 +80,8 @@ messages are routed to their owning tab rather than the active one, so a pack
 finishing while the user is on another tab still lands correctly.
 
 Each tab is its own file implementing the `Tab` interface: `tab_status.go`,
-`tab_pack.go`, `tab_unpack.go`, `tab_list.go`, `tab_settings.go`. The wizard
+`tab_pack.go`, `tab_unpack.go`, `tab_list.go`, `tab_settings.go`,
+`tab_diff.go`. The wizard
 tabs are per-step state machines, and each step's handling lives in its own
 method (`updateIdle`, `updateScanning`, `updateReview`, ...) rather than one
 large switch.
@@ -91,14 +98,37 @@ is one type shared by every command, so it carries its owner in a `Tab` field.
 
 ### Password Handling
 
-`pkg/password/` handles password acquisition with priority: env variable > interactive prompt. Passwords are cleared from memory via `ClearPassword()` (zeros bytes). CLI commands obtain passwords through `getPass(envVar, confirm)` in `cli/helpers.go`, which returns a cleanup function used with defer; `pack` passes `confirm: true` so the interactive prompt asks twice.
+`pkg/password/` resolves the password in this order: `--password-stdin` (first
+line only, byte-at-a-time so a child process sees the rest) > `--password-env`
+> `GOINGENV_PASSWORD_<ENV>` then `GOINGENV_PASSWORD` > interactive prompt.
+`ResolveNonInteractive` stops before the prompt, which `list --all --verbose`
+uses so stdin is read once. CLI commands go through `getPass(PassOpts, envName,
+confirm)` in `cli/passopts.go`, which returns a cleanup function used with
+defer; `pack` passes `confirm: true` so the interactive prompt asks twice.
+
+### Environments and archive selection
+
+`--env NAME` names archives `<env>-<timestamp>.enc`; unnamed ones are
+`archive-<timestamp>.enc`. `cli.pickArchive` selects the newest for an
+environment by matching the full default name shape (`archivesForEnv`), so a
+custom `-o` name never wins and `prod` never claims `prod-eu-*`.
+`config.ValidateEnvName` is shared by the CLI and the TUI; `archive` is
+reserved.
+
+### Review tools
+
+`internal/manifest` writes `<archive>.manifest.json` (paths, key names,
+sha256; never values) when `pack --manifest` or `manifest: true` asks for it.
+`internal/diff` compares two `map[relpath][]byte` sides by key and is shared by
+the `diff` command and the TUI Diff tab. Both use `pkg/envfile`, a small dotenv
+parser with no variable expansion.
 
 ### Configuration
 
 Three config locations:
 - **Project directory**: `.goingenv/` (created by `goingenv init`), contains `.gitignore` and encrypted archives
 - **Project-level config**: `.goingenv/config.json`, optional and committed. Written only by `goingenv init --project-config`. When present it wins.
-- **User-level config**: `~/.goingenv.json` stores scan patterns, exclusions, max depth, max file size
+- **User-level config**: `~/.goingenv.json` stores scan patterns, exclusions, max depth, max file size, manifest default
 
 `config.ResolveConfigPath()` picks the first that exists, project before user.
 Precedence is whole-file, not per-key -- the two are never merged -- so a repo
@@ -191,7 +221,9 @@ new human output via the existing `Output` methods and it lands on the right
 stream automatically.
 
 Errors are reported once, by `cli.ReportError`, in the requested format, always
-on stderr. Commands must not print their own errors. An unrecognised `--format`
+on stderr. Commands must not print their own errors. A command that needs a
+specific exit status returns `*cli.ExitError`; with a nil `Err` nothing is
+printed (`run` propagating a child's status, `diff --exit-code`). An unrecognised `--format`
 is rejected rather than falling back to text, since a silent fallback hands a
 script unparseable output with a zero exit code.
 

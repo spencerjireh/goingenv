@@ -9,7 +9,7 @@ import (
 )
 
 func TestService_EncryptDecrypt(t *testing.T) {
-	service := NewService()
+	service := newTestService()
 
 	tests := []struct {
 		name     string
@@ -76,7 +76,7 @@ func TestService_EncryptDecrypt(t *testing.T) {
 }
 
 func TestService_EncryptErrors(t *testing.T) {
-	service := NewService()
+	service := newTestService()
 
 	tests := []struct {
 		name     string
@@ -117,7 +117,7 @@ func TestService_EncryptErrors(t *testing.T) {
 }
 
 func TestService_DecryptErrors(t *testing.T) {
-	service := NewService()
+	service := newTestService()
 
 	tests := []struct {
 		name     string
@@ -133,7 +133,7 @@ func TestService_DecryptErrors(t *testing.T) {
 		},
 		{
 			name:     "Empty password",
-			data:     make([]byte, SaltSize+NonceSize+10),
+			data:     mustEncrypt([]byte("test"), "correct"),
 			password: "",
 			wantErr:  true,
 		},
@@ -170,7 +170,7 @@ func TestService_DecryptErrors(t *testing.T) {
 }
 
 func TestService_ValidatePassword(t *testing.T) {
-	service := NewService()
+	service := newTestService()
 	data := []byte("test data for password validation")
 	password := "correct password 123"
 
@@ -313,7 +313,7 @@ func TestPasswordStrength(t *testing.T) {
 }
 
 func TestService_EncryptionConsistency(t *testing.T) {
-	service := NewService()
+	service := newTestService()
 	data := []byte("consistency test data")
 	password := "consistent password"
 
@@ -349,7 +349,7 @@ func TestService_EncryptionConsistency(t *testing.T) {
 }
 
 func BenchmarkEncrypt(b *testing.B) {
-	service := NewService()
+	service := newTestService()
 	data := []byte("benchmark test data for encryption performance")
 	password := "benchmarkpassword123"
 
@@ -363,7 +363,7 @@ func BenchmarkEncrypt(b *testing.B) {
 }
 
 func BenchmarkDecrypt(b *testing.B) {
-	service := NewService()
+	service := newTestService()
 	data := []byte("benchmark test data for decryption performance")
 	password := "benchmarkpassword123"
 
@@ -381,9 +381,17 @@ func BenchmarkDecrypt(b *testing.B) {
 	}
 }
 
+// testParams keep the suite fast; Decrypt reads whatever the header says, so
+// they exercise exactly the same code path as the defaults.
+var testParams = Params{Time: 1, MemoryKiB: 8 * 1024, Threads: 1}
+
+func newTestService() *Service {
+	return NewServiceWithParams(testParams)
+}
+
 // Helper functions for tests
 func mustEncrypt(data []byte, password string) []byte {
-	service := NewService()
+	service := newTestService()
 	encrypted, err := service.Encrypt(data, password)
 	if err != nil {
 		panic(err)

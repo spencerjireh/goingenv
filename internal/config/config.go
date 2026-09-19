@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
+	"goingenv/internal/constants"
 	"goingenv/pkg/types"
 )
 
@@ -133,6 +135,7 @@ func (m *Manager) GetDefault() *types.Config {
 			`coverage/`,
 		},
 		MaxFileSize: DefaultMaxFileSize,
+		Manifest:    false,
 	}
 }
 
@@ -199,15 +202,54 @@ func ResolveConfigPath() string {
 	return homeConfigPath()
 }
 
+// UnnamedArchivePrefix names archives packed without an environment. It is
+// reserved: an environment cannot be called "archive" because its files would
+// be indistinguishable from unnamed ones.
+const UnnamedArchivePrefix = "archive"
+
+// envNameRe is the shape an environment name must have: it becomes a file
+// name prefix and an environment variable suffix, so it stays lowercase and
+// free of separators other than "-" and "_".
+var envNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+
+// ValidateEnvName reports whether name can be used with --env. The empty
+// string is valid and means "no environment".
+func ValidateEnvName(name string) error {
+	if name == "" {
+		return nil
+	}
+	if !envNameRe.MatchString(name) {
+		return fmt.Errorf("invalid environment name %q: use lowercase letters, digits, '-' and '_', starting with a letter or digit", name)
+	}
+	if name == UnnamedArchivePrefix {
+		return fmt.Errorf("%q is reserved for archives packed without an environment", name)
+	}
+	return nil
+}
+
+// ArchivePrefix is the file name prefix, including the trailing dash, that
+// archives for env carry. The empty env maps to the unnamed prefix.
+func ArchivePrefix(env string) string {
+	if env == "" {
+		return UnnamedArchivePrefix + "-"
+	}
+	return env + "-"
+}
+
+// GetArchivePath generates a timestamped archive path for env under the
+// goingenv directory.
+func GetArchivePath(env string) string {
+	return filepath.Join(GetGoingEnvDir(), ArchivePrefix(env)+getCurrentTimestamp()+".enc")
+}
+
 // GetDefaultArchivePath generates a default archive path with timestamp
 func GetDefaultArchivePath() string {
-	return filepath.Join(GetGoingEnvDir(), fmt.Sprintf("archive-%s.enc",
-		getCurrentTimestamp()))
+	return GetArchivePath("")
 }
 
 // getCurrentTimestamp returns current timestamp in format suitable for filenames
 func getCurrentTimestamp() string {
-	return time.Now().Format("20060102-150405")
+	return time.Now().Format(constants.TimestampFormat)
 }
 
 // IsInitialized checks if GoingEnv has been initialized in the current directory

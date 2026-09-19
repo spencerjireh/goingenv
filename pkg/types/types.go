@@ -1,9 +1,21 @@
 package types
 
 import (
+	"errors"
 	"time"
 
 	"goingenv/pkg/utils"
+)
+
+// Sentinel errors that callers distinguish with errors.Is. Both survive the
+// CryptoError and ArchiveError wrappers through their Unwrap methods.
+var (
+	// ErrLegacyArchive marks a blob written before format v1: it has no header,
+	// so this version cannot read it. The message names the remedy.
+	ErrLegacyArchive = errors.New("archive predates format v1: unpack it with goingenv v1.6.0, then re-pack it with this version")
+	// ErrDecryptFailed is the generic authentication failure. A wrong password
+	// and a corrupted file are indistinguishable by design.
+	ErrDecryptFailed = errors.New("wrong password, or the file is corrupted")
 )
 
 // EnvFile represents a detected environment file
@@ -22,6 +34,7 @@ type Archive struct {
 	TotalSize   int64     `json:"total_size"`
 	Description string    `json:"description"`
 	Version     string    `json:"version"`
+	Env         string    `json:"env,omitempty"`
 }
 
 // Config holds application configuration
@@ -31,6 +44,7 @@ type Config struct {
 	EnvExcludePatterns []string `json:"env_exclude_patterns"`
 	ExcludePatterns    []string `json:"exclude_patterns"`
 	MaxFileSize        int64    `json:"max_file_size"`
+	Manifest           bool     `json:"manifest"`
 }
 
 // App holds all the application dependencies
@@ -57,6 +71,7 @@ type PackOptions struct {
 	OutputPath  string
 	Password    string
 	Description string
+	Env         string // environment name recorded in the metadata; "" when unnamed
 }
 
 // UnpackOptions represents options for unpacking files.
@@ -104,6 +119,9 @@ type Archiver interface {
 	Pack(opts PackOptions) error
 	Unpack(opts UnpackOptions) (*UnpackResult, error)
 	List(archivePath, password string) (*Archive, error)
+	// ReadFiles decrypts an archive entirely in memory and returns its
+	// metadata plus every entry's content keyed by relative path.
+	ReadFiles(archivePath, password string) (*Archive, map[string][]byte, error)
 	GetAvailableArchives(dir string) ([]string, error)
 }
 
@@ -153,6 +171,8 @@ func (e *ScanError) Error() string {
 	return "scan error at " + e.Path + ": " + e.Err.Error()
 }
 
+func (e *ScanError) Unwrap() error { return e.Err }
+
 // ArchiveError represents an error during archive operations
 type ArchiveError struct {
 	Operation string
@@ -167,6 +187,8 @@ func (e *ArchiveError) Error() string {
 	return e.Operation + " error for " + e.Path + ": " + e.Err.Error()
 }
 
+func (e *ArchiveError) Unwrap() error { return e.Err }
+
 // CryptoError represents an error during cryptographic operations
 type CryptoError struct {
 	Operation string
@@ -176,6 +198,8 @@ type CryptoError struct {
 func (e *CryptoError) Error() string {
 	return "crypto " + e.Operation + " error: " + e.Err.Error()
 }
+
+func (e *CryptoError) Unwrap() error { return e.Err }
 
 // ValidationError represents a validation error
 type ValidationError struct {

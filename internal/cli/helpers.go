@@ -9,16 +9,16 @@ import (
 	"golang.org/x/term"
 
 	"goingenv/internal/config"
-	"goingenv/pkg/password"
 	"goingenv/pkg/types"
 	"goingenv/pkg/utils"
 )
 
 // UnpackOpts holds parsed unpack command flags
 type UnpackOpts struct {
+	PassOpts
 	Archive   string
 	Target    string
-	PassEnv   string
+	Env       string
 	Overwrite bool
 	Backup    bool
 	Verify    bool
@@ -30,9 +30,11 @@ type UnpackOpts struct {
 
 // PackOpts holds parsed pack command flags
 type PackOpts struct {
+	PassOpts
 	Dir        string
 	Output     string
-	PassEnv    string
+	Env        string
+	Manifest   bool
 	Depth      int
 	Include    []string
 	Exclude    []string
@@ -43,8 +45,9 @@ type PackOpts struct {
 
 // ListOpts holds parsed list command flags
 type ListOpts struct {
+	PassOpts
 	Archive   string
-	PassEnv   string
+	Env       string
 	All       bool
 	Verbose   bool
 	Sizes     bool
@@ -65,24 +68,6 @@ func initApp() (*types.App, error) {
 	return NewApp()
 }
 
-// getPass retrieves password with cleanup function. confirm asks for the
-// password a second time at an interactive prompt; it has no effect when the
-// password comes from envVar.
-func getPass(envVar string, confirm bool) (key string, cleanup func(), err error) {
-	opts := password.Options{PasswordEnv: envVar, Confirm: confirm}
-	if validateErr := password.ValidatePasswordOptions(opts); validateErr != nil {
-		return "", nil, fmt.Errorf("invalid password options: %w", validateErr)
-	}
-
-	key, err = password.GetPassword(opts)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to get password: %w", err)
-	}
-
-	cleanup = func() { password.ClearPassword(&key) }
-	return key, cleanup, nil
-}
-
 // confirm prompts user for y/N confirmation
 func confirm(prompt string) bool {
 	if !term.IsTerminal(syscall.Stdin) {
@@ -92,22 +77,6 @@ func confirm(prompt string) bool {
 	var response string
 	_, _ = fmt.Scanln(&response) //nolint:errcheck // user input may be empty
 	return response == "y" || response == "Y" || response == "yes"
-}
-
-// pickArchive selects archive file or returns most recent
-func pickArchive(app *types.App, specified string) (string, error) {
-	if specified != "" {
-		return specified, nil
-	}
-
-	archives, err := app.Archiver.GetAvailableArchives("")
-	if err != nil {
-		return "", fmt.Errorf("failed to find archives: %w", err)
-	}
-	if len(archives) == 0 {
-		return "", fmt.Errorf("no archives found in the %s directory: use the -f flag to specify one", config.GetGoingEnvDir())
-	}
-	return archives[len(archives)-1], nil
 }
 
 // parseUnpackOpts parses unpack command flags
@@ -124,8 +93,11 @@ func parseUnpackOpts(cmd *cobra.Command) (*UnpackOpts, error) {
 	if o.Target == "" {
 		o.Target = "."
 	}
-	if o.PassEnv, err = cmd.Flags().GetString("password-env"); err != nil {
-		return nil, fmt.Errorf("failed to get password-env flag: %w", err)
+	if o.PassOpts, err = parsePassOpts(cmd); err != nil {
+		return nil, err
+	}
+	if o.Env, err = parseEnvFlag(cmd); err != nil {
+		return nil, err
 	}
 	if o.Overwrite, err = cmd.Flags().GetBool("overwrite"); err != nil {
 		return nil, fmt.Errorf("failed to get overwrite flag: %w", err)
@@ -152,8 +124,9 @@ func parseUnpackOpts(cmd *cobra.Command) (*UnpackOpts, error) {
 	return o, nil
 }
 
-// parsePackOpts parses pack command flags
-func parsePackOpts(cmd *cobra.Command) (*PackOpts, error) {
+// parsePackOpts parses pack command flags. cfg supplies the manifest
+// default, which --manifest / --no-manifest override.
+func parsePackOpts(cmd *cobra.Command, cfg *types.Config) (*PackOpts, error) {
 	o := &PackOpts{}
 	var err error
 
@@ -163,16 +136,22 @@ func parsePackOpts(cmd *cobra.Command) (*PackOpts, error) {
 	if o.Dir == "" {
 		o.Dir = "."
 	}
+	if o.PassOpts, err = parsePassOpts(cmd); err != nil {
+		return nil, err
+	}
+	if o.Env, err = parseEnvFlag(cmd); err != nil {
+		return nil, err
+	}
 	if o.Output, err = cmd.Flags().GetString("output"); err != nil {
 		return nil, fmt.Errorf("failed to get output flag: %w", err)
 	}
 	if o.Output == "" {
-		o.Output = config.GetDefaultArchivePath()
+		o.Output = config.GetArchivePath(o.Env)
 	} else if !filepath.IsAbs(o.Output) {
 		o.Output = filepath.Join(config.GetGoingEnvDir(), o.Output)
 	}
-	if o.PassEnv, err = cmd.Flags().GetString("password-env"); err != nil {
-		return nil, fmt.Errorf("failed to get password-env flag: %w", err)
+	if o.Manifest, err = parseManifestFlags(cmd, cfg.Manifest); err != nil {
+		return nil, err
 	}
 	if o.Depth, err = cmd.Flags().GetInt("depth"); err != nil {
 		return nil, fmt.Errorf("failed to get depth flag: %w", err)
@@ -204,8 +183,11 @@ func parseListOpts(cmd *cobra.Command) (*ListOpts, error) {
 	if o.Archive, err = cmd.Flags().GetString("file"); err != nil {
 		return nil, fmt.Errorf("failed to get file flag: %w", err)
 	}
-	if o.PassEnv, err = cmd.Flags().GetString("password-env"); err != nil {
-		return nil, fmt.Errorf("failed to get password-env flag: %w", err)
+	if o.PassOpts, err = parsePassOpts(cmd); err != nil {
+		return nil, err
+	}
+	if o.Env, err = parseEnvFlag(cmd); err != nil {
+		return nil, err
 	}
 	if o.All, err = cmd.Flags().GetBool("all"); err != nil {
 		return nil, fmt.Errorf("failed to get all flag: %w", err)
@@ -239,6 +221,23 @@ func parseListOpts(cmd *cobra.Command) (*ListOpts, error) {
 	}
 
 	return o, nil
+}
+
+// parseManifestFlags resolves --manifest / --no-manifest over the config
+// default. Passing both is contradictory and rejected.
+func parseManifestFlags(cmd *cobra.Command, def bool) (bool, error) {
+	on := cmd.Flags().Changed("manifest")
+	off := cmd.Flags().Changed("no-manifest")
+	switch {
+	case on && off:
+		return false, fmt.Errorf("--manifest and --no-manifest cannot be combined")
+	case on:
+		return true, nil
+	case off:
+		return false, nil
+	default:
+		return def, nil
+	}
 }
 
 // buildScanOpts creates ScanOptions from PackOpts and config.

@@ -242,7 +242,7 @@ func TestNewRootCommand(t *testing.T) {
 	}
 
 	// Check that subcommands are registered
-	subcommands := []string{"init", "pack", "unpack", "list", "status"}
+	subcommands := []string{"init", "pack", "unpack", "list", "status", "diff", "run"}
 	for _, name := range subcommands {
 		found := false
 		for _, subcmd := range cmd.Commands() {
@@ -288,7 +288,7 @@ func TestNewPackCommand(t *testing.T) {
 	}
 
 	// Check for required flags
-	expectedFlags := []string{"password-env", "directory", "output", "depth", "include", "exclude", "env-exclude", "dry-run", "verbose"}
+	expectedFlags := []string{"password-env", "password-stdin", "env", "manifest", "no-manifest", "directory", "output", "depth", "include", "exclude", "env-exclude", "dry-run", "verbose"}
 	for _, flag := range expectedFlags {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("Pack command missing --%s flag", flag)
@@ -308,7 +308,7 @@ func TestNewUnpackCommand(t *testing.T) {
 	}
 
 	// Check for required flags
-	expectedFlags := []string{"password-env", "file", "target", "overwrite", "backup", "verify", "verbose", "dry-run", "include", "exclude"}
+	expectedFlags := []string{"password-env", "password-stdin", "env", "file", "target", "overwrite", "backup", "verify", "verbose", "dry-run", "include", "exclude"}
 	for _, flag := range expectedFlags {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("Unpack command missing --%s flag", flag)
@@ -331,7 +331,7 @@ func TestNewListCommand(t *testing.T) {
 	// persistent flag on the root command now, so that every command offers
 	// the same contract. Declaring it locally as well would shadow the
 	// persistent one.
-	expectedFlags := []string{"password-env", "file", "all", "verbose", "sizes", "dates", "checksums", "pattern", "sort", "reverse", "limit"}
+	expectedFlags := []string{"password-env", "password-stdin", "env", "file", "all", "verbose", "sizes", "dates", "checksums", "pattern", "sort", "reverse", "limit"}
 	for _, flag := range expectedFlags {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("List command missing --%s flag", flag)

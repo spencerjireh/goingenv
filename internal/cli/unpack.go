@@ -27,15 +27,18 @@ The unpack command:
 - Optionally backs up existing files before overwriting them
 
 Examples:
-  goingenv unpack                                         # Interactive password prompt
+  goingenv unpack                                         # Newest unnamed archive, prompt for password
+  goingenv unpack --env prod                             # Newest prod-<timestamp>.enc
   goingenv unpack --password-env MY_PASSWORD             # Read from environment variable
+  printf 'pw\n' | goingenv unpack --password-stdin       # Read from stdin, no prompt
   goingenv unpack -f backup-prod.enc --target /path/to/extract  # Specify archive and target
   goingenv unpack -f archive.enc --overwrite --backup    # Overwrite with backup`,
 		RunE: runUnpackCommand,
 	}
 
-	cmd.Flags().String("password-env", "", "Read the password from this environment variable")
-	cmd.Flags().StringP("file", "f", "", "Unpack this archive (default: most recent)")
+	addPasswordFlags(cmd)
+	addEnvFlag(cmd)
+	cmd.Flags().StringP("file", "f", "", "Unpack this archive (default: most recent for the environment)")
 	cmd.Flags().StringP("target", "t", "", "Target directory for extraction (default: current directory)")
 	cmd.Flags().Bool("overwrite", false, "Overwrite existing files without prompting")
 	cmd.Flags().Bool("backup", false, "Create backups of existing files before overwriting")
@@ -75,16 +78,15 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 	out.Header()
 	out.Blank()
 
-	key, cleanup, err := getPass(opts.PassEnv, false)
+	key, cleanup, err := getPass(opts.PassOpts, opts.Env, false)
 	if err != nil {
-		out.Error(fmt.Sprintf("Failed to get password: %v", err))
 		return err
 	}
 	defer cleanup()
 
 	archive, err := decryptArchive(out, app, archiveFile, key)
 	if err != nil {
-		return fmt.Errorf("failed to decrypt archive: wrong password, or the file is corrupted")
+		return describeDecryptError(err)
 	}
 
 	filesToExtract := filterArchiveFiles(archive.Files, opts.Include, opts.Exclude)
@@ -108,9 +110,8 @@ func runUnpackCommand(cmd *cobra.Command, args []string) error {
 
 // selectArchive selects the archive file to unpack
 func selectArchive(out *Output, app *types.App, opts *UnpackOpts) (string, error) {
-	archiveFile, err := pickArchive(app, opts.Archive)
+	archiveFile, err := pickArchive(app, opts.Archive, opts.Env)
 	if err != nil {
-		out.Error(err.Error())
 		return "", err
 	}
 
@@ -119,8 +120,7 @@ func selectArchive(out *Output, app *types.App, opts *UnpackOpts) (string, error
 	}
 
 	if _, statErr := os.Stat(archiveFile); os.IsNotExist(statErr) {
-		out.Error(fmt.Sprintf("Archive not found: %s", archiveFile))
-		return "", statErr
+		return "", fmt.Errorf("archive not found: %s", archiveFile)
 	}
 
 	return archiveFile, nil
@@ -131,12 +131,7 @@ func decryptArchive(out *Output, app *types.App, archiveFile, key string) (*type
 	out.Action(fmt.Sprintf("Unpacking %s...", filepath.Base(archiveFile)))
 	out.Blank()
 
-	archive, err := app.Archiver.List(archiveFile, key)
-	if err != nil {
-		out.Error("Failed to decrypt archive: wrong password, or the file is corrupted")
-		return nil, err
-	}
-	return archive, nil
+	return app.Archiver.List(archiveFile, key)
 }
 
 // handleConflicts checks for and handles file conflicts
@@ -181,8 +176,7 @@ func executeUnpack(out *Output, app *types.App, archiveFile string, files []type
 	duration := time.Since(start)
 
 	if err != nil {
-		out.Error(fmt.Sprintf("Failed to unpack files: %v", err))
-		return err
+		return fmt.Errorf("failed to unpack files: %w", err)
 	}
 
 	extracted := selectFiles(files, result.Extracted)

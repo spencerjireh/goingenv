@@ -12,6 +12,7 @@ type GlobalKeyMap struct {
 	Tab3    key.Binding
 	Tab4    key.Binding
 	Tab5    key.Binding
+	Tab6    key.Binding
 	Help    key.Binding
 }
 
@@ -25,6 +26,7 @@ var GlobalKeys = GlobalKeyMap{
 	Tab3:    key.NewBinding(key.WithKeys("3"), key.WithHelp("3", "List")),
 	Tab4:    key.NewBinding(key.WithKeys("4"), key.WithHelp("4", "Status")),
 	Tab5:    key.NewBinding(key.WithKeys("5"), key.WithHelp("5", "Settings")),
+	Tab6:    key.NewBinding(key.WithKeys("6"), key.WithHelp("6", "Diff")),
 	Help:    key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 }
 
@@ -74,4 +76,46 @@ var StatusKeys = StatusKeyMap{
 	Pack:   key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pack")),
 	Unpack: key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "unpack")),
 	Scroll: key.NewBinding(key.WithKeys("up", "down", "k", "j"), key.WithHelp("j/k", "scroll")),
+}
+
+// PackKeyMap defines keybindings for the Pack options step. Space is the
+// toggle because it is the one key an environment name can never contain,
+// so it stays free while the name field has focus.
+type PackKeyMap struct {
+	ToggleManifest key.Binding
+}
+
+// PackKeys is the keybinding set for the Pack options step.
+var PackKeys = PackKeyMap{
+	ToggleManifest: key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "manifest on/off")),
+}
+
+// DiffKeyMap defines the choice offered after the first archive is picked.
+type DiffKeyMap struct {
+	Archive     key.Binding
+	WorkingTree key.Binding
+}
+
+// DiffKeys is the keybinding set for the Diff target step.
+var DiffKeys = DiffKeyMap{
+	Archive:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "another archive")),
+	WorkingTree: key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "working tree")),
+}
+
+// FilterListKeyMap drives the Unpack archive list while its filter field
+// has focus: arrow keys only, so letters (including j and k) type into the
+// filter.
+type FilterListKeyMap struct {
+	Up     key.Binding
+	Down   key.Binding
+	Select key.Binding
+	Cancel key.Binding
+}
+
+// FilterListKeys is the keybinding set for the filtered archive list.
+var FilterListKeys = FilterListKeyMap{
+	Up:     key.NewBinding(key.WithKeys("up"), key.WithHelp("up", "up")),
+	Down:   key.NewBinding(key.WithKeys("down"), key.WithHelp("down", "down")),
+	Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
+	Cancel: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
 }
