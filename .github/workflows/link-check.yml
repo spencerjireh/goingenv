@@ -28,7 +28,7 @@ jobs:
     # lychee is pinned in mise.toml, so this runs the same version as
     # `make link-check` locally.
     - name: Set up tools
-      uses: jdx/mise-action@v4
+      uses: jdx/mise-action@v5
       with:
         cache: true
 
