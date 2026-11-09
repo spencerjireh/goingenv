@@ -88,7 +88,7 @@ jobs:
     # mise.toml is the single source of truth for tool versions, so the linter
     # here is byte-identical to the one `make lint` runs locally.
     - name: Set up toolchain
-      uses: jdx/mise-action@v4
+      uses: jdx/mise-action@v5
       with:
         cache: true
 
@@ -219,7 +219,7 @@ jobs:
     # Replaces `go install ...@latest` on every run: unpinned, non-reproducible,
     # and a couple of minutes of compilation each time.
     - name: Set up toolchain
-      uses: jdx/mise-action@v4
+      uses: jdx/mise-action@v5
       with:
         cache: true
 

@@ -43,7 +43,7 @@ jobs:
     # goreleaser and syft (which the sboms block shells out to) are both pinned
     # in mise.toml, so `make release-local` and this job run the same versions.
     - name: Set up toolchain
-      uses: jdx/mise-action@v4
+      uses: jdx/mise-action@v5
       with:
         cache: true
 
